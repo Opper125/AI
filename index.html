@@ -3,100 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Website Builder - Unlimited Coding Assistant</title>
+    <title>AI Website Builder Pro - Create Unlimited Websites</title>
     <link rel="stylesheet" href="styles.css">
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/themes/prism-tomorrow.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.24.1/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
     <div class="app-container">
         <!-- Header -->
         <header class="header">
             <div class="header-content">
-                <h1>🚀 AI Website Builder</h1>
+                <div class="brand">
+                    <div class="brand-icon">🚀</div>
+                    <div class="brand-text">
+                        <h1>AI Website Builder Pro</h1>
+                        <span>Unlimited Professional Websites</span>
+                    </div>
+                </div>
                 <div class="header-controls">
-                    <button id="newChatBtn" class="btn btn-primary">+ New Chat</button>
-                    <button id="deployBtn" class="btn btn-success">Deploy Website</button>
-                    <div class="api-status">
-                        <span id="apiStatus">API Ready</span>
-                        <div class="api-key-display">
-                            <small>API Key: <span id="currentApiKey">Loading...</span></small>
+                    <button id="newProjectBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New Project
+                    </button>
+                    <div class="api-status-card">
+                        <div class="status-indicator active"></div>
+                        <div class="status-text">
+                            <span>AI Engine Ready</span>
+                            <small id="currentApiKey">Loading...</small>
                         </div>
                     </div>
                 </div>
             </div>
         </header>
 
-        <!-- Main Content -->
-        <div class="main-content">
+        <!-- Main Layout -->
+        <div class="main-layout">
             <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="chat-history">
-                    <h3>Chat History</h3>
-                    <div id="chatList" class="chat-list">
-                        <!-- Chat items will be populated here -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-history"></i> Project History</h3>
+                    <div id="projectList" class="project-list">
+                        <!-- Projects will be populated here -->
                     </div>
                 </div>
-                
-                <div class="file-manager">
-                    <h3>File Manager</h3>
-                    <div class="upload-area" id="uploadArea">
+
+                <div class="sidebar-section">
+                    <h3><i class="fas fa-cloud-upload-alt"></i> File Manager</h3>
+                    <div class="upload-zone" id="uploadZone">
                         <input type="file" id="fileInput" multiple accept="*/*">
-                        <p>Drag & drop files here or click to upload</p>
-                        <p><small>Support: Images, Videos, Code files, Documents</small></p>
+                        <div class="upload-content">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>Drop files here or <span>browse</span></p>
+                            <small>Images, Videos, Documents, Code</small>
+                        </div>
                     </div>
                     <div id="uploadedFiles" class="uploaded-files">
-                        <!-- Uploaded files will be shown here -->
+                        <!-- Uploaded files will appear here -->
                     </div>
                 </div>
-            </div>
+            </aside>
 
-            <!-- Chat Area -->
-            <div class="chat-container">
-                <div id="chatMessages" class="chat-messages">
-                    <div class="welcome-message">
-                        <h2>🎯 Welcome to AI Website Builder</h2>
-                        <p>I can help you create any website you want! Just describe what you need:</p>
-                        <ul>
-                            <li>📱 Responsive websites with HTML, CSS, JavaScript</li>
-                            <li>🎨 Custom designs from images or descriptions</li>
-                            <li>🔗 Database integration with Supabase</li>
-                            <li>🚀 Instant preview and deployment</li>
-                            <li>📁 Multi-file projects with unlimited complexity</li>
-                        </ul>
-                        <p><strong>Start by describing your website or uploading a design image!</strong></p>
+            <!-- Main Content -->
+            <main class="main-content">
+                <!-- AI Chat Interface -->
+                <div class="chat-container">
+                    <div class="chat-header">
+                        <div class="chat-title">
+                            <h2 id="chatTitle">AI Assistant</h2>
+                            <span id="chatStatus">Ready to create amazing websites</span>
+                        </div>
+                        <div class="chat-actions">
+                            <button id="clearChatBtn" class="btn btn-ghost">
+                                <i class="fas fa-broom"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="chatMessages" class="chat-messages">
+                        <div class="welcome-message">
+                            <div class="welcome-avatar">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <div class="welcome-content">
+                                <h3>👋 Hello! I'm your AI Website Builder</h3>
+                                <p>I can create professional websites from scratch! Here's what I can do:</p>
+                                <div class="feature-grid">
+                                    <div class="feature-item">
+                                        <i class="fas fa-magic"></i>
+                                        <span>Build complete websites from descriptions</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-image"></i>
+                                        <span>Convert designs from images</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-database"></i>
+                                        <span>Add database functionality</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-mobile-alt"></i>
+                                        <span>Responsive & mobile-friendly</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-rocket"></i>
+                                        <span>Deploy instantly</span>
+                                    </div>
+                                    <div class="feature-item">
+                                        <i class="fas fa-edit"></i>
+                                        <span>Unlimited modifications</span>
+                                    </div>
+                                </div>
+                                <p><strong>Tell me what website you want to create, or upload a design image!</strong></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar for Generation -->
+                    <div id="generationProgress" class="generation-progress hidden">
+                        <div class="progress-header">
+                            <h4><i class="fas fa-cog fa-spin"></i> Creating Your Website</h4>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <div class="progress-steps">
+                            <div id="progressSteps"></div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-area">
+                        <div class="input-container">
+                            <textarea 
+                                id="chatInput" 
+                                placeholder="Describe your website idea, upload design images, or ask me to modify existing code..."
+                                rows="1"
+                            ></textarea>
+                            <div class="input-actions">
+                                <button id="attachBtn" class="btn btn-ghost" title="Attach Files">
+                                    <i class="fas fa-paperclip"></i>
+                                </button>
+                                <button id="sendBtn" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
+            </main>
 
-                <div class="chat-input-container">
-                    <div class="input-wrapper">
-                        <textarea id="chatInput" placeholder="Describe your website, upload files, or ask me to modify existing code..."></textarea>
-                        <button id="sendBtn" class="send-btn">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                <path d="M2 12L22 2L18 12L22 22L2 12Z" stroke="currentColor" stroke-width="2"/>
-                            </svg>
+            <!-- Code Panel -->
+            <aside class="code-panel" id="codePanel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <h3><i class="fas fa-code"></i> Generated Code</h3>
+                        <span id="fileCount">0 files</span>
+                    </div>
+                    <div class="panel-actions">
+                        <button id="previewBtn" class="btn btn-secondary">
+                            <i class="fas fa-eye"></i> Preview
+                        </button>
+                        <button id="downloadAllBtn" class="btn btn-secondary">
+                            <i class="fas fa-download"></i> Download
+                        </button>
+                        <button id="deployBtn" class="btn btn-success">
+                            <i class="fas fa-rocket"></i> Deploy
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <!-- Code Preview Panel -->
-            <div class="preview-panel" id="previewPanel">
-                <div class="preview-header">
-                    <h3>Generated Code & Preview</h3>
-                    <div class="preview-controls">
-                        <button id="downloadAllBtn" class="btn btn-secondary">📥 Download All</button>
-                        <button id="previewBtn" class="btn btn-primary">👁️ Preview</button>
-                        <button id="fullDeployBtn" class="btn btn-success">🚀 Deploy Public</button>
+                <div class="panel-content">
+                    <div id="codeFiles" class="code-files">
+                        <div class="empty-state">
+                            <i class="fas fa-code"></i>
+                            <p>Generated code files will appear here</p>
+                        </div>
                     </div>
                 </div>
-                <div class="preview-content">
-                    <div class="code-files" id="codeFiles">
-                        <!-- Generated files will appear here -->
+            </aside>
+        </div>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal">
+            <div class="modal-content preview-modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-eye"></i> Website Preview</h3>
+                    <button class="close-btn" id="closePreview">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="preview-toolbar">
+                        <div class="device-selector">
+                            <button class="device-btn active" data-device="desktop">
+                                <i class="fas fa-desktop"></i>
+                            </button>
+                            <button class="device-btn" data-device="tablet">
+                                <i class="fas fa-tablet-alt"></i>
+                            </button>
+                            <button class="device-btn" data-device="mobile">
+                                <i class="fas fa-mobile-alt"></i>
+                            </button>
+                        </div>
+                        <div class="preview-url">
+                            <span>Preview Mode</span>
+                        </div>
                     </div>
-                    <div class="preview-frame-container" id="previewContainer" style="display: none;">
+                    <div class="preview-container">
                         <iframe id="previewFrame" src="" frameborder="0"></iframe>
                     </div>
                 </div>
@@ -106,23 +222,87 @@
         <!-- Deploy Modal -->
         <div id="deployModal" class="modal">
             <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>🚀 Deploy Your Website</h2>
-                <div class="deploy-form">
-                    <label for="domainName">Choose your domain:</label>
-                    <div class="domain-input">
-                        <input type="text" id="domainName" placeholder="myawesome-site">
-                        <span>.opper.app</span>
-                    </div>
-                    <div class="deploy-options">
-                        <label>
-                            <input type="checkbox" id="connectDatabase"> Connect to database
-                        </label>
-                    </div>
-                    <button id="confirmDeployBtn" class="btn btn-success">Deploy Now</button>
+                <div class="modal-header">
+                    <h3><i class="fas fa-rocket"></i> Deploy Your Website</h3>
+                    <button class="close-btn" id="closeDeploy">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
-                <div id="deployResult" class="deploy-result">
-                    <!-- Deploy results will show here -->
+                <div class="modal-body">
+                    <div class="deploy-form">
+                        <div class="form-group">
+                            <label for="websiteName">Website Name</label>
+                            <input type="text" id="websiteName" placeholder="My Awesome Website">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="domainName">Choose Domain</label>
+                            <div class="domain-input-group">
+                                <input type="text" id="domainName" placeholder="mysite">
+                                <span class="domain-suffix">.opper.app</span>
+                            </div>
+                            <small>Your website will be available at: <span id="fullDomainPreview">mysite.opper.app</span></small>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="connectDatabase">
+                                <span class="checkmark"></span>
+                                Connect to database
+                            </label>
+                        </div>
+
+                        <div class="deployment-options">
+                            <div class="option-card">
+                                <h4>🚀 New Deployment</h4>
+                                <p>Deploy your website for the first time</p>
+                            </div>
+                            <div class="option-card" id="redeployOption" style="display: none;">
+                                <h4>🔄 Redeploy</h4>
+                                <p>Update your existing website</p>
+                            </div>
+                        </div>
+
+                        <button id="confirmDeployBtn" class="btn btn-success btn-large">
+                            <i class="fas fa-rocket"></i> Deploy Website
+                        </button>
+                    </div>
+
+                    <div id="deployResult" class="deploy-result hidden">
+                        <!-- Deploy results will show here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Deployment Status Modal -->
+        <div id="deployStatusModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-rocket"></i> Deployment Status</h3>
+                </div>
+                <div class="modal-body">
+                    <div class="deploy-progress">
+                        <div class="deploy-step active" id="step1">
+                            <i class="fas fa-check"></i>
+                            <span>Preparing files</span>
+                        </div>
+                        <div class="deploy-step" id="step2">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Building website</span>
+                        </div>
+                        <div class="deploy-step" id="step3">
+                            <i class="fas fa-clock"></i>
+                            <span>Deploying to server</span>
+                        </div>
+                        <div class="deploy-step" id="step4">
+                            <i class="fas fa-clock"></i>
+                            <span>Setting up domain</span>
+                        </div>
+                    </div>
+                    <div id="deployLogs" class="deploy-logs">
+                        <!-- Deployment logs will appear here -->
+                    </div>
                 </div>
             </div>
         </div>
