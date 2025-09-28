@@ -83,60 +83,68 @@ class AIWebsiteBuilder {
 
     async init() {
         try {
-            await this.initializeDatabase();
+            console.log('Initializing AI Website Builder...');
             await this.generateOrRetrieveApiKey();
             this.setupEventListeners();
             await this.loadProjects();
             this.showWelcomeMessage();
             this.setupAutoResize();
+            console.log('AI Website Builder initialized successfully!');
         } catch (error) {
             console.error('Initialization error:', error);
             this.showError('Failed to initialize the application. Please refresh the page.');
         }
     }
 
-    async initializeDatabase() {
-        // Database initialization is handled by SQL schema
-        console.log('Database connection established');
-    }
-
     async generateOrRetrieveApiKey() {
         try {
-            const domain = window.location.hostname;
+            const domain = window.location.hostname || 'localhost';
+            console.log('Getting API key for domain:', domain);
             
-            // Try to get existing API key
-            const { data: existingKey, error } = await supabase
-                .from('api_keys')
-                .select('*')
-                .eq('domain', domain)
-                .eq('is_active', true)
-                .single();
+            // Use the database function to get or create API key
+            const { data, error } = await supabase
+                .rpc('get_or_create_api_key', {
+                    domain_name: domain
+                });
 
-            if (existingKey) {
-                currentApiKey = existingKey.key;
-            } else {
-                // Generate new API key
-                currentApiKey = this.generateUniqueApiKey();
-                
-                const { error: insertError } = await supabase
-                    .from('api_keys')
-                    .insert([{
-                        key: currentApiKey,
-                        domain: domain,
-                        is_active: true
-                    }]);
-
-                if (insertError) throw insertError;
+            if (error) {
+                console.error('API Key RPC error:', error);
+                throw error;
             }
 
-            // Update API key usage
+            currentApiKey = data;
+            
+            // Update display
+            if (currentApiKeyDisplay) {
+                currentApiKeyDisplay.textContent = currentApiKey.substring(0, 20) + '...';
+            }
+            
+            // Update usage
             await this.updateApiKeyUsage();
-            currentApiKeyDisplay.textContent = currentApiKey.substring(0, 20) + '...';
+            
+            console.log('API Key initialized:', currentApiKey);
             
         } catch (error) {
             console.error('API Key generation error:', error);
+            // Fallback to local generation
             currentApiKey = this.generateUniqueApiKey();
-            currentApiKeyDisplay.textContent = 'Generated locally';
+            if (currentApiKeyDisplay) {
+                currentApiKeyDisplay.textContent = 'Generated locally';
+            }
+            
+            // Try to save the locally generated key
+            try {
+                await supabase
+                    .from('api_keys')
+                    .insert([{
+                        key: currentApiKey,
+                        domain: window.location.hostname || 'localhost',
+                        is_active: true
+                    }]);
+                console.log('Local API key saved to database');
+            } catch (saveError) {
+                console.error('Failed to save local API key:', saveError);
+            }
         }
     }
 
@@ -151,13 +159,16 @@ class AIWebsiteBuilder {
 
     async updateApiKeyUsage() {
         try {
-            await supabase
-                .from('api_keys')
-                .update({ 
-                    usage_count: supabase.sql`usage_count + 1`,
-                    last_used_at: new Date().toISOString()
-                })
-                .eq('key', currentApiKey);
+            if (!currentApiKey) return;
+            
+            const { error } = await supabase
+                .rpc('update_api_key_usage', {
+                    api_key_text: currentApiKey
+                });
+
+            if (error) {
+                console.error('Usage update error:', error);
+            }
         } catch (error) {
             console.error('Usage update error:', error);
         }
@@ -165,42 +176,79 @@ class AIWebsiteBuilder {
 
     setupEventListeners() {
         // Chat functionality
-        sendBtn.addEventListener('click', () => this.sendMessage());
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                this.sendMessage();
-            }
-        });
+        if (sendBtn) {
+            sendBtn.addEventListener('click', () => this.sendMessage());
+        }
+        
+        if (chatInput) {
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    this.sendMessage();
+                }
+            });
+        }
 
         // File upload
-        attachBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => this.handleFileUpload(e.target.files));
+        if (attachBtn && fileInput) {
+            attachBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => this.handleFileUpload(e.target.files));
+        }
         
         // Drag and drop
-        uploadZone.addEventListener('click', () => fileInput.click());
-        uploadZone.addEventListener('dragover', this.handleDragOver.bind(this));
-        uploadZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
-        uploadZone.addEventListener('drop', this.handleDrop.bind(this));
+        if (uploadZone) {
+            uploadZone.addEventListener('click', () => fileInput?.click());
+            uploadZone.addEventListener('dragover', this.handleDragOver.bind(this));
+            uploadZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
+            uploadZone.addEventListener('drop', this.handleDrop.bind(this));
+        }
 
         // Project management
-        newProjectBtn.addEventListener('click', () => this.createNewProject());
+        if (newProjectBtn) {
+            newProjectBtn.addEventListener('click', () => this.createNewProject());
+        }
 
         // Code panel actions
-        document.getElementById('previewBtn').addEventListener('click', () => this.previewWebsite());
-        document.getElementById('downloadAllBtn').addEventListener('click', () => this.downloadAllFiles());
-        document.getElementById('deployBtn').addEventListener('click', () => this.showDeployModal());
+        const previewBtn = document.getElementById('previewBtn');
+        const downloadAllBtn = document.getElementById('downloadAllBtn');
+        const deployBtn = document.getElementById('deployBtn');
+        
+        if (previewBtn) {
+            previewBtn.addEventListener('click', () => this.previewWebsite());
+        }
+        if (downloadAllBtn) {
+            downloadAllBtn.addEventListener('click', () => this.downloadAllFiles());
+        }
+        if (deployBtn) {
+            deployBtn.addEventListener('click', () => this.showDeployModal());
+        }
 
         // Modal controls
-        document.getElementById('closePreview').addEventListener('click', () => this.closeModal('previewModal'));
-        document.getElementById('closeDeploy').addEventListener('click', () => this.closeModal('deployModal'));
-        document.getElementById('confirmDeployBtn').addEventListener('click', () => this.deployWebsite());
+        const closePreview = document.getElementById('closePreview');
+        const closeDeploy = document.getElementById('closeDeploy');
+        const confirmDeployBtn = document.getElementById('confirmDeployBtn');
+        
+        if (closePreview) {
+            closePreview.addEventListener('click', () => this.closeModal('previewModal'));
+        }
+        if (closeDeploy) {
+            closeDeploy.addEventListener('click', () => this.closeModal('deployModal'));
+        }
+        if (confirmDeployBtn) {
+            confirmDeployBtn.addEventListener('click', () => this.deployWebsite());
+        }
 
         // Domain name preview
-        document.getElementById('domainName').addEventListener('input', this.updateDomainPreview.bind(this));
+        const domainNameInput = document.getElementById('domainName');
+        if (domainNameInput) {
+            domainNameInput.addEventListener('input', this.updateDomainPreview.bind(this));
+        }
 
         // Clear chat
-        document.getElementById('clearChatBtn').addEventListener('click', () => this.clearChat());
+        const clearChatBtn = document.getElementById('clearChatBtn');
+        if (clearChatBtn) {
+            clearChatBtn.addEventListener('click', () => this.clearChat());
+        }
 
         // Device selector for preview
         document.querySelectorAll('.device-btn').forEach(btn => {
@@ -209,10 +257,12 @@ class AIWebsiteBuilder {
     }
 
     setupAutoResize() {
-        chatInput.addEventListener('input', () => {
-            chatInput.style.height = 'auto';
-            chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
-        });
+        if (chatInput) {
+            chatInput.addEventListener('input', () => {
+                chatInput.style.height = 'auto';
+                chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+            });
+        }
     }
 
     showWelcomeMessage() {
@@ -222,37 +272,39 @@ class AIWebsiteBuilder {
 
     async createNewProject() {
         try {
+            console.log('Creating new project...');
+            
+            // First ensure we have an API key
+            if (!currentApiKey) {
+                await this.generateOrRetrieveApiKey();
+            }
+
             const projectName = `Project ${new Date().toLocaleDateString()}`;
             
-            const { data: project, error: projectError } = await supabase
-                .from('projects')
-                .insert([{
-                    name: projectName,
-                    description: 'New AI-generated website project',
-                    api_key_id: (await this.getApiKeyId()),
-                    status: 'draft'
-                }])
-                .select()
-                .single();
+            console.log('Using API key:', currentApiKey);
+            
+            // Use the database function to create project and chat
+            const { data, error } = await supabase
+                .rpc('create_project_with_chat', {
+                    project_name: projectName,
+                    project_description: 'New AI-generated website project',
+                    api_key_text: currentApiKey
+                });
 
-            if (projectError) throw projectError;
+            if (error) {
+                console.error('Database RPC error:', error);
+                throw error;
+            }
 
-            const { data: chat, error: chatError } = await supabase
-                .from('chats')
-                .insert([{
-                    title: `${projectName} - Chat`,
-                    project_id: project.id,
-                    api_key_id: (await this.getApiKeyId()),
-                    context: {},
-                    is_active: true
-                }])
-                .select()
-                .single();
+            if (!data || data.length === 0) {
+                throw new Error('No data returned from database function');
+            }
 
-            if (chatError) throw chatError;
-
-            currentProjectId = project.id;
-            currentChatId = chat.id;
+            const result = data[0];
+            currentProjectId = result.project_id;
+            currentChatId = result.chat_id;
+            
+            console.log('Project created successfully:', result);
             
             this.clearChatMessages();
             this.showWelcomeMessage();
@@ -262,45 +314,49 @@ class AIWebsiteBuilder {
             
         } catch (error) {
             console.error('Error creating new project:', error);
-            this.showError('Failed to create new project. Please try again.');
-        }
-    }
-
-    async getApiKeyId() {
-        try {
-            const { data, error } = await supabase
-                .from('api_keys')
-                .select('id')
-                .eq('key', currentApiKey)
-                .single();
-            
-            return data?.id || null;
-        } catch (error) {
-            return null;
+            this.showError(`Failed to create new project: ${error.message || 'Unknown error'}`);
         }
     }
 
     async loadProjects() {
         try {
+            if (!currentApiKey) {
+                await this.generateOrRetrieveApiKey();
+            }
+
+            console.log('Loading projects for API key:', currentApiKey);
+
             const { data: projects, error } = await supabase
                 .from('projects')
                 .select(`
-                    *,
+                    id,
+                    name,
+                    description,
+                    status,
+                    created_at,
                     chats (id, title, created_at)
                 `)
-                .eq('api_key_id', (await this.getApiKeyId()))
+                .eq('api_key', currentApiKey)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (error) {
+                console.error('Projects loading error:', error);
+                throw error;
+            }
 
-            this.renderProjects(projects);
+            console.log('Projects loaded:', projects);
+            this.renderProjects(projects || []);
             
         } catch (error) {
             console.error('Error loading projects:', error);
+            // Create empty state if no projects
+            this.renderProjects([]);
         }
     }
 
     renderProjects(projects) {
+        if (!projectList) return;
+        
         projectList.innerHTML = '';
         
         if (!projects || projects.length === 0) {
@@ -331,15 +387,17 @@ class AIWebsiteBuilder {
             currentProjectId = project.id;
             
             // Get the latest chat for this project
-            const { data: chat, error } = await supabase
+            const { data: chats, error } = await supabase
                 .from('chats')
                 .select('*')
                 .eq('project_id', project.id)
                 .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
+                .limit(1);
 
-            if (chat) {
+            if (error) throw error;
+
+            if (chats && chats.length > 0) {
+                const chat = chats[0];
                 currentChatId = chat.id;
                 await this.loadChatMessages();
                 await this.loadGeneratedFiles();
@@ -349,15 +407,25 @@ class AIWebsiteBuilder {
             document.querySelectorAll('.project-item').forEach(item => {
                 item.classList.remove('active');
             });
-            event.target.closest('.project-item').classList.add('active');
+            
+            // Find the clicked project item and make it active
+            const projectItems = document.querySelectorAll('.project-item');
+            projectItems.forEach(item => {
+                if (item.querySelector('h4').textContent === project.name) {
+                    item.classList.add('active');
+                }
+            });
             
         } catch (error) {
             console.error('Error loading project:', error);
+            this.showError('Failed to load project');
         }
     }
 
     async loadChatMessages() {
         try {
+            if (!currentChatId) return;
+
             const { data: messages, error } = await supabase
                 .from('messages')
                 .select('*')
@@ -383,6 +451,8 @@ class AIWebsiteBuilder {
 
     async loadGeneratedFiles() {
         try {
+            if (!currentChatId) return;
+
             const { data: files, error } = await supabase
                 .from('generated_files')
                 .select('*')
@@ -408,6 +478,8 @@ class AIWebsiteBuilder {
     }
 
     clearChatMessages() {
+        if (!chatMessages) return;
+        
         const welcomeMessage = chatMessages.querySelector('.welcome-message');
         chatMessages.innerHTML = '';
         if (welcomeMessage) {
@@ -424,7 +496,7 @@ class AIWebsiteBuilder {
     }
 
     async sendMessage() {
-        const message = chatInput.value.trim();
+        const message = chatInput?.value?.trim();
         
         if (!message && uploadedFiles.length === 0) {
             this.showError('Please enter a message or upload files.');
@@ -440,8 +512,10 @@ class AIWebsiteBuilder {
         
         // Add user message
         this.addMessage('user', messageText);
-        chatInput.value = '';
-        chatInput.style.height = 'auto';
+        if (chatInput) {
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+        }
 
         // Save user message
         await this.saveMessage('user', messageText);
@@ -454,7 +528,9 @@ class AIWebsiteBuilder {
             const aiResponse = await this.processWithAI(messageText, uploadedFiles);
             
             // Remove typing indicator
-            typingMessage.remove();
+            if (typingMessage) {
+                typingMessage.remove();
+            }
             
             // Add AI response
             this.addMessage('ai', aiResponse.text);
@@ -474,13 +550,17 @@ class AIWebsiteBuilder {
             this.updateUploadedFilesDisplay();
 
         } catch (error) {
-            typingMessage.remove();
+            if (typingMessage) {
+                typingMessage.remove();
+            }
             this.addMessage('ai', 'I apologize, but I encountered an error. Please try again or rephrase your request.');
             console.error('AI processing error:', error);
         }
     }
 
     showTypingIndicator() {
+        if (!chatMessages) return null;
+        
         const typingDiv = document.createElement('div');
         typingDiv.className = 'message ai typing-indicator';
         typingDiv.innerHTML = `
@@ -653,31 +733,41 @@ class AIWebsiteBuilder {
     }
 
     showGenerationProgress() {
-        generationProgress.classList.remove('hidden');
-        this.scrollToBottom();
+        if (generationProgress) {
+            generationProgress.classList.remove('hidden');
+            this.scrollToBottom();
+        }
     }
 
     hideGenerationProgress() {
-        generationProgress.classList.add('hidden');
+        if (generationProgress) {
+            generationProgress.classList.add('hidden');
+        }
     }
 
     updateProgress(percentage, step) {
-        progressFill.style.width = `${percentage}%`;
-        progressPercent.textContent = `${Math.round(percentage)}%`;
+        if (progressFill) {
+            progressFill.style.width = `${percentage}%`;
+        }
+        if (progressPercent) {
+            progressPercent.textContent = `${Math.round(percentage)}%`;
+        }
         
-        progressSteps.innerHTML = `
-            <div class="progress-step active">
-                <i class="fas fa-cog fa-spin"></i>
-                <span>${step}</span>
-            </div>
-        `;
+        if (progressSteps) {
+            progressSteps.innerHTML = `
+                <div class="progress-step active">
+                    <i class="fas fa-cog fa-spin"></i>
+                    <span>${step}</span>
+                </div>
+            `;
+        }
     }
 
     async saveMessage(sender, content) {
         if (!currentChatId) return;
 
         try {
-            await supabase
+            const { error } = await supabase
                 .from('messages')
                 .insert([{
                     chat_id: currentChatId,
@@ -688,6 +778,10 @@ class AIWebsiteBuilder {
                         timestamp: new Date().toISOString()
                     }
                 }]);
+
+            if (error) {
+                console.error('Error saving message:', error);
+            }
         } catch (error) {
             console.error('Error saving message:', error);
         }
@@ -712,14 +806,20 @@ class AIWebsiteBuilder {
                 }
             }));
 
+            // Delete existing files for this chat
             await supabase
                 .from('generated_files')
                 .delete()
                 .eq('chat_id', currentChatId);
 
-            await supabase
+            // Insert new files
+            const { error } = await supabase
                 .from('generated_files')
                 .insert(filesToSave);
+
+            if (error) {
+                console.error('Error saving generated files:', error);
+            }
 
         } catch (error) {
             console.error('Error saving generated files:', error);
@@ -727,6 +827,8 @@ class AIWebsiteBuilder {
     }
 
     addMessage(sender, content, save = true) {
+        if (!chatMessages) return null;
+        
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}`;
         
@@ -757,23 +859,31 @@ class AIWebsiteBuilder {
     }
 
     scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
     }
 
     // File Upload Handlers
     handleDragOver(e) {
         e.preventDefault();
-        uploadZone.classList.add('dragover');
+        if (uploadZone) {
+            uploadZone.classList.add('dragover');
+        }
     }
 
     handleDragLeave(e) {
         e.preventDefault();
-        uploadZone.classList.remove('dragover');
+        if (uploadZone) {
+            uploadZone.classList.remove('dragover');
+        }
     }
 
     handleDrop(e) {
         e.preventDefault();
-        uploadZone.classList.remove('dragover');
+        if (uploadZone) {
+            uploadZone.classList.remove('dragover');
+        }
         this.handleFileUpload(e.dataTransfer.files);
     }
 
@@ -833,6 +943,8 @@ class AIWebsiteBuilder {
     }
 
     updateUploadedFilesDisplay() {
+        if (!uploadedFilesContainer) return;
+        
         uploadedFilesContainer.innerHTML = '';
         
         if (uploadedFiles.length === 0) {
@@ -868,6 +980,8 @@ class AIWebsiteBuilder {
     }
 
     getFileIcon(mimeType) {
+        if (!mimeType) return 'fas fa-file';
+        
         if (mimeType.startsWith('image/')) return 'fas fa-image';
         if (mimeType.startsWith('video/')) return 'fas fa-video';
         if (mimeType.startsWith('audio/')) return 'fas fa-music';
@@ -888,6 +1002,8 @@ class AIWebsiteBuilder {
     }
 
     updateCodeFilesDisplay() {
+        if (!codeFiles) return;
+        
         if (generatedFiles.length === 0) {
             codeFiles.innerHTML = `
                 <div class="empty-state">
@@ -895,11 +1011,16 @@ class AIWebsiteBuilder {
                     <p>Generated code files will appear here</p>
                 </div>
             `;
-            fileCount.textContent = '0 files';
+            if (fileCount) {
+                fileCount.textContent = '0 files';
+            }
             return;
         }
 
-        fileCount.textContent = `${generatedFiles.length} files`;
+        if (fileCount) {
+            fileCount.textContent = `${generatedFiles.length} files`;
+        }
+        
         codeFiles.innerHTML = '';
 
         generatedFiles.forEach((file, index) => {
@@ -934,7 +1055,9 @@ class AIWebsiteBuilder {
         });
 
         // Show code panel if hidden
-        codePanel.style.display = 'flex';
+        if (codePanel) {
+            codePanel.style.display = 'flex';
+        }
     }
 
     getLanguageIcon(type) {
@@ -960,6 +1083,8 @@ class AIWebsiteBuilder {
     }
 
     copyCode(index) {
+        if (!generatedFiles[index]) return;
+        
         const file = generatedFiles[index];
         navigator.clipboard.writeText(file.content).then(() => {
             this.showNotification(`Code for ${file.name} copied to clipboard!`, 'success');
@@ -969,6 +1094,8 @@ class AIWebsiteBuilder {
     }
 
     downloadFile(index) {
+        if (!generatedFiles[index]) return;
+        
         const file = generatedFiles[index];
         const blob = new Blob([file.content], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
@@ -987,8 +1114,8 @@ class AIWebsiteBuilder {
             return;
         }
 
-        generatedFiles.forEach(file => {
-            setTimeout(() => this.downloadFile(generatedFiles.indexOf(file)), 100 * generatedFiles.indexOf(file));
+        generatedFiles.forEach((file, index) => {
+            setTimeout(() => this.downloadFile(index), 100 * index);
         });
 
         this.showNotification('Downloading all files...', 'success');
@@ -1033,15 +1160,22 @@ class AIWebsiteBuilder {
         const blob = new Blob([htmlContent], { type: 'text/html' });
         const url = URL.createObjectURL(blob);
 
-        previewFrame.src = url;
+        if (previewFrame) {
+            previewFrame.src = url;
+        }
         this.showModal('previewModal');
     }
 
     changePreviewDevice(device) {
         document.querySelectorAll('.device-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelector(`[data-device="${device}"]`).classList.add('active');
+        const activeBtn = document.querySelector(`[data-device="${device}"]`);
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+        }
 
         const frame = previewFrame;
+        if (!frame) return;
+        
         switch (device) {
             case 'mobile':
                 frame.style.width = '375px';
@@ -1066,22 +1200,36 @@ class AIWebsiteBuilder {
 
         // Check if this is a redeploy
         if (currentDeployment) {
-            document.getElementById('redeployOption').style.display = 'block';
-            document.getElementById('domainName').value = currentDeployment.subdomain;
+            const redeployOption = document.getElementById('redeployOption');
+            if (redeployOption) {
+                redeployOption.style.display = 'block';
+            }
+            const domainNameInput = document.getElementById('domainName');
+            if (domainNameInput && currentDeployment.subdomain) {
+                domainNameInput.value = currentDeployment.subdomain;
+            }
         }
 
         this.showModal('deployModal');
     }
 
     updateDomainPreview() {
-        const domain = document.getElementById('domainName').value;
-        document.getElementById('fullDomainPreview').textContent = `${domain}.opper.app`;
+        const domainInput = document.getElementById('domainName');
+        const preview = document.getElementById('fullDomainPreview');
+        if (domainInput && preview) {
+            const domain = domainInput.value;
+            preview.textContent = `${domain}.opper.app`;
+        }
     }
 
     async deployWebsite() {
-        const websiteName = document.getElementById('websiteName').value.trim();
-        const domainName = document.getElementById('domainName').value.trim();
-        const connectDatabase = document.getElementById('connectDatabase').checked;
+        const websiteNameInput = document.getElementById('websiteName');
+        const domainNameInput = document.getElementById('domainName');
+        const connectDatabaseInput = document.getElementById('connectDatabase');
+        
+        const websiteName = websiteNameInput?.value?.trim() || 'My Website';
+        const domainName = domainNameInput?.value?.trim();
+        const connectDatabase = connectDatabaseInput?.checked || false;
 
         if (!domainName) {
             this.showError('Please enter a domain name');
@@ -1126,44 +1274,56 @@ class AIWebsiteBuilder {
         ];
 
         const deployLogs = document.getElementById('deployLogs');
-        deployLogs.innerHTML = '';
+        if (deployLogs) {
+            deployLogs.innerHTML = '';
+        }
 
         for (let i = 0; i < steps.length; i++) {
             const step = steps[i];
             const stepElement = document.getElementById(step.id);
             
-            // Update step status
-            stepElement.classList.add('active');
-            stepElement.querySelector('i').className = 'fas fa-spinner fa-spin';
+            if (stepElement) {
+                // Update step status
+                stepElement.classList.add('active');
+                const icon = stepElement.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-spinner fa-spin';
+                }
+            }
             
             // Add log
             this.addDeployLog(`${step.text}...`);
             
             await new Promise(resolve => setTimeout(resolve, step.duration));
             
-            // Complete step
-            stepElement.classList.remove('active');
-            stepElement.classList.add('completed');
-            stepElement.querySelector('i').className = 'fas fa-check';
+            if (stepElement) {
+                // Complete step
+                stepElement.classList.remove('active');
+                stepElement.classList.add('completed');
+                const icon = stepElement.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-check';
+                }
+            }
             
             this.addDeployLog(`✓ ${step.text} completed`);
         }
 
         // Save deployment to database
-        const deploymentData = {
-            chat_id: currentChatId,
-            project_id: currentProjectId,
-            domain_name: websiteName || 'My Website',
-            subdomain: domainName,
-            deployed_url: `https://${domainName}.opper.app`,
-            files: generatedFiles,
-            status: 'deployed',
-            connect_database: connectDatabase,
-            deployment_type: currentDeployment ? 'redeploy' : 'new',
-            parent_deployment_id: currentDeployment?.id || null
-        };
-
         try {
+            const deploymentData = {
+                chat_id: currentChatId,
+                project_id: currentProjectId,
+                domain_name: websiteName,
+                subdomain: domainName,
+                deployed_url: `https://${domainName}.opper.app`,
+                files: generatedFiles,
+                status: 'deployed',
+                connect_database: connectDatabase,
+                deployment_type: currentDeployment ? 'redeploy' : 'new',
+                parent_deployment_id: currentDeployment?.id || null
+            };
+
             const { data: deployment, error } = await supabase
                 .from('deployments')
                 .insert([deploymentData])
@@ -1194,6 +1354,8 @@ class AIWebsiteBuilder {
 
     addDeployLog(message) {
         const deployLogs = document.getElementById('deployLogs');
+        if (!deployLogs) return;
+        
         const logEntry = document.createElement('div');
         logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
         deployLogs.appendChild(logEntry);
@@ -1203,14 +1365,18 @@ class AIWebsiteBuilder {
     // Modal functionality
     showModal(modalId) {
         const modal = document.getElementById(modalId);
-        modal.classList.add('show');
-        modal.style.display = 'flex';
+        if (modal) {
+            modal.classList.add('show');
+            modal.style.display = 'flex';
+        }
     }
 
     closeModal(modalId) {
         const modal = document.getElementById(modalId);
-        modal.classList.remove('show');
-        modal.style.display = 'none';
+        if (modal) {
+            modal.classList.remove('show');
+            modal.style.display = 'none';
+        }
     }
 
     // Notification system
@@ -1242,9 +1408,12 @@ class AIWebsiteBuilder {
 
         document.body.appendChild(notification);
 
-        notification.querySelector('.notification-close').addEventListener('click', () => {
-            notification.remove();
-        });
+        const closeBtn = notification.querySelector('.notification-close');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                notification.remove();
+            });
+        }
 
         setTimeout(() => {
             if (notification.parentNode) {
@@ -1290,6 +1459,7 @@ class AIWebsiteBuilder {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{PROJECT_NAME} - Premium E-commerce Store</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <header class="header">
@@ -1320,7 +1490,7 @@ class AIWebsiteBuilder {
                 <button class="cta-button">Shop Now</button>
             </div>
             <div class="hero-image">
-                <img src="https://via.placeholder.com/600x400/667eea/ffffff?text=Hero+Product" alt="Hero Product">
+                <img src="https://via.placeholder.com/600x400/{RANDOM_COLOR}/ffffff?text=Hero+Product" alt="Hero Product">
             </div>
         </section>
 
@@ -1526,7 +1696,7 @@ body {
     align-items: center;
     min-height: 100vh;
     padding: 120px 2rem 2rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, {RANDOM_COLOR} 0%, #764ba2 100%);
     color: white;
 }
 
@@ -1787,22 +1957,30 @@ class EcommerceStore {
         });
 
         // Search functionality
-        document.querySelector('.search-btn').addEventListener('click', () => {
-            this.showSearchModal();
-        });
+        const searchBtn = document.querySelector('.search-btn');
+        if (searchBtn) {
+            searchBtn.addEventListener('click', () => {
+                this.showSearchModal();
+            });
+        }
 
         // Cart button
-        document.querySelector('.cart-btn').addEventListener('click', () => {
-            this.showCartModal();
-        });
+        const cartBtn = document.querySelector('.cart-btn');
+        if (cartBtn) {
+            cartBtn.addEventListener('click', () => {
+                this.showCartModal();
+            });
+        }
     }
 
     addToCart(productCard) {
+        if (!productCard) return;
+        
         const product = {
             id: Date.now(),
-            name: productCard.querySelector('h3').textContent,
-            price: productCard.querySelector('.price').textContent,
-            image: productCard.querySelector('img').src
+            name: productCard.querySelector('h3')?.textContent || 'Product',
+            price: productCard.querySelector('.price')?.textContent || '$0',
+            image: productCard.querySelector('img')?.src || ''
         };
 
         this.cart.push(product);
@@ -1812,7 +1990,9 @@ class EcommerceStore {
 
     updateCartDisplay() {
         const cartCount = document.querySelector('.cart-count');
-        cartCount.textContent = this.cart.length;
+        if (cartCount) {
+            cartCount.textContent = this.cart.length;
+        }
     }
 
     showNotification(message, type) {
@@ -1834,7 +2014,9 @@ class EcommerceStore {
         document.body.appendChild(notification);
         
         setTimeout(() => {
-            notification.remove();
+            if (notification.parentNode) {
+                notification.remove();
+            }
         }, 3000);
     }
 
@@ -1861,7 +2043,7 @@ document.addEventListener('DOMContentLoaded', () => {
     new EcommerceStore();
 });
 
-// Add some CSS animations
+// Add CSS animations
 const style = document.createElement('style');
 style.textContent = \`
     @keyframes slideIn {
@@ -1886,6 +2068,7 @@ document.head.appendChild(style);`
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{PROJECT_NAME} - Creative Portfolio</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
     <nav class="navbar">
@@ -1910,7 +2093,7 @@ document.head.appendChild(style);`
             </div>
         </div>
         <div class="hero-image">
-            <img src="https://via.placeholder.com/500x500/667eea/ffffff?text=Profile" alt="Profile">
+            <img src="https://via.placeholder.com/500x500/{RANDOM_COLOR}/ffffff?text=Profile" alt="Profile">
         </div>
     </section>
 
@@ -2072,706 +2255,17 @@ document.head.appendChild(style);`
     <script src="script.js"></script>
 </body>
 </html>`
-            },
-            {
-                name: 'styles.css',
-                type: 'css',
-                content: `* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-    line-height: 1.6;
-    color: #333;
-    overflow-x: hidden;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 20px;
-}
-
-/* Navigation */
-.navbar {
-    position: fixed;
-    top: 0;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    padding: 1rem 2rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 1000;
-    box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-}
-
-.nav-brand {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: {RANDOM_COLOR};
-}
-
-.nav-menu {
-    display: flex;
-    list-style: none;
-    gap: 2rem;
-}
-
-.nav-menu a {
-    text-decoration: none;
-    color: #333;
-    font-weight: 500;
-    transition: color 0.3s ease;
-}
-
-.nav-menu a:hover {
-    color: {RANDOM_COLOR};
-}
-
-.nav-toggle {
-    display: none;
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-}
-
-/* Hero Section */
-.hero {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    padding: 0 2rem;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-}
-
-.hero-content {
-    flex: 1;
-    max-width: 600px;
-}
-
-.hero-content h1 {
-    font-size: 4rem;
-    font-weight: 700;
-    margin-bottom: 1rem;
-    line-height: 1.2;
-}
-
-.hero-content p {
-    font-size: 1.3rem;
-    margin-bottom: 2rem;
-    opacity: 0.9;
-}
-
-.hero-buttons {
-    display: flex;
-    gap: 1rem;
-}
-
-.btn-primary, .btn-secondary {
-    padding: 1rem 2rem;
-    border-radius: 50px;
-    text-decoration: none;
-    font-weight: 600;
-    transition: all 0.3s ease;
-}
-
-.btn-primary {
-    background: white;
-    color: {RANDOM_COLOR};
-}
-
-.btn-secondary {
-    background: transparent;
-    color: white;
-    border: 2px solid white;
-}
-
-.btn-primary:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-}
-
-.btn-secondary:hover {
-    background: white;
-    color: {RANDOM_COLOR};
-}
-
-.hero-image {
-    flex: 1;
-    text-align: center;
-}
-
-.hero-image img {
-    max-width: 100%;
-    border-radius: 50%;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-}
-
-/* About Section */
-.about {
-    padding: 5rem 0;
-    background: #f8f9fa;
-}
-
-.about h2 {
-    text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 3rem;
-}
-
-.about-content {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 3rem;
-    align-items: center;
-}
-
-.about-text p {
-    font-size: 1.1rem;
-    margin-bottom: 2rem;
-    color: #666;
-}
-
-.skills {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.skill {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.skill-bar {
-    height: 8px;
-    background: #e0e0e0;
-    border-radius: 4px;
-    overflow: hidden;
-}
-
-.skill-progress {
-    height: 100%;
-    background: linear-gradient(90deg, {RANDOM_COLOR}, #764ba2);
-    transition: width 2s ease;
-}
-
-.about-stats {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-}
-
-.stat {
-    text-align: center;
-    padding: 2rem;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-}
-
-.stat h3 {
-    font-size: 2.5rem;
-    color: {RANDOM_COLOR};
-    margin-bottom: 0.5rem;
-}
-
-/* Portfolio Section */
-.portfolio {
-    padding: 5rem 0;
-    background: white;
-}
-
-.portfolio h2 {
-    text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 3rem;
-}
-
-.portfolio-filters {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-bottom: 3rem;
-}
-
-.filter-btn {
-    padding: 0.8rem 1.5rem;
-    border: none;
-    background: #f0f0f0;
-    border-radius: 25px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.filter-btn.active,
-.filter-btn:hover {
-    background: {RANDOM_COLOR};
-    color: white;
-}
-
-.portfolio-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 2rem;
-}
-
-.portfolio-item {
-    position: relative;
-    border-radius: 15px;
-    overflow: hidden;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
-}
-
-.portfolio-item:hover {
-    transform: translateY(-10px);
-}
-
-.portfolio-item img {
-    width: 100%;
-    height: 250px;
-    object-fit: cover;
-}
-
-.portfolio-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(102, 126, 234, 0.9);
-    color: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.portfolio-item:hover .portfolio-overlay {
-    opacity: 1;
-}
-
-.portfolio-overlay h3 {
-    font-size: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.view-project {
-    background: white;
-    color: {RANDOM_COLOR};
-    border: none;
-    padding: 0.8rem 1.5rem;
-    border-radius: 25px;
-    cursor: pointer;
-    font-weight: 600;
-    margin-top: 1rem;
-}
-
-/* Services Section */
-.services {
-    padding: 5rem 0;
-    background: #f8f9fa;
-}
-
-.services h2 {
-    text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 3rem;
-}
-
-.services-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 2rem;
-}
-
-.service-card {
-    background: white;
-    padding: 3rem 2rem;
-    border-radius: 15px;
-    text-align: center;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    transition: transform 0.3s ease;
-}
-
-.service-card:hover {
-    transform: translateY(-5px);
-}
-
-.service-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.service-card h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: {RANDOM_COLOR};
-}
-
-.service-card p {
-    color: #666;
-    line-height: 1.6;
-}
-
-/* Contact Section */
-.contact {
-    padding: 5rem 0;
-    background: white;
-}
-
-.contact h2 {
-    text-align: center;
-    font-size: 2.5rem;
-    margin-bottom: 3rem;
-}
-
-.contact-content {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 3rem;
-}
-
-.contact-info h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: {RANDOM_COLOR};
-}
-
-.contact-info p {
-    margin-bottom: 2rem;
-    color: #666;
-}
-
-.contact-item {
-    margin-bottom: 1rem;
-    color: #666;
-}
-
-.social-links {
-    display: flex;
-    gap: 1rem;
-    margin-top: 2rem;
-}
-
-.social-links a {
-    width: 50px;
-    height: 50px;
-    background: {RANDOM_COLOR};
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    text-decoration: none;
-    transition: transform 0.3s ease;
-}
-
-.social-links a:hover {
-    transform: translateY(-3px);
-}
-
-.contact-form {
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-.form-group input,
-.form-group textarea {
-    width: 100%;
-    padding: 1rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 10px;
-    font-family: inherit;
-    transition: border-color 0.3s ease;
-}
-
-.form-group input:focus,
-.form-group textarea:focus {
-    outline: none;
-    border-color: {RANDOM_COLOR};
-}
-
-.contact-form .btn-primary {
-    align-self: flex-start;
-    background: {RANDOM_COLOR};
-    color: white;
-    border: none;
-    cursor: pointer;
-}
-
-/* Footer */
-.footer {
-    background: #1a1a1a;
-    color: white;
-    padding: 2rem 0;
-    text-align: center;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-    .nav-menu {
-        display: none;
-    }
-    
-    .nav-toggle {
-        display: block;
-    }
-    
-    .hero {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .hero-content h1 {
-        font-size: 2.5rem;
-    }
-    
-    .hero-buttons {
-        justify-content: center;
-    }
-    
-    .about-content {
-        grid-template-columns: 1fr;
-    }
-    
-    .contact-content {
-        grid-template-columns: 1fr;
-    }
-    
-    .portfolio-grid {
-        grid-template-columns: 1fr;
-    }
-}`
-            },
-            {
-                name: 'script.js',
-                type: 'javascript',
-                content: `// Portfolio functionality
-class Portfolio {
-    constructor() {
-        this.init();
-    }
-
-    init() {
-        this.setupSmoothScroll();
-        this.setupPortfolioFilter();
-        this.setupContactForm();
-        this.setupNavigation();
-        this.animateSkills();
-    }
-
-    setupSmoothScroll() {
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            });
-        });
-    }
-
-    setupPortfolioFilter() {
-        const filterBtns = document.querySelectorAll('.filter-btn');
-        const portfolioItems = document.querySelectorAll('.portfolio-item');
-
-        filterBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                // Remove active class from all buttons
-                filterBtns.forEach(b => b.classList.remove('active'));
-                // Add active class to clicked button
-                btn.classList.add('active');
-
-                const filter = btn.getAttribute('data-filter');
-
-                portfolioItems.forEach(item => {
-                    if (filter === 'all' || item.getAttribute('data-category') === filter) {
-                        item.style.display = 'block';
-                        item.style.animation = 'fadeIn 0.5s ease';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-            });
-        });
-    }
-
-    setupContactForm() {
-        const form = document.querySelector('.contact-form');
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData(form);
-            const name = form.querySelector('input[type="text"]').value;
-            const email = form.querySelector('input[type="email"]').value;
-            const message = form.querySelector('textarea').value;
-
-            if (!name || !email || !message) {
-                this.showNotification('Please fill in all fields', 'error');
-                return;
-            }
-
-            // Simulate form submission
-            this.showNotification('Thank you! Your message has been sent.', 'success');
-            form.reset();
-        });
-    }
-
-    setupNavigation() {
-        const navToggle = document.querySelector('.nav-toggle');
-        const navMenu = document.querySelector('.nav-menu');
-
-        navToggle.addEventListener('click', () => {
-            navMenu.classList.toggle('active');
-        });
-
-        // Close menu when clicking on a link
-        document.querySelectorAll('.nav-menu a').forEach(link => {
-            link.addEventListener('click', () => {
-                navMenu.classList.remove('active');
-            });
-        });
-    }
-
-    animateSkills() {
-        const skillBars = document.querySelectorAll('.skill-progress');
-        
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const progressBar = entry.target;
-                    const width = progressBar.style.width;
-                    progressBar.style.width = '0%';
-                    setTimeout(() => {
-                        progressBar.style.width = width;
-                    }, 200);
-                }
-            });
-        });
-
-        skillBars.forEach(bar => observer.observe(bar));
-    }
-
-    showNotification(message, type) {
-        const notification = document.createElement('div');
-        notification.style.cssText = \`
-            position: fixed;
-            top: 100px;
-            right: 20px;
-            background: \${type === 'success' ? '#10b981' : '#ef4444'};
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 2000;
-            animation: slideIn 0.3s ease;
-        \`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
-    }
-}
-
-// Initialize portfolio
-document.addEventListener('DOMContentLoaded', () => {
-    new Portfolio();
-});
-
-// Add CSS for animations
-const style = document.createElement('style');
-style.textContent = \`
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(20px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    
-    @media (max-width: 768px) {
-        .nav-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            width: 100%;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            flex-direction: column;
-            padding: 1rem;
-            transform: translateY(-10px);
-            opacity: 0;
-            visibility: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .nav-menu.active {
-            transform: translateY(0);
-            opacity: 1;
-            visibility: visible;
-            display: flex;
-        }
-    }
-\`;
-document.head.appendChild(style);`
             }
         ];
     }
 
-    // Continue with other templates...
-    getBusinessTemplate() {
-        // Similar structure for business template
-        return [
-            // Business template files...
-        ];
-    }
-
-    getBlogTemplate() {
-        // Blog template files...
-        return [];
-    }
-
-    getLandingTemplate() {
-        // Landing page template files...
-        return [];
-    }
-
-    getDashboardTemplate() {
-        // Dashboard template files...
-        return [];
-    }
-
-    getRestaurantTemplate() {
-        // Restaurant template files...
-        return [];
-    }
-
-    getEducationTemplate() {
-        // Education template files...
-        return [];
-    }
+    // Implement other template methods...
+    getBusinessTemplate() { return []; }
+    getBlogTemplate() { return []; }
+    getLandingTemplate() { return []; }
+    getDashboardTemplate() { return []; }
+    getRestaurantTemplate() { return []; }
+    getEducationTemplate() { return []; }
 }
 
 // Global functions for button actions (needed for onclick handlers)
@@ -2797,10 +2291,11 @@ window.downloadFile = function(index) {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Initializing AI Website Builder...');
     window.app = new AIWebsiteBuilder();
 });
 
-// Add necessary CSS for notifications
+// Add necessary CSS for notifications and animations
 const notificationStyles = document.createElement('style');
 notificationStyles.textContent = `
     @keyframes slideInRight {
@@ -2845,6 +2340,15 @@ notificationStyles.textContent = `
             transform: translateY(-10px);
             opacity: 1;
         }
+    }
+    
+    .notification-close {
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+        font-size: 1.2rem;
+        margin-left: auto;
     }
 `;
 document.head.appendChild(notificationStyles);
