@@ -11,17 +11,20 @@ try {
     console.error('❌ Supabase initialization failed:', error);
 }
 
-// Global State
-let currentUser = null;
-let websiteSettings = null;
-let categories = [];
-let payments = [];
-let contacts = [];
-let selectedMenuItem = null;
-let currentTableData = {};
-let currentMenu = null;
-let selectedPayment = null;
-let currentButtonId = null; // Store current button ID
+// Global State - Store all data properly
+window.appState = {
+    currentUser: null,
+    websiteSettings: null,
+    categories: [],
+    payments: [],
+    contacts: [],
+    selectedMenuItem: null,
+    currentMenu: null,
+    selectedPayment: null,
+    currentButtonId: null,
+    currentTableData: {},
+    allMenus: [] // Store all menus globally
+};
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
@@ -47,39 +50,27 @@ async function testDatabaseConnection() {
             .select('id')
             .limit(1);
         
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
         
-        // Success
         statusEl.classList.add('connected');
         statusIcon.textContent = '✅';
         statusText.textContent = 'Database connected successfully!';
         console.log('✅ Database connection successful');
         
-        // Hide after 3 seconds
         setTimeout(() => {
             statusEl.classList.add('hide');
-            setTimeout(() => {
-                statusEl.style.display = 'none';
-            }, 500);
+            setTimeout(() => statusEl.style.display = 'none', 500);
         }, 3000);
         
     } catch (error) {
-        // Error
         statusEl.classList.add('error');
         statusIcon.textContent = '❌';
         statusText.textContent = 'Database connection failed!';
         console.error('❌ Database connection failed:', error);
-        
-        // Hide after 10 seconds
-        setTimeout(() => {
-            statusEl.classList.add('hide');
-        }, 10000);
+        setTimeout(() => statusEl.classList.add('hide'), 10000);
     }
 }
 
-// Loading Functions
 function showLoading() {
     document.getElementById('loadingScreen').style.display = 'flex';
 }
@@ -90,11 +81,10 @@ function hideLoading() {
     }, 1000);
 }
 
-// Auth Functions
 function checkAuth() {
     const user = localStorage.getItem('currentUser');
     if (user) {
-        currentUser = JSON.parse(user);
+        window.appState.currentUser = JSON.parse(user);
         showApp();
     } else {
         showAuth();
@@ -122,7 +112,6 @@ function showSignup() {
     document.getElementById('loginForm').classList.remove('active');
 }
 
-// Handle Signup
 async function handleSignup() {
     const name = document.getElementById('signupName').value.trim();
     const username = document.getElementById('signupUsername').value.trim();
@@ -131,7 +120,6 @@ async function handleSignup() {
     const terms = document.getElementById('termsCheckbox').checked;
     const errorEl = document.getElementById('signupError');
 
-    // Validation
     if (!name || !username || !email || !password) {
         showError(errorEl, 'Please fill in all fields');
         return;
@@ -150,8 +138,6 @@ async function handleSignup() {
     showLoading();
 
     try {
-        console.log('📝 Checking username...');
-        // Check if username exists
         const { data: usernameCheck } = await supabase
             .from('users')
             .select('username')
@@ -164,8 +150,6 @@ async function handleSignup() {
             return;
         }
 
-        console.log('📧 Checking email...');
-        // Check if email exists
         const { data: emailCheck } = await supabase
             .from('users')
             .select('email')
@@ -178,28 +162,23 @@ async function handleSignup() {
             return;
         }
 
-        console.log('👤 Creating user...');
-        // Create user
         const { data, error } = await supabase
             .from('users')
-            .insert([
-                {
-                    name: name,
-                    username: username,
-                    email: email,
-                    password: password,
-                    created_at: new Date().toISOString()
-                }
-            ])
+            .insert([{
+                name: name,
+                username: username,
+                email: email,
+                password: password,
+                created_at: new Date().toISOString()
+            }])
             .select()
             .single();
 
         if (error) throw error;
 
         hideLoading();
-        currentUser = data;
+        window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
-        console.log('✅ User created successfully');
         showApp();
 
     } catch (error) {
@@ -209,7 +188,6 @@ async function handleSignup() {
     }
 }
 
-// Handle Login
 async function handleLogin() {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
@@ -223,7 +201,6 @@ async function handleLogin() {
     showLoading();
 
     try {
-        console.log('🔍 Checking user...');
         const { data, error } = await supabase
             .from('users')
             .select('*')
@@ -243,9 +220,8 @@ async function handleLogin() {
         }
 
         hideLoading();
-        currentUser = data;
+        window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
-        console.log('✅ Login successful');
         showApp();
 
     } catch (error) {
@@ -255,110 +231,83 @@ async function handleLogin() {
     }
 }
 
-// Handle Logout
 function handleLogout() {
     localStorage.removeItem('currentUser');
-    currentUser = null;
+    window.appState.currentUser = null;
     location.reload();
 }
 
-// Load Website Settings
 async function loadWebsiteSettings() {
     try {
-        console.log('⚙️ Loading website settings...');
         const { data, error } = await supabase
             .from('website_settings')
             .select('*')
             .single();
 
         if (data) {
-            websiteSettings = data;
+            window.appState.websiteSettings = data;
             applyWebsiteSettings();
-            console.log('✅ Website settings loaded');
         }
     } catch (error) {
         console.error('❌ Error loading settings:', error);
     }
 }
 
-// Apply Website Settings
 function applyWebsiteSettings() {
-    if (!websiteSettings) return;
+    const settings = window.appState.websiteSettings;
+    if (!settings) return;
 
-    // Set logo and name
     const logos = document.querySelectorAll('#authLogo, #appLogo');
     logos.forEach(logo => {
-        if (websiteSettings.logo_url) {
-            logo.src = websiteSettings.logo_url;
+        if (settings.logo_url) {
+            logo.src = settings.logo_url;
             logo.style.display = 'block';
         }
     });
 
     const names = document.querySelectorAll('#authWebsiteName, #appWebsiteName');
     names.forEach(name => {
-        if (websiteSettings.website_name) {
-            name.textContent = websiteSettings.website_name;
+        if (settings.website_name) {
+            name.textContent = settings.website_name;
         }
     });
 
-    // Set dynamic background (Admin controlled)
-    if (websiteSettings.background_url) {
+    if (settings.background_url) {
         const bgElement = document.getElementById('dynamicBackground');
         if (bgElement) {
-            bgElement.style.backgroundImage = `url(${websiteSettings.background_url})`;
-            console.log('✅ Background applied:', websiteSettings.background_url);
+            bgElement.style.backgroundImage = `url(${settings.background_url})`;
         }
     }
 
-    // Set loading animation (Admin controlled)
-    if (websiteSettings.loading_animation_url) {
-        applyLoadingAnimation(websiteSettings.loading_animation_url);
+    if (settings.loading_animation_url) {
+        applyLoadingAnimation(settings.loading_animation_url);
     }
 }
 
-// Apply Loading Animation
 function applyLoadingAnimation(animationUrl) {
     const loadingContainer = document.getElementById('loadingAnimation');
     if (!loadingContainer) return;
 
     const fileExt = animationUrl.split('.').pop().toLowerCase();
-    
-    console.log('🎬 Applying loading animation:', animationUrl);
-
-    // Remove default spinner
     const spinner = loadingContainer.querySelector('.spinner');
-    if (spinner) {
-        spinner.remove();
-    }
+    if (spinner) spinner.remove();
 
-    if (fileExt === 'json') {
+    if (['gif', 'png', 'jpg', 'jpeg', 'json'].includes(fileExt)) {
         loadingContainer.innerHTML = `
             <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
             <p style="margin-top: 15px; color: white;">Loading...</p>
         `;
-    } else if (fileExt === 'gif' || fileExt === 'png' || fileExt === 'jpg' || fileExt === 'jpeg') {
-        loadingContainer.innerHTML = `
-            <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
-            <p style="margin-top: 15px; color: white;">Loading...</p>
-        `;
-    } else if (fileExt === 'webm' || fileExt === 'mp4') {
+    } else if (['webm', 'mp4'].includes(fileExt)) {
         loadingContainer.innerHTML = `
             <video autoplay loop muted style="max-width: 200px; max-height: 200px;">
                 <source src="${animationUrl}" type="video/${fileExt}">
             </video>
             <p style="margin-top: 15px; color: white;">Loading...</p>
         `;
-    } else {
-        loadingContainer.innerHTML = `
-            <div class="spinner"></div>
-            <p>Loading...</p>
-        `;
     }
 }
 
-// Load App Data
 async function loadAppData() {
-    console.log('📦 Loading app data...');
     await Promise.all([
         loadBanners(),
         loadCategories(),
@@ -367,13 +316,10 @@ async function loadAppData() {
         loadProfile(),
         loadOrderHistory()
     ]);
-    console.log('✅ App data loaded');
 }
 
-// Load Banners
 async function loadBanners() {
     try {
-        console.log('🖼️ Loading banners...');
         const { data, error } = await supabase
             .from('banners')
             .select('*')
@@ -383,14 +329,12 @@ async function loadBanners() {
 
         if (data && data.length > 0) {
             displayBanners(data);
-            console.log(`✅ Loaded ${data.length} banners`);
         }
     } catch (error) {
         console.error('❌ Error loading banners:', error);
     }
 }
 
-// Display Banners
 function displayBanners(banners) {
     const container = document.getElementById('bannerContainer');
     const wrapper = document.createElement('div');
@@ -405,7 +349,6 @@ function displayBanners(banners) {
 
     container.appendChild(wrapper);
 
-    // Auto scroll if multiple banners
     if (banners.length > 1) {
         let currentIndex = 0;
         setInterval(() => {
@@ -415,10 +358,8 @@ function displayBanners(banners) {
     }
 }
 
-// Load Categories
 async function loadCategories() {
     try {
-        console.log('📂 Loading categories...');
         const { data, error } = await supabase
             .from('categories')
             .select('*')
@@ -427,30 +368,23 @@ async function loadCategories() {
         if (error) throw error;
 
         if (data && data.length > 0) {
-            // Load buttons for each category
             for (const category of data) {
-                const { data: buttons, error: btnError } = await supabase
+                const { data: buttons } = await supabase
                     .from('category_buttons')
                     .select('*')
                     .eq('category_id', category.id);
                 
-                if (!btnError && buttons) {
-                    category.category_buttons = buttons;
-                } else {
-                    category.category_buttons = [];
-                }
+                category.category_buttons = buttons || [];
             }
             
-            categories = data;
+            window.appState.categories = data;
             displayCategories(data);
-            console.log(`✅ Loaded ${data.length} categories`);
         }
     } catch (error) {
         console.error('❌ Error loading categories:', error);
     }
 }
 
-// Display Categories
 function displayCategories(categories) {
     const container = document.getElementById('categoriesContainer');
     container.innerHTML = '';
@@ -471,7 +405,6 @@ function displayCategories(categories) {
     });
 }
 
-// Display Category Buttons
 function displayCategoryButtons(categoryId, buttons) {
     const container = document.getElementById(`category-${categoryId}`);
     if (!container) return;
@@ -483,29 +416,29 @@ function displayCategoryButtons(categoryId, buttons) {
             <img src="${button.icon_url}" alt="${button.name}">
             <span>${button.name}</span>
         `;
-        btnEl.onclick = () => openCategoryPage(categoryId, button.id);
+        btnEl.addEventListener('click', () => openCategoryPage(categoryId, button.id));
         container.appendChild(btnEl);
     });
 }
 
-// Open Category Page
 async function openCategoryPage(categoryId, buttonId) {
     showLoading();
 
     try {
-        console.log(`🎮 Opening category page for button: ${buttonId}`);
+        console.log(`🎮 Opening button ID: ${buttonId}`);
         
-        // Store button ID globally
-        currentButtonId = buttonId;
+        window.appState.currentButtonId = buttonId;
         
-        // Load tables, menus, and videos for this button
         const [tablesResult, menusResult, videosResult] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId),
             supabase.from('menus').select('*').eq('button_id', buttonId),
             supabase.from('youtube_videos').select('*').eq('button_id', buttonId)
         ]);
 
-        console.log('📊 Loaded data:', {
+        // Store menus globally
+        window.appState.allMenus = menusResult.data || [];
+
+        console.log('📊 Loaded:', {
             tables: tablesResult.data?.length || 0,
             menus: menusResult.data?.length || 0,
             videos: videosResult.data?.length || 0
@@ -520,22 +453,17 @@ async function openCategoryPage(categoryId, buttonId) {
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Error loading category page:', error);
-        alert('Error loading products. Please try again.');
+        console.error('❌ Error:', error);
+        alert('Error loading products');
     }
 }
 
-// Show Purchase Modal
 function showPurchaseModal(tables, menus, videos) {
-    console.log('🛍️ Showing purchase modal');
-    console.log('📦 Menus:', menus);
-    
     const modal = document.getElementById('purchaseModal');
     const content = document.getElementById('purchaseContent');
     
     let html = '<div class="purchase-form">';
 
-    // Display tables (input fields)
     if (tables && tables.length > 0) {
         html += '<div class="input-tables">';
         tables.forEach(table => {
@@ -549,17 +477,12 @@ function showPurchaseModal(tables, menus, videos) {
         html += '</div>';
     }
 
-    // Display menus (products)
     if (menus && menus.length > 0) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
-        html += '<div class="menu-items" id="menuItems">';
+        html += '<div class="menu-items">';
         menus.forEach(menu => {
-            const menuJson = JSON.stringify(menu).replace(/"/g, '&quot;');
             html += `
-                <div class="menu-item" 
-                     data-menu-id="${menu.id}" 
-                     data-menu='${menuJson}'
-                     onclick="selectMenuItem(${menu.id}, this)">
+                <div class="menu-item" data-menu-id="${menu.id}">
                     ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
                         <div class="menu-item-name">${menu.name}</div>
@@ -570,11 +493,8 @@ function showPurchaseModal(tables, menus, videos) {
             `;
         });
         html += '</div>';
-    } else {
-        html += '<p style="text-align: center; color: #f59e0b; padding: 20px;">No products available in this category.</p>';
     }
 
-    // Display YouTube videos
     if (videos && videos.length > 0) {
         html += '<div class="video-section"><h3>Tutorials</h3>';
         videos.forEach(video => {
@@ -588,76 +508,77 @@ function showPurchaseModal(tables, menus, videos) {
         html += '</div>';
     }
 
-    html += `<button class="btn-primary" onclick="proceedToPurchase()" style="margin-top: 20px;">Buy Now</button>`;
+    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 20px;">Buy Now</button>`;
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
+
+    // Add event listeners after DOM is ready
+    setTimeout(() => {
+        // Menu item click handlers
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const menuId = parseInt(this.getAttribute('data-menu-id'));
+                selectMenuItemNew(menuId);
+            });
+        });
+
+        // Buy button handler
+        const buyBtn = document.getElementById('buyNowBtn');
+        if (buyBtn) {
+            buyBtn.addEventListener('click', proceedToPurchaseNew);
+        }
+    }, 100);
 }
 
-// Select Menu Item (FIXED with Validation)
-function selectMenuItem(menuId, element) {
-    console.log('🔍 Selecting menu item:', menuId, typeof menuId);
+// NEW: Proper menu selection function
+function selectMenuItemNew(menuId) {
+    console.log('🔍 Selecting menu:', menuId, typeof menuId);
     
-    // Validate menuId
     if (!menuId || isNaN(menuId)) {
-        console.error('❌ Invalid menu ID:', menuId);
+        console.error('❌ Invalid menu ID');
         return;
     }
+
+    window.appState.selectedMenuItem = parseInt(menuId);
     
-    // Convert to number and store
-    selectedMenuItem = parseInt(menuId, 10);
-    
-    // Get menu data from element
-    try {
-        const menuDataStr = element.getAttribute('data-menu');
-        if (menuDataStr) {
-            currentMenu = JSON.parse(menuDataStr.replace(/&quot;/g, '"'));
-            console.log('✅ Menu data stored:', currentMenu);
-        } else {
-            console.error('❌ No menu data attribute found');
-        }
-    } catch (e) {
-        console.error('❌ Could not parse menu data:', e);
+    // Find menu in stored menus
+    const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
+    if (menu) {
+        window.appState.currentMenu = menu;
+        console.log('✅ Menu stored:', menu);
+    } else {
+        console.error('❌ Menu not found in stored menus');
     }
-    
-    console.log('✅ Selected menu ID:', selectedMenuItem);
-    
+
     // Update UI
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('selected');
     });
     
-    if (element) {
-        element.classList.add('selected');
+    const selectedItem = document.querySelector(`[data-menu-id="${menuId}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
     }
 }
 
-// Close Purchase Modal
 function closePurchaseModal() {
     document.getElementById('purchaseModal').classList.remove('active');
-    selectedMenuItem = null;
-    currentMenu = null;
+    window.appState.selectedMenuItem = null;
+    window.appState.currentMenu = null;
 }
 
-// Proceed to Purchase (FIXED with Validation)
-async function proceedToPurchase() {
-    console.log('🛒 Proceeding to purchase...');
-    console.log('📌 Selected menu item:', selectedMenuItem, typeof selectedMenuItem);
-    console.log('📦 Current menu:', currentMenu);
-    console.log('🎮 Current button ID:', currentButtonId);
+// NEW: Proper proceed to purchase
+async function proceedToPurchaseNew() {
+    console.log('🛒 === PURCHASE DEBUG ===');
+    console.log('Selected menu:', window.appState.selectedMenuItem);
+    console.log('Current menu:', window.appState.currentMenu);
+    console.log('Button ID:', window.appState.currentButtonId);
     
-    // Validate selectedMenuItem
-    if (!selectedMenuItem || isNaN(selectedMenuItem) || selectedMenuItem <= 0) {
-        alert('Please select an item to purchase');
-        console.error('❌ Invalid selectedMenuItem:', selectedMenuItem);
-        return;
-    }
-
-    // Validate currentButtonId
-    if (!currentButtonId || isNaN(currentButtonId) || currentButtonId <= 0) {
-        alert('Error: Invalid category. Please try again.');
-        console.error('❌ Invalid currentButtonId:', currentButtonId);
+    if (!window.appState.selectedMenuItem || !window.appState.currentMenu) {
+        alert('Please select a product to purchase');
+        console.error('❌ No menu selected');
         return;
     }
 
@@ -668,9 +589,7 @@ async function proceedToPurchase() {
 
     tables.forEach(input => {
         const value = input.value.trim();
-        if (!value) {
-            allFilled = false;
-        }
+        if (!value) allFilled = false;
         const tableId = input.id.replace('table-', '');
         tableData[tableId] = value;
     });
@@ -680,61 +599,37 @@ async function proceedToPurchase() {
         return;
     }
 
-    // Save to global
-    currentTableData = tableData;
-    console.log('📝 Table data collected:', currentTableData);
+    window.appState.currentTableData = tableData;
+    console.log('📝 Table data:', tableData);
 
-    // Close purchase modal
     closePurchaseModal();
-
-    // Show payment modal
-    await showPaymentModal();
+    await showPaymentModalNew();
 }
 
-// Load Payments
 async function loadPayments() {
     try {
-        console.log('💳 Loading payment methods...');
         const { data, error } = await supabase
             .from('payment_methods')
             .select('*')
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: true});
 
-        if (error) {
-            console.error('❌ Payment methods error:', error);
-            throw error;
-        }
+        if (error) throw error;
 
-        if (data) {
-            payments = data;
-            console.log(`✅ Loaded ${data.length} payment methods`);
-        } else {
-            payments = [];
-            console.log('⚠️ No payment methods found');
-        }
+        window.appState.payments = data || [];
+        console.log(`✅ Loaded ${data?.length || 0} payment methods`);
     } catch (error) {
         console.error('❌ Error loading payments:', error);
-        payments = [];
+        window.appState.payments = [];
     }
 }
 
-// Show Payment Modal (COMPLETELY FIXED with Validation)
-async function showPaymentModal() {
-    console.log('💳 === PAYMENT MODAL DEBUG ===');
-    console.log('Menu ID:', selectedMenuItem, typeof selectedMenuItem);
-    console.log('Button ID:', currentButtonId, typeof currentButtonId);
-    console.log('Current Menu (cached):', currentMenu);
+// NEW: Proper payment modal
+async function showPaymentModalNew() {
+    console.log('💳 === PAYMENT MODAL ===');
     
-    // Validate all required data
-    if (!selectedMenuItem || isNaN(selectedMenuItem) || selectedMenuItem <= 0) {
-        alert('Error: Invalid product selection. Please try again.');
-        console.error('❌ Invalid selectedMenuItem');
-        return;
-    }
-
-    if (!currentButtonId || isNaN(currentButtonId) || currentButtonId <= 0) {
-        alert('Error: Invalid category. Please try again.');
-        console.error('❌ Invalid currentButtonId');
+    const menu = window.appState.currentMenu;
+    if (!menu) {
+        alert('Error: Product data not found');
         return;
     }
 
@@ -743,110 +638,77 @@ async function showPaymentModal() {
 
     showLoading();
 
-    try {
-        let menu = currentMenu;
-        
-        // If no cached menu, fetch from database
-        if (!menu) {
-            console.log('🔄 Fetching menu from database...');
-            const { data: menuData, error: menuError } = await supabase
-                .from('menus')
-                .select('*')
-                .eq('id', selectedMenuItem)
-                .single();
-
-            if (menuError) {
-                console.error('❌ Database error:', menuError);
-                throw new Error('Failed to load product: ' + menuError.message);
-            }
-
-            if (!menuData) {
-                console.error('❌ Menu not found for ID:', selectedMenuItem);
-                throw new Error('Product not found');
-            }
-
-            menu = menuData;
-            currentMenu = menu;
-        }
-
-        console.log('✅ Menu loaded successfully:', menu);
-
-        // Make sure payments are loaded
-        if (!payments || payments.length === 0) {
-            console.log('🔄 Loading payment methods...');
-            await loadPayments();
-        }
-
-        console.log('💳 Available payments:', payments.length);
-
-        hideLoading();
-
-        // Build HTML
-        let html = '<div class="payment-selection">';
-        html += `<div class="order-summary">
-            <h3>${menu.name}</h3>
-            <p>${menu.amount}</p>
-            <p class="price">${menu.price} MMK</p>
-        </div>`;
-
-        html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
-        
-        if (!payments || payments.length === 0) {
-            html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px; border: 1px solid #f59e0b;">⚠️ No payment methods available. Please contact admin to add payment methods.</p>';
-        } else {
-            html += '<div class="payment-methods">';
-            payments.forEach(payment => {
-                html += `
-                    <div class="payment-method" data-payment-id="${payment.id}" onclick="selectPayment(${payment.id})">
-                        <img src="${payment.icon_url}" alt="${payment.name}" onerror="this.style.display='none'">
-                        <span>${payment.name}</span>
-                    </div>
-                `;
-            });
-            html += '</div>';
-        }
-
-        html += '<div id="paymentDetails" style="display:none;"></div>';
-        html += `<button class="btn-primary" onclick="submitOrder()" style="margin-top: 20px;">Submit Order</button>`;
-        html += '</div>';
-
-        content.innerHTML = html;
-        modal.classList.add('active');
-
-        console.log('✅ Payment modal displayed successfully');
-
-    } catch (error) {
-        hideLoading();
-        console.error('❌ PAYMENT MODAL ERROR:', error);
-        console.error('Error stack:', error.stack);
-        alert('Error loading payment: ' + error.message);
+    if (!window.appState.payments || window.appState.payments.length === 0) {
+        await loadPayments();
     }
+
+    hideLoading();
+
+    let html = '<div class="payment-selection">';
+    html += `<div class="order-summary">
+        <h3>${menu.name}</h3>
+        <p>${menu.amount}</p>
+        <p class="price">${menu.price} MMK</p>
+    </div>`;
+
+    html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
+    
+    if (window.appState.payments.length === 0) {
+        html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">⚠️ No payment methods available</p>';
+    } else {
+        html += '<div class="payment-methods">';
+        window.appState.payments.forEach(payment => {
+            html += `
+                <div class="payment-method" data-payment-id="${payment.id}">
+                    <img src="${payment.icon_url}" alt="${payment.name}">
+                    <span>${payment.name}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    html += '<div id="paymentDetails" style="display:none;"></div>';
+    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 20px;">Submit Order</button>`;
+    html += '</div>';
+
+    content.innerHTML = html;
+    modal.classList.add('active');
+
+    // Add event listeners
+    setTimeout(() => {
+        document.querySelectorAll('.payment-method').forEach(item => {
+            item.addEventListener('click', function() {
+                const paymentId = parseInt(this.getAttribute('data-payment-id'));
+                selectPaymentNew(paymentId);
+            });
+        });
+
+        const submitBtn = document.getElementById('submitOrderBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', submitOrderNew);
+        }
+    }, 100);
 }
 
-// Select Payment
-async function selectPayment(paymentId) {
-    selectedPayment = parseInt(paymentId, 10);
-    console.log('💳 Payment method selected:', selectedPayment);
+// NEW: Select payment
+async function selectPaymentNew(paymentId) {
+    window.appState.selectedPayment = parseInt(paymentId);
+    console.log('💳 Payment selected:', window.appState.selectedPayment);
 
-    // Remove selected class from all
     document.querySelectorAll('.payment-method').forEach(pm => {
         pm.classList.remove('selected');
     });
 
-    // Add selected class
     const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
-    if (selectedEl) {
-        selectedEl.classList.add('selected');
-    }
+    if (selectedEl) selectedEl.classList.add('selected');
 
     try {
-        const { data: payment, error } = await supabase
+        const { data: payment } = await supabase
             .from('payment_methods')
             .select('*')
             .eq('id', paymentId)
             .single();
-
-        if (error) throw error;
 
         const detailsDiv = document.getElementById('paymentDetails');
         if (detailsDiv && payment) {
@@ -854,91 +716,64 @@ async function selectPayment(paymentId) {
             detailsDiv.innerHTML = `
                 <div class="payment-info">
                     <h4>${payment.name}</h4>
-                    <p>${payment.instructions || 'Please complete the payment and enter transaction details.'}</p>
-                    <p><strong>Payment Address:</strong> ${payment.address}</p>
+                    <p>${payment.instructions || 'Please complete payment and enter transaction details.'}</p>
+                    <p><strong>Address:</strong> ${payment.address}</p>
                     <div class="form-group" style="margin-top: 15px;">
                         <label>Last 6 digits of transaction ID</label>
-                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits" style="width: 100%;">
+                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits">
                     </div>
                 </div>
             `;
-            console.log('✅ Payment details displayed');
         }
     } catch (error) {
         console.error('❌ Error loading payment details:', error);
-        alert('Error loading payment details');
     }
 }
 
-// Submit Order (FIXED with Complete Validation)
-async function submitOrder() {
-    console.log('📦 === SUBMIT ORDER DEBUG ===');
-    console.log('User ID:', currentUser?.id);
-    console.log('Menu ID:', selectedMenuItem, typeof selectedMenuItem);
-    console.log('Button ID:', currentButtonId, typeof currentButtonId);
-    console.log('Payment ID:', selectedPayment, typeof selectedPayment);
-    console.log('Table Data:', currentTableData);
-    
-    // Validate payment selection
-    if (!selectedPayment || isNaN(selectedPayment) || selectedPayment <= 0) {
+function closePaymentModal() {
+    document.getElementById('paymentModal').classList.remove('active');
+    window.appState.selectedPayment = null;
+}
+
+// NEW: Submit order with full validation
+async function submitOrderNew() {
+    console.log('📦 === SUBMIT ORDER ===');
+    console.log('User:', window.appState.currentUser?.id);
+    console.log('Menu:', window.appState.selectedMenuItem);
+    console.log('Button:', window.appState.currentButtonId);
+    console.log('Payment:', window.appState.selectedPayment);
+
+    if (!window.appState.selectedPayment) {
         alert('Please select a payment method');
-        console.error('❌ Invalid payment selection');
         return;
     }
 
-    // Validate transaction code
     const transactionCode = document.getElementById('transactionCode')?.value;
     if (!transactionCode || transactionCode.length !== 6) {
-        alert('Please enter the last 6 digits of your transaction');
+        alert('Please enter last 6 digits of transaction');
         return;
     }
 
-    // Final validation of all IDs
-    if (!selectedMenuItem || isNaN(selectedMenuItem) || selectedMenuItem <= 0) {
-        alert('Error: Invalid product. Please start over.');
-        console.error('❌ Invalid menu ID at submit');
-        return;
-    }
-
-    if (!currentButtonId || isNaN(currentButtonId) || currentButtonId <= 0) {
-        alert('Error: Invalid category. Please start over.');
-        console.error('❌ Invalid button ID at submit');
-        return;
-    }
-
-    if (!currentUser || !currentUser.id) {
-        alert('Error: User session invalid. Please login again.');
-        console.error('❌ Invalid user session');
+    if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
+        alert('Error: Missing order information');
         return;
     }
 
     showLoading();
 
     try {
-        // Convert all IDs to integers
         const orderData = {
-            user_id: parseInt(currentUser.id, 10),
-            menu_id: parseInt(selectedMenuItem, 10),
-            button_id: parseInt(currentButtonId, 10),
-            payment_method_id: parseInt(selectedPayment, 10),
-            table_data: currentTableData,
+            user_id: parseInt(window.appState.currentUser.id),
+            menu_id: parseInt(window.appState.selectedMenuItem),
+            button_id: parseInt(window.appState.currentButtonId),
+            payment_method_id: parseInt(window.appState.selectedPayment),
+            table_data: window.appState.currentTableData,
             transaction_code: transactionCode.trim(),
             status: 'pending',
             created_at: new Date().toISOString()
         };
 
-        console.log('📤 Final order data:', orderData);
-
-        // Validate order data one more time
-        if (isNaN(orderData.menu_id) || orderData.menu_id <= 0) {
-            throw new Error('Invalid menu_id: ' + orderData.menu_id);
-        }
-        if (isNaN(orderData.button_id) || orderData.button_id <= 0) {
-            throw new Error('Invalid button_id: ' + orderData.button_id);
-        }
-        if (isNaN(orderData.payment_method_id) || orderData.payment_method_id <= 0) {
-            throw new Error('Invalid payment_method_id: ' + orderData.payment_method_id);
-        }
+        console.log('📤 Order data:', orderData);
 
         const { data, error } = await supabase
             .from('orders')
@@ -946,48 +781,31 @@ async function submitOrder() {
             .select()
             .single();
 
-        if (error) {
-            console.error('❌ Order insert error:', error);
-            throw error;
-        }
+        if (error) throw error;
 
         hideLoading();
         closePaymentModal();
-        alert('✅ Order Placed Successfully!\n\n' +
-              'Order ID: #' + data.id + '\n' +
-              'Product: ' + currentMenu.name + '\n' +
-              'Price: ' + currentMenu.price + ' MMK\n\n' +
-              'Please wait up to 30 minutes for processing.');
         
-        console.log('✅ Order submitted successfully:', data);
+        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${window.appState.currentMenu.name}\nPrice: ${window.appState.currentMenu.price} MMK\n\nPlease wait up to 30 minutes.`);
+
+        // Reset state
+        window.appState.selectedMenuItem = null;
+        window.appState.selectedPayment = null;
+        window.appState.currentTableData = {};
+        window.appState.currentMenu = null;
+        window.appState.currentButtonId = null;
         
-        // Reset all state
-        selectedMenuItem = null;
-        selectedPayment = null;
-        currentTableData = {};
-        currentMenu = null;
-        currentButtonId = null;
-        
-        // Reload order history
         await loadOrderHistory();
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Order submission error:', error);
-        alert('❌ Error placing order:\n\n' + error.message + '\n\nPlease check your selection and try again.');
+        console.error('❌ Order error:', error);
+        alert('Error: ' + error.message);
     }
 }
 
-// Close Payment Modal
-function closePaymentModal() {
-    document.getElementById('paymentModal').classList.remove('active');
-    selectedPayment = null;
-}
-
-// Load Order History
 async function loadOrderHistory() {
     try {
-        console.log('📜 Loading order history...');
         const { data, error } = await supabase
             .from('orders')
             .select(`
@@ -995,25 +813,21 @@ async function loadOrderHistory() {
                 menus (name, price, amount),
                 payment_methods (name)
             `)
-            .eq('user_id', currentUser.id)
+            .eq('user_id', window.appState.currentUser.id)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        if (data) {
-            displayOrderHistory(data);
-            console.log(`✅ Loaded ${data.length} orders`);
-        }
+        displayOrderHistory(data || []);
     } catch (error) {
         console.error('❌ Error loading orders:', error);
     }
 }
 
-// Display Order History
 function displayOrderHistory(orders) {
     const container = document.getElementById('historyContainer');
     
-    if (!orders || orders.length === 0) {
+    if (orders.length === 0) {
         container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No orders yet</p>';
         return;
     }
@@ -1030,23 +844,21 @@ function displayOrderHistory(orders) {
 
         item.innerHTML = `
             <div class="history-status ${statusClass}">${order.status.toUpperCase()}</div>
-            <h3>${order.menus?.name || 'Unknown Product'}</h3>
+            <h3>${order.menus?.name || 'Unknown'}</h3>
             <p>${order.menus?.amount || ''}</p>
             <p><strong>Price:</strong> ${order.menus?.price || 0} MMK</p>
             <p><strong>Payment:</strong> ${order.payment_methods?.name || 'N/A'}</p>
             <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
+            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> ${order.admin_message}</p>` : ''}
         `;
 
         container.appendChild(item);
     });
 }
 
-// Load Contacts
 async function loadContacts() {
     try {
-        console.log('📞 Loading contacts...');
         const { data, error } = await supabase
             .from('contacts')
             .select('*')
@@ -1054,22 +866,17 @@ async function loadContacts() {
 
         if (error) throw error;
 
-        if (data) {
-            contacts = data;
-            displayContacts(data);
-            console.log(`✅ Loaded ${data.length} contacts`);
-        }
+        displayContacts(data || []);
     } catch (error) {
         console.error('❌ Error loading contacts:', error);
     }
 }
 
-// Display Contacts
 function displayContacts(contacts) {
     const container = document.getElementById('contactsContainer');
     
-    if (!contacts || contacts.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No contacts available</p>';
+    if (contacts.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No contacts</p>';
         return;
     }
 
@@ -1080,12 +887,12 @@ function displayContacts(contacts) {
         item.className = 'contact-item';
 
         if (contact.link) {
-            item.onclick = () => window.open(contact.link, '_blank');
             item.style.cursor = 'pointer';
+            item.addEventListener('click', () => window.open(contact.link, '_blank'));
         }
 
         item.innerHTML = `
-            <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}" onerror="this.style.display='none'">
+            <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}">
             <div class="contact-info">
                 <h3>${contact.name}</h3>
                 <p>${contact.description || ''}</p>
@@ -1097,23 +904,20 @@ function displayContacts(contacts) {
     });
 }
 
-// Load Profile
 function loadProfile() {
-    document.getElementById('profileName').value = currentUser.name;
-    document.getElementById('profileUsername').value = currentUser.username;
-    document.getElementById('profileEmail').value = currentUser.email;
+    const user = window.appState.currentUser;
+    document.getElementById('profileName').value = user.name;
+    document.getElementById('profileUsername').value = user.username;
+    document.getElementById('profileEmail').value = user.email;
 
-    // Generate AI avatar
     const avatar = document.getElementById('profileAvatar');
-    const initials = currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     avatar.textContent = initials;
 
-    // Random gradient for each user
-    const hue = (currentUser.id * 137) % 360;
+    const hue = (user.id * 137) % 360;
     avatar.style.background = `linear-gradient(135deg, hsl(${hue}, 70%, 60%), hsl(${hue + 60}, 70%, 60%))`;
 }
 
-// Update Profile
 async function updateProfile() {
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
@@ -1125,7 +929,7 @@ async function updateProfile() {
         return;
     }
 
-    if (currentPassword !== currentUser.password) {
+    if (currentPassword !== window.appState.currentUser.password) {
         showError(errorEl, 'Current password is incorrect');
         return;
     }
@@ -1133,54 +937,46 @@ async function updateProfile() {
     showLoading();
 
     try {
-        console.log('🔄 Updating profile...');
         const { data, error } = await supabase
             .from('users')
             .update({ password: newPassword })
-            .eq('id', currentUser.id)
+            .eq('id', window.appState.currentUser.id)
             .select()
             .single();
 
         if (error) throw error;
 
         hideLoading();
-        currentUser = data;
+        window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         
         showSuccess(successEl, 'Password updated successfully!');
-        console.log('✅ Profile updated');
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'An error occurred while updating password');
+        showError(errorEl, 'Error updating password');
         console.error('❌ Update error:', error);
     }
 }
 
-// Switch Page
 function switchPage(pageName) {
-    // Hide all pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
 
-    // Show selected page
     document.getElementById(pageName + 'Page').classList.add('active');
 
-    // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
+    
     const activeNav = document.querySelector(`[data-page="${pageName}"]`);
-    if (activeNav) {
-        activeNav.classList.add('active');
-    }
+    if (activeNav) activeNav.classList.add('active');
 }
 
-// Utility Functions
 function validateEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -1197,6 +993,4 @@ function showSuccess(element, message) {
     setTimeout(() => element.classList.remove('show'), 5000);
 }
 
-// Log initialization complete
-console.log('✅ Index.js loaded successfully');
-console.log('📱 App ready!');
+console.log('✅ App ready!');
