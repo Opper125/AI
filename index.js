@@ -497,13 +497,20 @@ async function openCategoryPage(categoryId, buttonId) {
     showLoading();
 
     try {
-        console.log(`🎮 Opening category page: ${buttonId}`);
+        console.log(`🎮 Opening category page for button: ${buttonId}`);
+        
         // Load tables, menus, and videos for this button
         const [tablesResult, menusResult, videosResult] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId),
             supabase.from('menus').select('*').eq('button_id', buttonId),
             supabase.from('youtube_videos').select('*').eq('button_id', buttonId)
         ]);
+
+        console.log('📊 Loaded data:', {
+            tables: tablesResult.data?.length || 0,
+            menus: menusResult.data?.length || 0,
+            videos: videosResult.data?.length || 0
+        });
 
         hideLoading();
         showPurchaseModal(
@@ -522,6 +529,9 @@ async function openCategoryPage(categoryId, buttonId) {
 
 // Show Purchase Modal
 function showPurchaseModal(tables, menus, videos, buttonId) {
+    console.log('🛍️ Showing purchase modal');
+    console.log('📦 Menus:', menus);
+    
     const modal = document.getElementById('purchaseModal');
     const content = document.getElementById('purchaseContent');
     
@@ -543,10 +553,11 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
 
     // Display menus (products)
     if (menus && menus.length > 0) {
+        html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
         html += '<div class="menu-items" id="menuItems">';
         menus.forEach(menu => {
             html += `
-                <div class="menu-item" data-menu-id="${menu.id}" onclick="selectMenuItem(${menu.id})">
+                <div class="menu-item" data-menu-id="${menu.id}" data-menu-data='${JSON.stringify(menu)}' onclick="selectMenuItem(${menu.id}, this)">
                     ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
                         <div class="menu-item-name">${menu.name}</div>
@@ -557,6 +568,8 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
             `;
         });
         html += '</div>';
+    } else {
+        html += '<p style="text-align: center; color: #f59e0b; padding: 20px;">No products available in this category.</p>';
     }
 
     // Display YouTube videos
@@ -573,22 +586,38 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
         html += '</div>';
     }
 
-    html += `<button class="btn-primary" onclick="proceedToPurchase(${buttonId})">Buy Now</button>`;
+    html += `<button class="btn-primary" onclick="proceedToPurchase(${buttonId})" style="margin-top: 20px;">Buy Now</button>`;
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 }
 
-// Select Menu Item
-function selectMenuItem(menuId) {
-    selectedMenuItem = menuId;
+// Select Menu Item (FIXED)
+function selectMenuItem(menuId, element) {
+    console.log('🔍 Selecting menu item:', menuId, typeof menuId);
+    
+    // Convert to number and store
+    selectedMenuItem = Number(menuId);
+    
+    // Get menu data from element
+    try {
+        const menuData = JSON.parse(element.getAttribute('data-menu-data'));
+        currentMenu = menuData;
+        console.log('✅ Menu data stored:', currentMenu);
+    } catch (e) {
+        console.warn('⚠️ Could not parse menu data:', e);
+    }
+    
+    console.log('✅ Selected menu ID:', selectedMenuItem);
+    
+    // Update UI
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('selected');
     });
-    const selectedItem = document.querySelector(`[data-menu-id="${menuId}"]`);
-    if (selectedItem) {
-        selectedItem.classList.add('selected');
+    
+    if (element) {
+        element.classList.add('selected');
     }
 }
 
@@ -596,10 +625,15 @@ function selectMenuItem(menuId) {
 function closePurchaseModal() {
     document.getElementById('purchaseModal').classList.remove('active');
     selectedMenuItem = null;
+    currentMenu = null;
 }
 
 // Proceed to Purchase
 async function proceedToPurchase(buttonId) {
+    console.log('🛒 Proceeding to purchase...');
+    console.log('📌 Selected menu item:', selectedMenuItem);
+    console.log('📦 Current menu:', currentMenu);
+    
     if (!selectedMenuItem) {
         alert('Please select an item to purchase');
         return;
@@ -611,23 +645,27 @@ async function proceedToPurchase(buttonId) {
     let allFilled = true;
 
     tables.forEach(input => {
-        if (!input.value.trim()) {
+        const value = input.value.trim();
+        if (!value) {
             allFilled = false;
         }
         const tableId = input.id.replace('table-', '');
-        tableData[tableId] = input.value.trim();
+        tableData[tableId] = value;
     });
 
-    if (!allFilled) {
+    if (tables.length > 0 && !allFilled) {
         alert('Please fill in all required fields');
         return;
     }
 
     // Save to global
     currentTableData = tableData;
+    console.log('📝 Table data collected:', currentTableData);
+
+    // Close purchase modal
+    closePurchaseModal();
 
     // Show payment modal
-    closePurchaseModal();
     await showPaymentModal(selectedMenuItem, tableData, buttonId);
 }
 
@@ -640,7 +678,10 @@ async function loadPayments() {
             .select('*')
             .order('created_at', { ascending: true });
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Payment methods error:', error);
+            throw error;
+        }
 
         if (data) {
             payments = data;
@@ -655,34 +696,46 @@ async function loadPayments() {
     }
 }
 
-// Show Payment Modal (FIXED)
+// Show Payment Modal (COMPLETELY FIXED)
 async function showPaymentModal(menuId, tableData, buttonId) {
+    console.log('💳 === PAYMENT MODAL DEBUG ===');
+    console.log('Menu ID:', menuId, typeof menuId);
+    console.log('Button ID:', buttonId);
+    console.log('Table Data:', tableData);
+    console.log('Current Menu (cached):', currentMenu);
+    
     const modal = document.getElementById('paymentModal');
     const content = document.getElementById('paymentContent');
 
     showLoading();
 
     try {
-        console.log('💳 Loading payment modal for menu:', menuId);
-
-        // Get menu details
-        const { data: menu, error: menuError } = await supabase
-            .from('menus')
-            .select('*')
-            .eq('id', menuId)
-            .single();
-
-        if (menuError) {
-            console.error('❌ Error loading menu:', menuError);
-            throw new Error('Failed to load product details');
-        }
-
+        let menu = currentMenu; // Try to use cached menu first
+        
+        // If no cached menu, fetch from database
         if (!menu) {
-            throw new Error('Product not found');
+            console.log('🔄 Fetching menu from database...');
+            const { data: menuData, error: menuError } = await supabase
+                .from('menus')
+                .select('*')
+                .eq('id', menuId)
+                .single();
+
+            if (menuError) {
+                console.error('❌ Database error:', menuError);
+                throw new Error('Database query failed: ' + menuError.message);
+            }
+
+            if (!menuData) {
+                console.error('❌ Menu not found for ID:', menuId);
+                throw new Error('Product not found in database');
+            }
+
+            menu = menuData;
+            currentMenu = menu;
         }
 
-        currentMenu = menu;
-        console.log('✅ Menu loaded:', menu);
+        console.log('✅ Menu loaded successfully:', menu);
 
         // Make sure payments are loaded
         if (!payments || payments.length === 0) {
@@ -690,8 +743,11 @@ async function showPaymentModal(menuId, tableData, buttonId) {
             await loadPayments();
         }
 
+        console.log('💳 Available payments:', payments.length);
+
         hideLoading();
 
+        // Build HTML
         let html = '<div class="payment-selection">';
         html += `<div class="order-summary">
             <h3>${menu.name}</h3>
@@ -702,7 +758,7 @@ async function showPaymentModal(menuId, tableData, buttonId) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
         
         if (!payments || payments.length === 0) {
-            html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">⚠️ No payment methods available. Please contact admin.</p>';
+            html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px; border: 1px solid #f59e0b;">⚠️ No payment methods available. Please contact admin to add payment methods.</p>';
         } else {
             html += '<div class="payment-methods">';
             payments.forEach(payment => {
@@ -727,15 +783,16 @@ async function showPaymentModal(menuId, tableData, buttonId) {
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Error showing payment modal:', error);
-        alert('Error loading payment methods: ' + error.message);
+        console.error('❌ PAYMENT MODAL ERROR:', error);
+        console.error('Error stack:', error.stack);
+        alert('Error loading payment: ' + error.message + '\n\nPlease check console for details.');
     }
 }
 
-// Select Payment (FIXED)
+// Select Payment
 async function selectPayment(paymentId) {
-    selectedPayment = paymentId;
-    console.log('💳 Payment method selected:', paymentId);
+    selectedPayment = Number(paymentId);
+    console.log('💳 Payment method selected:', selectedPayment);
 
     // Remove selected class from all
     document.querySelectorAll('.payment-method').forEach(pm => {
@@ -781,6 +838,11 @@ async function selectPayment(paymentId) {
 
 // Submit Order
 async function submitOrder(menuId, buttonId) {
+    console.log('📦 Submitting order...');
+    console.log('Menu ID:', menuId);
+    console.log('Button ID:', buttonId);
+    console.log('Selected Payment:', selectedPayment);
+    
     if (!selectedPayment) {
         alert('Please select a payment method');
         return;
@@ -795,43 +857,48 @@ async function submitOrder(menuId, buttonId) {
     showLoading();
 
     try {
-        console.log('📦 Submitting order...');
+        const orderData = {
+            user_id: currentUser.id,
+            menu_id: Number(menuId),
+            button_id: Number(buttonId),
+            table_data: currentTableData,
+            payment_method_id: Number(selectedPayment),
+            transaction_code: transactionCode,
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        console.log('📤 Order data:', orderData);
+
         const { data, error } = await supabase
             .from('orders')
-            .insert([
-                {
-                    user_id: currentUser.id,
-                    menu_id: menuId,
-                    button_id: buttonId,
-                    table_data: currentTableData,
-                    payment_method_id: selectedPayment,
-                    transaction_code: transactionCode,
-                    status: 'pending',
-                    created_at: new Date().toISOString()
-                }
-            ])
+            .insert([orderData])
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            console.error('❌ Order insert error:', error);
+            throw error;
+        }
 
         hideLoading();
         closePaymentModal();
-        alert('Thank you! Your order has been placed. Please wait 30 minutes.');
-        console.log('✅ Order submitted successfully');
+        alert('Thank you! Your order has been placed successfully.\n\nOrder ID: #' + data.id + '\n\nPlease wait up to 30 minutes for processing.');
+        console.log('✅ Order submitted successfully:', data);
         
         // Reset
         selectedMenuItem = null;
         selectedPayment = null;
         currentTableData = {};
+        currentMenu = null;
         
         // Reload order history
-        loadOrderHistory();
+        await loadOrderHistory();
 
     } catch (error) {
         hideLoading();
-        alert('An error occurred while placing your order');
-        console.error('❌ Order error:', error);
+        console.error('❌ Order submission error:', error);
+        alert('Error placing order: ' + error.message);
     }
 }
 
@@ -871,7 +938,7 @@ function displayOrderHistory(orders) {
     const container = document.getElementById('historyContainer');
     
     if (!orders || orders.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#94a3b8;">No orders yet</p>';
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No orders yet</p>';
         return;
     }
 
@@ -893,7 +960,7 @@ function displayOrderHistory(orders) {
             <p><strong>Payment:</strong> ${order.payment_methods?.name || 'N/A'}</p>
             <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> ${order.admin_message}</p>` : ''}
+            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
         `;
 
         container.appendChild(item);
@@ -926,7 +993,7 @@ function displayContacts(contacts) {
     const container = document.getElementById('contactsContainer');
     
     if (!contacts || contacts.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#94a3b8;">No contacts available</p>';
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No contacts available</p>';
         return;
     }
 
@@ -938,6 +1005,7 @@ function displayContacts(contacts) {
 
         if (contact.link) {
             item.onclick = () => window.open(contact.link, '_blank');
+            item.style.cursor = 'pointer';
         }
 
         item.innerHTML = `
