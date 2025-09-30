@@ -21,6 +21,7 @@ let selectedMenuItem = null;
 let currentTableData = {};
 let currentMenu = null;
 let selectedPayment = null;
+let currentButtonId = null; // Store current button ID
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
@@ -331,20 +332,16 @@ function applyLoadingAnimation(animationUrl) {
     }
 
     if (fileExt === 'json') {
-        // Lottie animation (would need lottie-web library)
-        console.log('📦 JSON animation detected - showing as image fallback');
         loadingContainer.innerHTML = `
             <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
             <p style="margin-top: 15px; color: white;">Loading...</p>
         `;
     } else if (fileExt === 'gif' || fileExt === 'png' || fileExt === 'jpg' || fileExt === 'jpeg') {
-        // GIF or Image
         loadingContainer.innerHTML = `
             <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
             <p style="margin-top: 15px; color: white;">Loading...</p>
         `;
     } else if (fileExt === 'webm' || fileExt === 'mp4') {
-        // Video
         loadingContainer.innerHTML = `
             <video autoplay loop muted style="max-width: 200px; max-height: 200px;">
                 <source src="${animationUrl}" type="video/${fileExt}">
@@ -352,7 +349,6 @@ function applyLoadingAnimation(animationUrl) {
             <p style="margin-top: 15px; color: white;">Loading...</p>
         `;
     } else {
-        // Fallback to default spinner
         loadingContainer.innerHTML = `
             <div class="spinner"></div>
             <p>Loading...</p>
@@ -499,6 +495,9 @@ async function openCategoryPage(categoryId, buttonId) {
     try {
         console.log(`🎮 Opening category page for button: ${buttonId}`);
         
+        // Store button ID globally
+        currentButtonId = buttonId;
+        
         // Load tables, menus, and videos for this button
         const [tablesResult, menusResult, videosResult] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId),
@@ -516,8 +515,7 @@ async function openCategoryPage(categoryId, buttonId) {
         showPurchaseModal(
             tablesResult.data || [], 
             menusResult.data || [], 
-            videosResult.data || [], 
-            buttonId
+            videosResult.data || []
         );
 
     } catch (error) {
@@ -528,7 +526,7 @@ async function openCategoryPage(categoryId, buttonId) {
 }
 
 // Show Purchase Modal
-function showPurchaseModal(tables, menus, videos, buttonId) {
+function showPurchaseModal(tables, menus, videos) {
     console.log('🛍️ Showing purchase modal');
     console.log('📦 Menus:', menus);
     
@@ -556,8 +554,12 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
         html += '<div class="menu-items" id="menuItems">';
         menus.forEach(menu => {
+            const menuJson = JSON.stringify(menu).replace(/"/g, '&quot;');
             html += `
-                <div class="menu-item" data-menu-id="${menu.id}" data-menu-data='${JSON.stringify(menu)}' onclick="selectMenuItem(${menu.id}, this)">
+                <div class="menu-item" 
+                     data-menu-id="${menu.id}" 
+                     data-menu='${menuJson}'
+                     onclick="selectMenuItem(${menu.id}, this)">
                     ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
                         <div class="menu-item-name">${menu.name}</div>
@@ -586,27 +588,37 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
         html += '</div>';
     }
 
-    html += `<button class="btn-primary" onclick="proceedToPurchase(${buttonId})" style="margin-top: 20px;">Buy Now</button>`;
+    html += `<button class="btn-primary" onclick="proceedToPurchase()" style="margin-top: 20px;">Buy Now</button>`;
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 }
 
-// Select Menu Item (FIXED)
+// Select Menu Item (FIXED with Validation)
 function selectMenuItem(menuId, element) {
     console.log('🔍 Selecting menu item:', menuId, typeof menuId);
     
+    // Validate menuId
+    if (!menuId || isNaN(menuId)) {
+        console.error('❌ Invalid menu ID:', menuId);
+        return;
+    }
+    
     // Convert to number and store
-    selectedMenuItem = Number(menuId);
+    selectedMenuItem = parseInt(menuId, 10);
     
     // Get menu data from element
     try {
-        const menuData = JSON.parse(element.getAttribute('data-menu-data'));
-        currentMenu = menuData;
-        console.log('✅ Menu data stored:', currentMenu);
+        const menuDataStr = element.getAttribute('data-menu');
+        if (menuDataStr) {
+            currentMenu = JSON.parse(menuDataStr.replace(/&quot;/g, '"'));
+            console.log('✅ Menu data stored:', currentMenu);
+        } else {
+            console.error('❌ No menu data attribute found');
+        }
     } catch (e) {
-        console.warn('⚠️ Could not parse menu data:', e);
+        console.error('❌ Could not parse menu data:', e);
     }
     
     console.log('✅ Selected menu ID:', selectedMenuItem);
@@ -628,14 +640,24 @@ function closePurchaseModal() {
     currentMenu = null;
 }
 
-// Proceed to Purchase
-async function proceedToPurchase(buttonId) {
+// Proceed to Purchase (FIXED with Validation)
+async function proceedToPurchase() {
     console.log('🛒 Proceeding to purchase...');
-    console.log('📌 Selected menu item:', selectedMenuItem);
+    console.log('📌 Selected menu item:', selectedMenuItem, typeof selectedMenuItem);
     console.log('📦 Current menu:', currentMenu);
+    console.log('🎮 Current button ID:', currentButtonId);
     
-    if (!selectedMenuItem) {
+    // Validate selectedMenuItem
+    if (!selectedMenuItem || isNaN(selectedMenuItem) || selectedMenuItem <= 0) {
         alert('Please select an item to purchase');
+        console.error('❌ Invalid selectedMenuItem:', selectedMenuItem);
+        return;
+    }
+
+    // Validate currentButtonId
+    if (!currentButtonId || isNaN(currentButtonId) || currentButtonId <= 0) {
+        alert('Error: Invalid category. Please try again.');
+        console.error('❌ Invalid currentButtonId:', currentButtonId);
         return;
     }
 
@@ -666,7 +688,7 @@ async function proceedToPurchase(buttonId) {
     closePurchaseModal();
 
     // Show payment modal
-    await showPaymentModal(selectedMenuItem, tableData, buttonId);
+    await showPaymentModal();
 }
 
 // Load Payments
@@ -696,21 +718,33 @@ async function loadPayments() {
     }
 }
 
-// Show Payment Modal (COMPLETELY FIXED)
-async function showPaymentModal(menuId, tableData, buttonId) {
+// Show Payment Modal (COMPLETELY FIXED with Validation)
+async function showPaymentModal() {
     console.log('💳 === PAYMENT MODAL DEBUG ===');
-    console.log('Menu ID:', menuId, typeof menuId);
-    console.log('Button ID:', buttonId);
-    console.log('Table Data:', tableData);
+    console.log('Menu ID:', selectedMenuItem, typeof selectedMenuItem);
+    console.log('Button ID:', currentButtonId, typeof currentButtonId);
     console.log('Current Menu (cached):', currentMenu);
     
+    // Validate all required data
+    if (!selectedMenuItem || isNaN(selectedMenuItem) || selectedMenuItem <= 0) {
+        alert('Error: Invalid product selection. Please try again.');
+        console.error('❌ Invalid selectedMenuItem');
+        return;
+    }
+
+    if (!currentButtonId || isNaN(currentButtonId) || currentButtonId <= 0) {
+        alert('Error: Invalid category. Please try again.');
+        console.error('❌ Invalid currentButtonId');
+        return;
+    }
+
     const modal = document.getElementById('paymentModal');
     const content = document.getElementById('paymentContent');
 
     showLoading();
 
     try {
-        let menu = currentMenu; // Try to use cached menu first
+        let menu = currentMenu;
         
         // If no cached menu, fetch from database
         if (!menu) {
@@ -718,17 +752,17 @@ async function showPaymentModal(menuId, tableData, buttonId) {
             const { data: menuData, error: menuError } = await supabase
                 .from('menus')
                 .select('*')
-                .eq('id', menuId)
+                .eq('id', selectedMenuItem)
                 .single();
 
             if (menuError) {
                 console.error('❌ Database error:', menuError);
-                throw new Error('Database query failed: ' + menuError.message);
+                throw new Error('Failed to load product: ' + menuError.message);
             }
 
             if (!menuData) {
-                console.error('❌ Menu not found for ID:', menuId);
-                throw new Error('Product not found in database');
+                console.error('❌ Menu not found for ID:', selectedMenuItem);
+                throw new Error('Product not found');
             }
 
             menu = menuData;
@@ -739,7 +773,7 @@ async function showPaymentModal(menuId, tableData, buttonId) {
 
         // Make sure payments are loaded
         if (!payments || payments.length === 0) {
-            console.log('🔄 Reloading payment methods...');
+            console.log('🔄 Loading payment methods...');
             await loadPayments();
         }
 
@@ -773,7 +807,7 @@ async function showPaymentModal(menuId, tableData, buttonId) {
         }
 
         html += '<div id="paymentDetails" style="display:none;"></div>';
-        html += `<button class="btn-primary" onclick="submitOrder(${menuId}, ${buttonId})" style="margin-top: 20px;">Submit Order</button>`;
+        html += `<button class="btn-primary" onclick="submitOrder()" style="margin-top: 20px;">Submit Order</button>`;
         html += '</div>';
 
         content.innerHTML = html;
@@ -785,13 +819,13 @@ async function showPaymentModal(menuId, tableData, buttonId) {
         hideLoading();
         console.error('❌ PAYMENT MODAL ERROR:', error);
         console.error('Error stack:', error.stack);
-        alert('Error loading payment: ' + error.message + '\n\nPlease check console for details.');
+        alert('Error loading payment: ' + error.message);
     }
 }
 
 // Select Payment
 async function selectPayment(paymentId) {
-    selectedPayment = Number(paymentId);
+    selectedPayment = parseInt(paymentId, 10);
     console.log('💳 Payment method selected:', selectedPayment);
 
     // Remove selected class from all
@@ -836,39 +870,75 @@ async function selectPayment(paymentId) {
     }
 }
 
-// Submit Order
-async function submitOrder(menuId, buttonId) {
-    console.log('📦 Submitting order...');
-    console.log('Menu ID:', menuId);
-    console.log('Button ID:', buttonId);
-    console.log('Selected Payment:', selectedPayment);
+// Submit Order (FIXED with Complete Validation)
+async function submitOrder() {
+    console.log('📦 === SUBMIT ORDER DEBUG ===');
+    console.log('User ID:', currentUser?.id);
+    console.log('Menu ID:', selectedMenuItem, typeof selectedMenuItem);
+    console.log('Button ID:', currentButtonId, typeof currentButtonId);
+    console.log('Payment ID:', selectedPayment, typeof selectedPayment);
+    console.log('Table Data:', currentTableData);
     
-    if (!selectedPayment) {
+    // Validate payment selection
+    if (!selectedPayment || isNaN(selectedPayment) || selectedPayment <= 0) {
         alert('Please select a payment method');
+        console.error('❌ Invalid payment selection');
         return;
     }
 
+    // Validate transaction code
     const transactionCode = document.getElementById('transactionCode')?.value;
     if (!transactionCode || transactionCode.length !== 6) {
         alert('Please enter the last 6 digits of your transaction');
         return;
     }
 
+    // Final validation of all IDs
+    if (!selectedMenuItem || isNaN(selectedMenuItem) || selectedMenuItem <= 0) {
+        alert('Error: Invalid product. Please start over.');
+        console.error('❌ Invalid menu ID at submit');
+        return;
+    }
+
+    if (!currentButtonId || isNaN(currentButtonId) || currentButtonId <= 0) {
+        alert('Error: Invalid category. Please start over.');
+        console.error('❌ Invalid button ID at submit');
+        return;
+    }
+
+    if (!currentUser || !currentUser.id) {
+        alert('Error: User session invalid. Please login again.');
+        console.error('❌ Invalid user session');
+        return;
+    }
+
     showLoading();
 
     try {
+        // Convert all IDs to integers
         const orderData = {
-            user_id: currentUser.id,
-            menu_id: Number(menuId),
-            button_id: Number(buttonId),
+            user_id: parseInt(currentUser.id, 10),
+            menu_id: parseInt(selectedMenuItem, 10),
+            button_id: parseInt(currentButtonId, 10),
+            payment_method_id: parseInt(selectedPayment, 10),
             table_data: currentTableData,
-            payment_method_id: Number(selectedPayment),
-            transaction_code: transactionCode,
+            transaction_code: transactionCode.trim(),
             status: 'pending',
             created_at: new Date().toISOString()
         };
 
-        console.log('📤 Order data:', orderData);
+        console.log('📤 Final order data:', orderData);
+
+        // Validate order data one more time
+        if (isNaN(orderData.menu_id) || orderData.menu_id <= 0) {
+            throw new Error('Invalid menu_id: ' + orderData.menu_id);
+        }
+        if (isNaN(orderData.button_id) || orderData.button_id <= 0) {
+            throw new Error('Invalid button_id: ' + orderData.button_id);
+        }
+        if (isNaN(orderData.payment_method_id) || orderData.payment_method_id <= 0) {
+            throw new Error('Invalid payment_method_id: ' + orderData.payment_method_id);
+        }
 
         const { data, error } = await supabase
             .from('orders')
@@ -883,14 +953,20 @@ async function submitOrder(menuId, buttonId) {
 
         hideLoading();
         closePaymentModal();
-        alert('Thank you! Your order has been placed successfully.\n\nOrder ID: #' + data.id + '\n\nPlease wait up to 30 minutes for processing.');
+        alert('✅ Order Placed Successfully!\n\n' +
+              'Order ID: #' + data.id + '\n' +
+              'Product: ' + currentMenu.name + '\n' +
+              'Price: ' + currentMenu.price + ' MMK\n\n' +
+              'Please wait up to 30 minutes for processing.');
+        
         console.log('✅ Order submitted successfully:', data);
         
-        // Reset
+        // Reset all state
         selectedMenuItem = null;
         selectedPayment = null;
         currentTableData = {};
         currentMenu = null;
+        currentButtonId = null;
         
         // Reload order history
         await loadOrderHistory();
@@ -898,7 +974,7 @@ async function submitOrder(menuId, buttonId) {
     } catch (error) {
         hideLoading();
         console.error('❌ Order submission error:', error);
-        alert('Error placing order: ' + error.message);
+        alert('❌ Error placing order:\n\n' + error.message + '\n\nPlease check your selection and try again.');
     }
 }
 
