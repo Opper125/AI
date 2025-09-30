@@ -2,49 +2,50 @@
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 
-// Initialize Supabase Client
+// Initialize Supabase
 let supabase;
 try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('✅ Supabase initialized successfully');
+    console.log('✅ Supabase initialized');
 } catch (error) {
-    console.error('❌ Supabase initialization failed:', error);
+    console.error('❌ Supabase init failed:', error);
 }
 
-// Global State - Store all data properly
-window.appState = {
+// Global App State
+const AppState = {
     currentUser: null,
     websiteSettings: null,
     categories: [],
     payments: [],
     contacts: [],
-    selectedMenuItem: null,
-    currentMenu: null,
-    selectedPayment: null,
+    // Current purchase flow
     currentButtonId: null,
-    currentTableData: {},
-    allMenus: [] // Store all menus globally
+    currentMenus: [], // All menus for current button
+    selectedMenu: null, // Selected menu object
+    selectedPaymentId: null,
+    tableData: {}
 };
 
-// Initialize App
+// Make functions globally accessible
+window.AppState = AppState;
+
+// ==================== INITIALIZATION ====================
+
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 App initializing...');
+    console.log('🚀 Initializing app...');
     await testDatabaseConnection();
     await loadWebsiteSettings();
     checkAuth();
     hideLoading();
 });
 
-// Test Database Connection
 async function testDatabaseConnection() {
     const statusEl = document.getElementById('connectionStatus');
     const statusText = statusEl.querySelector('.status-text');
     const statusIcon = statusEl.querySelector('.status-icon');
     
     try {
-        statusText.textContent = 'Testing database connection...';
-        console.log('🔍 Testing database connection...');
-        
+        statusText.textContent = 'Testing database...';
         const { data, error } = await supabase
             .from('website_settings')
             .select('id')
@@ -54,8 +55,7 @@ async function testDatabaseConnection() {
         
         statusEl.classList.add('connected');
         statusIcon.textContent = '✅';
-        statusText.textContent = 'Database connected successfully!';
-        console.log('✅ Database connection successful');
+        statusText.textContent = 'Database connected!';
         
         setTimeout(() => {
             statusEl.classList.add('hide');
@@ -66,7 +66,7 @@ async function testDatabaseConnection() {
         statusEl.classList.add('error');
         statusIcon.textContent = '❌';
         statusText.textContent = 'Database connection failed!';
-        console.error('❌ Database connection failed:', error);
+        console.error('❌ DB Error:', error);
         setTimeout(() => statusEl.classList.add('hide'), 10000);
     }
 }
@@ -81,10 +81,12 @@ function hideLoading() {
     }, 1000);
 }
 
+// ==================== AUTHENTICATION ====================
+
 function checkAuth() {
     const user = localStorage.getItem('currentUser');
     if (user) {
-        window.appState.currentUser = JSON.parse(user);
+        AppState.currentUser = JSON.parse(user);
         showApp();
     } else {
         showAuth();
@@ -126,12 +128,12 @@ async function handleSignup() {
     }
 
     if (!terms) {
-        showError(errorEl, 'Please agree to the terms and conditions');
+        showError(errorEl, 'Please agree to terms');
         return;
     }
 
     if (!validateEmail(email)) {
-        showError(errorEl, 'Please enter a valid email address');
+        showError(errorEl, 'Invalid email');
         return;
     }
 
@@ -165,10 +167,7 @@ async function handleSignup() {
         const { data, error } = await supabase
             .from('users')
             .insert([{
-                name: name,
-                username: username,
-                email: email,
-                password: password,
+                name, username, email, password,
                 created_at: new Date().toISOString()
             }])
             .select()
@@ -177,13 +176,13 @@ async function handleSignup() {
         if (error) throw error;
 
         hideLoading();
-        window.appState.currentUser = data;
+        AppState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         showApp();
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'An error occurred during signup');
+        showError(errorEl, 'Signup failed');
         console.error('❌ Signup error:', error);
     }
 }
@@ -209,7 +208,7 @@ async function handleLogin() {
 
         if (error || !data) {
             hideLoading();
-            showError(errorEl, 'No account found with this email');
+            showError(errorEl, 'No account found');
             return;
         }
 
@@ -220,92 +219,84 @@ async function handleLogin() {
         }
 
         hideLoading();
-        window.appState.currentUser = data;
+        AppState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         showApp();
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'An error occurred during login');
+        showError(errorEl, 'Login failed');
         console.error('❌ Login error:', error);
     }
 }
 
 function handleLogout() {
     localStorage.removeItem('currentUser');
-    window.appState.currentUser = null;
     location.reload();
 }
 
+// ==================== WEBSITE SETTINGS ====================
+
 async function loadWebsiteSettings() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('website_settings')
             .select('*')
             .single();
 
         if (data) {
-            window.appState.websiteSettings = data;
-            applyWebsiteSettings();
+            AppState.websiteSettings = data;
+            applyWebsiteSettings(data);
         }
     } catch (error) {
-        console.error('❌ Error loading settings:', error);
+        console.error('❌ Settings error:', error);
     }
 }
 
-function applyWebsiteSettings() {
-    const settings = window.appState.websiteSettings;
-    if (!settings) return;
-
-    const logos = document.querySelectorAll('#authLogo, #appLogo');
-    logos.forEach(logo => {
+function applyWebsiteSettings(settings) {
+    // Logo
+    document.querySelectorAll('#authLogo, #appLogo').forEach(logo => {
         if (settings.logo_url) {
             logo.src = settings.logo_url;
             logo.style.display = 'block';
         }
     });
 
-    const names = document.querySelectorAll('#authWebsiteName, #appWebsiteName');
-    names.forEach(name => {
+    // Name
+    document.querySelectorAll('#authWebsiteName, #appWebsiteName').forEach(el => {
         if (settings.website_name) {
-            name.textContent = settings.website_name;
+            el.textContent = settings.website_name;
         }
     });
 
+    // Background
     if (settings.background_url) {
-        const bgElement = document.getElementById('dynamicBackground');
-        if (bgElement) {
-            bgElement.style.backgroundImage = `url(${settings.background_url})`;
-        }
+        const bg = document.getElementById('dynamicBackground');
+        if (bg) bg.style.backgroundImage = `url(${settings.background_url})`;
     }
 
+    // Loading animation
     if (settings.loading_animation_url) {
         applyLoadingAnimation(settings.loading_animation_url);
     }
 }
 
-function applyLoadingAnimation(animationUrl) {
-    const loadingContainer = document.getElementById('loadingAnimation');
-    if (!loadingContainer) return;
+function applyLoadingAnimation(url) {
+    const container = document.getElementById('loadingAnimation');
+    if (!container) return;
 
-    const fileExt = animationUrl.split('.').pop().toLowerCase();
-    const spinner = loadingContainer.querySelector('.spinner');
+    const ext = url.split('.').pop().toLowerCase();
+    const spinner = container.querySelector('.spinner');
     if (spinner) spinner.remove();
 
-    if (['gif', 'png', 'jpg', 'jpeg', 'json'].includes(fileExt)) {
-        loadingContainer.innerHTML = `
-            <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
-            <p style="margin-top: 15px; color: white;">Loading...</p>
-        `;
-    } else if (['webm', 'mp4'].includes(fileExt)) {
-        loadingContainer.innerHTML = `
-            <video autoplay loop muted style="max-width: 200px; max-height: 200px;">
-                <source src="${animationUrl}" type="video/${fileExt}">
-            </video>
-            <p style="margin-top: 15px; color: white;">Loading...</p>
-        `;
+    if (['gif', 'png', 'jpg', 'jpeg'].includes(ext)) {
+        container.innerHTML = `<img src="${url}" style="max-width:200px;max-height:200px;"><p style="margin-top:15px;color:white;">Loading...</p>`;
+    } else if (['webm', 'mp4'].includes(ext)) {
+        container.innerHTML = `<video autoplay loop muted style="max-width:200px;max-height:200px;"><source src="${url}" type="video/${ext}"></video><p style="margin-top:15px;color:white;">Loading...</p>`;
     }
 }
+
+// ==================== LOAD APP DATA ====================
 
 async function loadAppData() {
     await Promise.all([
@@ -320,18 +311,16 @@ async function loadAppData() {
 
 async function loadBanners() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('banners')
             .select('*')
             .order('created_at', { ascending: false });
-
-        if (error) throw error;
 
         if (data && data.length > 0) {
             displayBanners(data);
         }
     } catch (error) {
-        console.error('❌ Error loading banners:', error);
+        console.error('❌ Banners error:', error);
     }
 }
 
@@ -350,22 +339,22 @@ function displayBanners(banners) {
     container.appendChild(wrapper);
 
     if (banners.length > 1) {
-        let currentIndex = 0;
+        let idx = 0;
         setInterval(() => {
-            currentIndex = (currentIndex + 1) % banners.length;
-            wrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
+            idx = (idx + 1) % banners.length;
+            wrapper.style.transform = `translateX(-${idx * 100}%)`;
         }, 5000);
     }
 }
 
+// ==================== CATEGORIES ====================
+
 async function loadCategories() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('categories')
             .select('*')
             .order('created_at', { ascending: true });
-
-        if (error) throw error;
 
         if (data && data.length > 0) {
             for (const category of data) {
@@ -377,11 +366,11 @@ async function loadCategories() {
                 category.category_buttons = buttons || [];
             }
             
-            window.appState.categories = data;
+            AppState.categories = data;
             displayCategories(data);
         }
     } catch (error) {
-        console.error('❌ Error loading categories:', error);
+        console.error('❌ Categories error:', error);
     }
 }
 
@@ -393,12 +382,10 @@ function displayCategories(categories) {
         if (category.category_buttons && category.category_buttons.length > 0) {
             const section = document.createElement('div');
             section.className = 'category-section';
-
             section.innerHTML = `
                 <h3 class="category-title">${category.title}</h3>
                 <div class="category-buttons" id="category-${category.id}"></div>
             `;
-
             container.appendChild(section);
             displayCategoryButtons(category.id, category.category_buttons);
         }
@@ -416,40 +403,36 @@ function displayCategoryButtons(categoryId, buttons) {
             <img src="${button.icon_url}" alt="${button.name}">
             <span>${button.name}</span>
         `;
-        btnEl.addEventListener('click', () => openCategoryPage(categoryId, button.id));
+        btnEl.addEventListener('click', () => openCategoryPage(button.id));
         container.appendChild(btnEl);
     });
 }
 
-async function openCategoryPage(categoryId, buttonId) {
+// ==================== OPEN CATEGORY (PURCHASE FLOW START) ====================
+
+async function openCategoryPage(buttonId) {
+    console.log('🎮 Opening button:', buttonId);
     showLoading();
 
     try {
-        console.log(`🎮 Opening button ID: ${buttonId}`);
+        AppState.currentButtonId = buttonId;
         
-        window.appState.currentButtonId = buttonId;
-        
-        const [tablesResult, menusResult, videosResult] = await Promise.all([
+        const [tablesRes, menusRes, videosRes] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId),
             supabase.from('menus').select('*').eq('button_id', buttonId),
             supabase.from('youtube_videos').select('*').eq('button_id', buttonId)
         ]);
 
-        // Store menus globally
-        window.appState.allMenus = menusResult.data || [];
-
+        AppState.currentMenus = menusRes.data || [];
+        
         console.log('📊 Loaded:', {
-            tables: tablesResult.data?.length || 0,
-            menus: menusResult.data?.length || 0,
-            videos: videosResult.data?.length || 0
+            tables: tablesRes.data?.length || 0,
+            menus: menusRes.data?.length || 0,
+            videos: videosRes.data?.length || 0
         });
 
         hideLoading();
-        showPurchaseModal(
-            tablesResult.data || [], 
-            menusResult.data || [], 
-            videosResult.data || []
-        );
+        showPurchaseModal(tablesRes.data || [], menusRes.data || [], videosRes.data || []);
 
     } catch (error) {
         hideLoading();
@@ -458,28 +441,34 @@ async function openCategoryPage(categoryId, buttonId) {
     }
 }
 
+// ==================== PURCHASE MODAL ====================
+
 function showPurchaseModal(tables, menus, videos) {
+    console.log('🛍️ Showing purchase modal with', menus.length, 'menus');
+    
     const modal = document.getElementById('purchaseModal');
     const content = document.getElementById('purchaseContent');
     
     let html = '<div class="purchase-form">';
 
+    // Input tables
     if (tables && tables.length > 0) {
         html += '<div class="input-tables">';
         tables.forEach(table => {
             html += `
                 <div class="form-group">
                     <label>${table.name}</label>
-                    <input type="text" id="table-${table.id}" placeholder="${table.instruction}" required>
+                    <input type="text" class="table-input" data-table-id="${table.id}" placeholder="${table.instruction}" required>
                 </div>
             `;
         });
         html += '</div>';
     }
 
+    // Menu items (Products)
     if (menus && menus.length > 0) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
-        html += '<div class="menu-items">';
+        html += '<div class="menu-items" id="menuItemsContainer">';
         menus.forEach(menu => {
             html += `
                 <div class="menu-item" data-menu-id="${menu.id}">
@@ -493,8 +482,11 @@ function showPurchaseModal(tables, menus, videos) {
             `;
         });
         html += '</div>';
+    } else {
+        html += '<p style="text-align:center;padding:40px;color:#f59e0b;">No products available</p>';
     }
 
+    // Videos
     if (videos && videos.length > 0) {
         html += '<div class="video-section"><h3>Tutorials</h3>';
         videos.forEach(video => {
@@ -508,49 +500,49 @@ function showPurchaseModal(tables, menus, videos) {
         html += '</div>';
     }
 
-    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 20px;">Buy Now</button>`;
+    html += '<button class="btn-primary" id="buyNowButton" style="margin-top:20px;">Buy Now</button>';
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 
-    // Add event listeners after DOM is ready
-    setTimeout(() => {
-        // Menu item click handlers
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const menuId = parseInt(this.getAttribute('data-menu-id'));
-                selectMenuItemNew(menuId);
-            });
-        });
-
-        // Buy button handler
-        const buyBtn = document.getElementById('buyNowBtn');
-        if (buyBtn) {
-            buyBtn.addEventListener('click', proceedToPurchaseNew);
-        }
-    }, 100);
+    // Attach event listeners
+    attachPurchaseEventListeners();
 }
 
-// NEW: Proper menu selection function
-function selectMenuItemNew(menuId) {
-    console.log('🔍 Selecting menu:', menuId, typeof menuId);
+function attachPurchaseEventListeners() {
+    // Menu item selection using event delegation
+    const menuContainer = document.getElementById('menuItemsContainer');
+    if (menuContainer) {
+        menuContainer.addEventListener('click', (e) => {
+            const menuItem = e.target.closest('.menu-item');
+            if (menuItem) {
+                const menuId = parseInt(menuItem.getAttribute('data-menu-id'));
+                selectMenu(menuId);
+            }
+        });
+    }
+
+    // Buy button
+    const buyBtn = document.getElementById('buyNowButton');
+    if (buyBtn) {
+        buyBtn.addEventListener('click', handleBuyNow);
+    }
+}
+
+function selectMenu(menuId) {
+    console.log('🔍 Selecting menu ID:', menuId);
     
-    if (!menuId || isNaN(menuId)) {
-        console.error('❌ Invalid menu ID');
+    // Find menu from stored menus
+    const menu = AppState.currentMenus.find(m => m.id === menuId);
+    
+    if (!menu) {
+        console.error('❌ Menu not found!');
         return;
     }
 
-    window.appState.selectedMenuItem = parseInt(menuId);
-    
-    // Find menu in stored menus
-    const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
-    if (menu) {
-        window.appState.currentMenu = menu;
-        console.log('✅ Menu stored:', menu);
-    } else {
-        console.error('❌ Menu not found in stored menus');
-    }
+    AppState.selectedMenu = menu;
+    console.log('✅ Menu selected:', menu);
 
     // Update UI
     document.querySelectorAll('.menu-item').forEach(item => {
@@ -563,73 +555,68 @@ function selectMenuItemNew(menuId) {
     }
 }
 
-function closePurchaseModal() {
-    document.getElementById('purchaseModal').classList.remove('active');
-    window.appState.selectedMenuItem = null;
-    window.appState.currentMenu = null;
-}
-
-// NEW: Proper proceed to purchase
-async function proceedToPurchaseNew() {
-    console.log('🛒 === PURCHASE DEBUG ===');
-    console.log('Selected menu:', window.appState.selectedMenuItem);
-    console.log('Current menu:', window.appState.currentMenu);
-    console.log('Button ID:', window.appState.currentButtonId);
+function handleBuyNow() {
+    console.log('🛒 Buy Now clicked');
+    console.log('Selected menu:', AppState.selectedMenu);
     
-    if (!window.appState.selectedMenuItem || !window.appState.currentMenu) {
+    if (!AppState.selectedMenu) {
         alert('Please select a product to purchase');
-        console.error('❌ No menu selected');
         return;
     }
 
     // Collect table data
-    const tables = document.querySelectorAll('.input-tables input');
+    const tableInputs = document.querySelectorAll('.table-input');
     const tableData = {};
     let allFilled = true;
 
-    tables.forEach(input => {
+    tableInputs.forEach(input => {
         const value = input.value.trim();
-        if (!value) allFilled = false;
-        const tableId = input.id.replace('table-', '');
+        if (!value) {
+            allFilled = false;
+        }
+        const tableId = input.getAttribute('data-table-id');
         tableData[tableId] = value;
     });
 
-    if (tables.length > 0 && !allFilled) {
+    if (tableInputs.length > 0 && !allFilled) {
         alert('Please fill in all required fields');
         return;
     }
 
-    window.appState.currentTableData = tableData;
+    AppState.tableData = tableData;
     console.log('📝 Table data:', tableData);
 
     closePurchaseModal();
-    await showPaymentModalNew();
+    showPaymentModal();
 }
+
+function closePurchaseModal() {
+    document.getElementById('purchaseModal').classList.remove('active');
+}
+
+// ==================== PAYMENT MODAL ====================
 
 async function loadPayments() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('payment_methods')
             .select('*')
-            .order('created_at', { ascending: true});
+            .order('created_at', { ascending: true });
 
-        if (error) throw error;
-
-        window.appState.payments = data || [];
-        console.log(`✅ Loaded ${data?.length || 0} payment methods`);
+        AppState.payments = data || [];
+        console.log('✅ Loaded', data?.length || 0, 'payment methods');
     } catch (error) {
-        console.error('❌ Error loading payments:', error);
-        window.appState.payments = [];
+        console.error('❌ Payments error:', error);
+        AppState.payments = [];
     }
 }
 
-// NEW: Proper payment modal
-async function showPaymentModalNew() {
-    console.log('💳 === PAYMENT MODAL ===');
+async function showPaymentModal() {
+    console.log('💳 Showing payment modal');
+    console.log('Current menu:', AppState.selectedMenu);
     
-    const menu = window.appState.currentMenu;
-    if (!menu) {
-        alert('Error: Product data not found');
+    if (!AppState.selectedMenu) {
+        alert('Error: Product data not found. Please try again.');
         return;
     }
 
@@ -638,26 +625,30 @@ async function showPaymentModalNew() {
 
     showLoading();
 
-    if (!window.appState.payments || window.appState.payments.length === 0) {
+    if (!AppState.payments || AppState.payments.length === 0) {
         await loadPayments();
     }
 
     hideLoading();
 
+    const menu = AppState.selectedMenu;
+
     let html = '<div class="payment-selection">';
-    html += `<div class="order-summary">
-        <h3>${menu.name}</h3>
-        <p>${menu.amount}</p>
-        <p class="price">${menu.price} MMK</p>
-    </div>`;
+    html += `
+        <div class="order-summary">
+            <h3>${menu.name}</h3>
+            <p>${menu.amount}</p>
+            <p class="price">${menu.price} MMK</p>
+        </div>
+    `;
 
     html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
     
-    if (window.appState.payments.length === 0) {
-        html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">⚠️ No payment methods available</p>';
+    if (AppState.payments.length === 0) {
+        html += '<p style="text-align:center;padding:20px;background:rgba(245,158,11,0.1);border-radius:12px;color:#f59e0b;">⚠️ No payment methods available</p>';
     } else {
-        html += '<div class="payment-methods">';
-        window.appState.payments.forEach(payment => {
+        html += '<div class="payment-methods" id="paymentMethodsContainer">';
+        AppState.payments.forEach(payment => {
             html += `
                 <div class="payment-method" data-payment-id="${payment.id}">
                     <img src="${payment.icon_url}" alt="${payment.name}">
@@ -668,40 +659,46 @@ async function showPaymentModalNew() {
         html += '</div>';
     }
 
-    html += '<div id="paymentDetails" style="display:none;"></div>';
-    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 20px;">Submit Order</button>`;
+    html += '<div id="paymentDetailsDiv" style="display:none;"></div>';
+    html += '<button class="btn-primary" id="submitOrderButton" style="margin-top:20px;">Submit Order</button>';
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 
-    // Add event listeners
-    setTimeout(() => {
-        document.querySelectorAll('.payment-method').forEach(item => {
-            item.addEventListener('click', function() {
-                const paymentId = parseInt(this.getAttribute('data-payment-id'));
-                selectPaymentNew(paymentId);
-            });
-        });
-
-        const submitBtn = document.getElementById('submitOrderBtn');
-        if (submitBtn) {
-            submitBtn.addEventListener('click', submitOrderNew);
-        }
-    }, 100);
+    attachPaymentEventListeners();
 }
 
-// NEW: Select payment
-async function selectPaymentNew(paymentId) {
-    window.appState.selectedPayment = parseInt(paymentId);
-    console.log('💳 Payment selected:', window.appState.selectedPayment);
+function attachPaymentEventListeners() {
+    const paymentContainer = document.getElementById('paymentMethodsContainer');
+    if (paymentContainer) {
+        paymentContainer.addEventListener('click', (e) => {
+            const paymentMethod = e.target.closest('.payment-method');
+            if (paymentMethod) {
+                const paymentId = parseInt(paymentMethod.getAttribute('data-payment-id'));
+                selectPayment(paymentId);
+            }
+        });
+    }
 
-    document.querySelectorAll('.payment-method').forEach(pm => {
-        pm.classList.remove('selected');
+    const submitBtn = document.getElementById('submitOrderButton');
+    if (submitBtn) {
+        submitBtn.addEventListener('click', submitOrder);
+    }
+}
+
+async function selectPayment(paymentId) {
+    console.log('💳 Selecting payment:', paymentId);
+    AppState.selectedPaymentId = paymentId;
+
+    document.querySelectorAll('.payment-method').forEach(el => {
+        el.classList.remove('selected');
     });
 
     const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
-    if (selectedEl) selectedEl.classList.add('selected');
+    if (selectedEl) {
+        selectedEl.classList.add('selected');
+    }
 
     try {
         const { data: payment } = await supabase
@@ -710,51 +707,53 @@ async function selectPaymentNew(paymentId) {
             .eq('id', paymentId)
             .single();
 
-        const detailsDiv = document.getElementById('paymentDetails');
+        const detailsDiv = document.getElementById('paymentDetailsDiv');
         if (detailsDiv && payment) {
             detailsDiv.style.display = 'block';
             detailsDiv.innerHTML = `
                 <div class="payment-info">
                     <h4>${payment.name}</h4>
-                    <p>${payment.instructions || 'Please complete payment and enter transaction details.'}</p>
+                    <p>${payment.instructions || 'Please complete payment and enter details.'}</p>
                     <p><strong>Address:</strong> ${payment.address}</p>
-                    <div class="form-group" style="margin-top: 15px;">
+                    <div class="form-group" style="margin-top:15px;">
                         <label>Last 6 digits of transaction ID</label>
-                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits">
+                        <input type="text" id="transactionCodeInput" maxlength="6" placeholder="Enter last 6 digits">
                     </div>
                 </div>
             `;
         }
     } catch (error) {
-        console.error('❌ Error loading payment details:', error);
+        console.error('❌ Payment details error:', error);
     }
 }
 
 function closePaymentModal() {
     document.getElementById('paymentModal').classList.remove('active');
-    window.appState.selectedPayment = null;
+    AppState.selectedPaymentId = null;
 }
 
-// NEW: Submit order with full validation
-async function submitOrderNew() {
-    console.log('📦 === SUBMIT ORDER ===');
-    console.log('User:', window.appState.currentUser?.id);
-    console.log('Menu:', window.appState.selectedMenuItem);
-    console.log('Button:', window.appState.currentButtonId);
-    console.log('Payment:', window.appState.selectedPayment);
+// ==================== SUBMIT ORDER ====================
 
-    if (!window.appState.selectedPayment) {
+async function submitOrder() {
+    console.log('📦 === SUBMITTING ORDER ===');
+    console.log('User ID:', AppState.currentUser?.id);
+    console.log('Menu:', AppState.selectedMenu);
+    console.log('Button ID:', AppState.currentButtonId);
+    console.log('Payment ID:', AppState.selectedPaymentId);
+    console.log('Table data:', AppState.tableData);
+
+    if (!AppState.selectedPaymentId) {
         alert('Please select a payment method');
         return;
     }
 
-    const transactionCode = document.getElementById('transactionCode')?.value;
+    const transactionCode = document.getElementById('transactionCodeInput')?.value;
     if (!transactionCode || transactionCode.length !== 6) {
         alert('Please enter last 6 digits of transaction');
         return;
     }
 
-    if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
+    if (!AppState.selectedMenu || !AppState.currentButtonId) {
         alert('Error: Missing order information');
         return;
     }
@@ -763,11 +762,11 @@ async function submitOrderNew() {
 
     try {
         const orderData = {
-            user_id: parseInt(window.appState.currentUser.id),
-            menu_id: parseInt(window.appState.selectedMenuItem),
-            button_id: parseInt(window.appState.currentButtonId),
-            payment_method_id: parseInt(window.appState.selectedPayment),
-            table_data: window.appState.currentTableData,
+            user_id: parseInt(AppState.currentUser.id),
+            menu_id: parseInt(AppState.selectedMenu.id),
+            button_id: parseInt(AppState.currentButtonId),
+            payment_method_id: parseInt(AppState.selectedPaymentId),
+            table_data: AppState.tableData,
             transaction_code: transactionCode.trim(),
             status: 'pending',
             created_at: new Date().toISOString()
@@ -786,41 +785,41 @@ async function submitOrderNew() {
         hideLoading();
         closePaymentModal();
         
-        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${window.appState.currentMenu.name}\nPrice: ${window.appState.currentMenu.price} MMK\n\nPlease wait up to 30 minutes.`);
+        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${AppState.selectedMenu.name}\nPrice: ${AppState.selectedMenu.price} MMK\n\nPlease wait up to 30 minutes for processing.`);
 
         // Reset state
-        window.appState.selectedMenuItem = null;
-        window.appState.selectedPayment = null;
-        window.appState.currentTableData = {};
-        window.appState.currentMenu = null;
-        window.appState.currentButtonId = null;
+        AppState.selectedMenu = null;
+        AppState.selectedPaymentId = null;
+        AppState.currentButtonId = null;
+        AppState.tableData = {};
+        AppState.currentMenus = [];
         
         await loadOrderHistory();
 
     } catch (error) {
         hideLoading();
         console.error('❌ Order error:', error);
-        alert('Error: ' + error.message);
+        alert('Error placing order: ' + error.message);
     }
 }
 
+// ==================== ORDER HISTORY ====================
+
 async function loadOrderHistory() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('orders')
             .select(`
                 *,
                 menus (name, price, amount),
                 payment_methods (name)
             `)
-            .eq('user_id', window.appState.currentUser.id)
+            .eq('user_id', AppState.currentUser.id)
             .order('created_at', { ascending: false });
-
-        if (error) throw error;
 
         displayOrderHistory(data || []);
     } catch (error) {
-        console.error('❌ Error loading orders:', error);
+        console.error('❌ Orders error:', error);
     }
 }
 
@@ -857,18 +856,18 @@ function displayOrderHistory(orders) {
     });
 }
 
+// ==================== CONTACTS ====================
+
 async function loadContacts() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('contacts')
             .select('*')
             .order('created_at', { ascending: true });
 
-        if (error) throw error;
-
         displayContacts(data || []);
     } catch (error) {
-        console.error('❌ Error loading contacts:', error);
+        console.error('❌ Contacts error:', error);
     }
 }
 
@@ -904,8 +903,10 @@ function displayContacts(contacts) {
     });
 }
 
+// ==================== PROFILE ====================
+
 function loadProfile() {
-    const user = window.appState.currentUser;
+    const user = AppState.currentUser;
     document.getElementById('profileName').value = user.name;
     document.getElementById('profileUsername').value = user.username;
     document.getElementById('profileEmail').value = user.email;
@@ -929,7 +930,7 @@ async function updateProfile() {
         return;
     }
 
-    if (currentPassword !== window.appState.currentUser.password) {
+    if (currentPassword !== AppState.currentUser.password) {
         showError(errorEl, 'Current password is incorrect');
         return;
     }
@@ -940,39 +941,39 @@ async function updateProfile() {
         const { data, error } = await supabase
             .from('users')
             .update({ password: newPassword })
-            .eq('id', window.appState.currentUser.id)
+            .eq('id', AppState.currentUser.id)
             .select()
             .single();
 
         if (error) throw error;
 
         hideLoading();
-        window.appState.currentUser = data;
+        AppState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         
-        showSuccess(successEl, 'Password updated successfully!');
+        showSuccess(successEl, 'Password updated!');
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'Error updating password');
+        showError(errorEl, 'Update failed');
         console.error('❌ Update error:', error);
     }
 }
+
+// ==================== UTILITIES ====================
 
 function switchPage(pageName) {
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
-
     document.getElementById(pageName + 'Page').classList.add('active');
 
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    
     const activeNav = document.querySelector(`[data-page="${pageName}"]`);
     if (activeNav) activeNav.classList.add('active');
 }
@@ -993,4 +994,4 @@ function showSuccess(element, message) {
     setTimeout(() => element.classList.remove('show'), 5000);
 }
 
-console.log('✅ App ready!');
+console.log('✅ App initialized successfully!');
