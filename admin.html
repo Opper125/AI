@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-animation">
+            <div class="spinner"></div>
+            <p>Loading Admin Panel...</p>
+        </div>
+    </div>
+
+    <!-- Admin Login -->
+    <div id="adminLogin" class="admin-login">
+        <div class="login-box">
+            <h1>🔐 Admin Login</h1>
+            <div class="form-group">
+                <input type="password" id="adminPassword" placeholder="Enter Admin Password">
+            </div>
+            <div class="error-message" id="loginError"></div>
+            <button onclick="adminLogin()" class="btn-primary">Login</button>
+        </div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="admin-dashboard" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>⚙️ Admin Panel</h2>
+                <button onclick="adminLogout()" class="btn-logout">Logout</button>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-section="website-settings" onclick="switchSection('website-settings')">
+                    <span>🌐</span> Website Settings
+                </button>
+                <button class="nav-btn" data-section="banners" onclick="switchSection('banners')">
+                    <span>🖼️</span> Banners
+                </button>
+                <button class="nav-btn" data-section="categories" onclick="switchSection('categories')">
+                    <span>📂</span> Categories
+                </button>
+                <button class="nav-btn" data-section="buttons" onclick="switchSection('buttons')">
+                    <span>🎮</span> Category Buttons
+                </button>
+                <button class="nav-btn" data-section="tables" onclick="switchSection('tables')">
+                    <span>📝</span> Input Tables
+                </button>
+                <button class="nav-btn" data-section="menus" onclick="switchSection('menus')">
+                    <span>🛒</span> Products (Menus)
+                </button>
+                <button class="nav-btn" data-section="payments" onclick="switchSection('payments')">
+                    <span>💳</span> Payment Methods
+                </button>
+                <button class="nav-btn" data-section="contacts" onclick="switchSection('contacts')">
+                    <span>📞</span> Contacts
+                </button>
+                <button class="nav-btn" data-section="videos" onclick="switchSection('videos')">
+                    <span>🎥</span> YouTube Videos
+                </button>
+                <button class="nav-btn" data-section="orders" onclick="switchSection('orders')">
+                    <span>📦</span> Orders
+                </button>
+                <button class="nav-btn" data-section="users" onclick="switchSection('users')">
+                    <span>👥</span> Users
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Website Settings Section -->
+            <section id="website-settings" class="content-section active">
+                <h2>🌐 Website Settings</h2>
+                
+                <div class="settings-grid">
+                    <div class="setting-card">
+                        <h3>Website Name</h3>
+                        <input type="text" id="websiteName" placeholder="Enter website name">
+                        <button onclick="updateWebsiteName()" class="btn-primary">Save</button>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>Website Logo</h3>
+                        <div class="image-preview" id="logoPreview"></div>
+                        <input type="file" id="logoFile" accept="image/*" onchange="previewLogo()">
+                        <button onclick="uploadLogo()" class="btn-primary">Upload Logo</button>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>Background Image</h3>
+                        <div class="image-preview" id="bgPreview"></div>
+                        <input type="file" id="bgFile" accept="image/*" onchange="previewBackground()">
+                        <button onclick="uploadBackground()" class="btn-primary">Upload Background</button>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>Loading Animation</h3>
+                        <div class="image-preview" id="loadingPreview"></div>
+                        <input type="file" id="loadingFile" accept="image/*,.json,.gif,.webm,video/*">
+                        <button onclick="uploadLoadingAnimation()" class="btn-primary">Upload Animation</button>
+                    </div>
+
+                    <div class="setting-card">
+                        <h3>Button Style</h3>
+                        <div class="image-preview" id="buttonPreview"></div>
+                        <input type="file" id="buttonFile" accept="image/*">
+                        <button onclick="uploadButtonStyle()" class="btn-primary">Upload Button Style</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Banners Section -->
+            <section id="banners" class="content-section">
+                <h2>🖼️ Banners Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add New Banner</h3>
+                    <input type="file" id="bannerFile" accept="image/*">
+                    <button onclick="addBanner()" class="btn-primary">Add Banner</button>
+                </div>
+
+                <div class="items-grid" id="bannersContainer">
+                    <!-- Banners will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Categories Section -->
+            <section id="categories" class="content-section">
+                <h2>📂 Categories Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add New Category</h3>
+                    <input type="text" id="categoryTitle" placeholder="Category Title">
+                    <button onclick="addCategory()" class="btn-primary">Add Category</button>
+                </div>
+
+                <div class="items-list" id="categoriesContainer">
+                    <!-- Categories will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Category Buttons Section -->
+            <section id="buttons" class="content-section">
+                <h2>🎮 Category Buttons Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add New Button</h3>
+                    <select id="buttonCategorySelect" class="form-select">
+                        <option value="">Select Category</option>
+                    </select>
+                    <input type="text" id="buttonName" placeholder="Button Name">
+                    <input type="file" id="buttonIconFile" accept="image/*">
+                    <button onclick="addCategoryButton()" class="btn-primary">Add Button</button>
+                </div>
+
+                <div class="items-grid" id="buttonsContainer">
+                    <!-- Buttons will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Input Tables Section -->
+            <section id="tables" class="content-section">
+                <h2>📝 Input Tables Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add Input Tables</h3>
+                    <select id="tableCategorySelect" class="form-select" onchange="loadButtonsForTables()">
+                        <option value="">Select Category</option>
+                    </select>
+                    <select id="tableButtonSelect" class="form-select">
+                        <option value="">Select Button</option>
+                    </select>
+                    
+                    <div id="tablesInputContainer">
+                        <div class="table-input-group">
+                            <input type="text" class="table-name" placeholder="Table Name">
+                            <input type="text" class="table-instruction" placeholder="Instruction">
+                        </div>
+                    </div>
+                    
+                    <button onclick="addTableInput()" class="btn-secondary">+ Add More Table</button>
+                    <button onclick="saveTables()" class="btn-primary">Save All Tables</button>
+                </div>
+
+                <div class="items-list" id="tablesContainer">
+                    <!-- Tables will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Menus Section -->
+            <section id="menus" class="content-section">
+                <h2>🛒 Products (Menus) Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add Products/Menus</h3>
+                    <select id="menuCategorySelect" class="form-select" onchange="loadButtonsForMenus()">
+                        <option value="">Select Category</option>
+                    </select>
+                    <select id="menuButtonSelect" class="form-select">
+                        <option value="">Select Button</option>
+                    </select>
+                    
+                    <div id="menusInputContainer">
+                        <div class="menu-input-group">
+                            <input type="text" class="menu-name" placeholder="Product Name">
+                            <input type="text" class="menu-amount" placeholder="Amount/Details">
+                            <input type="number" class="menu-price" placeholder="Price">
+                            <input type="file" class="menu-icon" accept="image/*">
+                        </div>
+                    </div>
+                    
+                    <button onclick="addMenuInput()" class="btn-secondary">+ Add More Product</button>
+                    <button onclick="saveMenus()" class="btn-primary">Save All Products</button>
+                </div>
+
+                <div class="items-grid" id="menusContainer">
+                    <!-- Menus will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Payment Methods Section -->
+            <section id="payments" class="content-section">
+                <h2>💳 Payment Methods Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add Payment Method</h3>
+                    <input type="text" id="paymentName" placeholder="Payment Name">
+                    <input type="text" id="paymentAddress" placeholder="Payment Address">
+                    <textarea id="paymentInstructions" placeholder="Instructions" rows="3"></textarea>
+                    <input type="file" id="paymentIconFile" accept="image/*">
+                    <button onclick="addPaymentMethod()" class="btn-primary">Add Payment</button>
+                </div>
+
+                <div class="items-grid" id="paymentsContainer">
+                    <!-- Payments will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Contacts Section -->
+            <section id="contacts" class="content-section">
+                <h2>📞 Contacts Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add Contact</h3>
+                    <input type="text" id="contactName" placeholder="Contact Name">
+                    <textarea id="contactDescription" placeholder="Description" rows="2"></textarea>
+                    <input type="text" id="contactLink" placeholder="Link (optional)">
+                    <input type="text" id="contactAddress" placeholder="Address (optional)">
+                    <input type="file" id="contactIconFile" accept="image/*">
+                    <button onclick="addContact()" class="btn-primary">Add Contact</button>
+                </div>
+
+                <div class="items-grid" id="contactsContainer">
+                    <!-- Contacts will be loaded here -->
+                </div>
+            </section>
+
+            <!-- YouTube Videos Section -->
+            <section id="videos" class="content-section">
+                <h2>🎥 YouTube Videos Management</h2>
+                
+                <div class="action-card">
+                    <h3>Add YouTube Video</h3>
+                    <select id="videoCategorySelect" class="form-select" onchange="loadButtonsForVideos()">
+                        <option value="">Select Category</option>
+                    </select>
+                    <select id="videoButtonSelect" class="form-select">
+                        <option value="">Select Button</option>
+                    </select>
+                    <input type="file" id="videoBannerFile" accept="image/*" placeholder="Video Banner">
+                    <input type="text" id="videoUrl" placeholder="YouTube Video URL">
+                    <textarea id="videoDescription" placeholder="Description" rows="2"></textarea>
+                    <button onclick="addVideo()" class="btn-primary">Add Video</button>
+                </div>
+
+                <div class="items-grid" id="videosContainer">
+                    <!-- Videos will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Orders Section -->
+            <section id="orders" class="content-section">
+                <h2>📦 Orders Management</h2>
+                
+                <div class="orders-filter">
+                    <button class="filter-btn active" onclick="filterOrders('all')">All</button>
+                    <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
+                    <button class="filter-btn" onclick="filterOrders('approved')">Approved</button>
+                    <button class="filter-btn" onclick="filterOrders('rejected')">Rejected</button>
+                </div>
+
+                <div class="orders-list" id="ordersContainer">
+                    <!-- Orders will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Users Section -->
+            <section id="users" class="content-section">
+                <h2>👥 Users Management</h2>
+                
+                <div class="users-stats">
+                    <div class="stat-card">
+                        <h3 id="totalUsers">0</h3>
+                        <p>Total Users</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="todayUsers">0</h3>
+                        <p>Today's Registrations</p>
+                    </div>
+                </div>
+
+                <div class="users-list" id="usersContainer">
+                    <!-- Users will be loaded here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            <h2 id="modalTitle">Edit Item</h2>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Order Details Modal -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeOrderModal()">&times;</span>
+            <h2>Order Details</h2>
+            <div id="orderModalBody"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="admin.js"></script>
+</body>
+</html>
