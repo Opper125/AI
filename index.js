@@ -3,7 +3,13 @@ const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 
 // Initialize Supabase Client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase;
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    console.log('✅ Supabase initialized successfully');
+} catch (error) {
+    console.error('❌ Supabase initialization failed:', error);
+}
 
 // Global State
 let currentUser = null;
@@ -11,13 +17,66 @@ let websiteSettings = null;
 let categories = [];
 let payments = [];
 let contacts = [];
+let selectedMenuItem = null;
+let currentTableData = {};
+let currentMenu = null;
+let selectedPayment = null;
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 App initializing...');
+    await testDatabaseConnection();
     await loadWebsiteSettings();
     checkAuth();
     hideLoading();
 });
+
+// Test Database Connection
+async function testDatabaseConnection() {
+    const statusEl = document.getElementById('connectionStatus');
+    const statusText = statusEl.querySelector('.status-text');
+    const statusIcon = statusEl.querySelector('.status-icon');
+    
+    try {
+        statusText.textContent = 'Testing database connection...';
+        console.log('🔍 Testing database connection...');
+        
+        const { data, error } = await supabase
+            .from('website_settings')
+            .select('id')
+            .limit(1);
+        
+        if (error) {
+            throw error;
+        }
+        
+        // Success
+        statusEl.classList.add('connected');
+        statusIcon.textContent = '✅';
+        statusText.textContent = 'Database connected successfully!';
+        console.log('✅ Database connection successful');
+        
+        // Hide after 3 seconds
+        setTimeout(() => {
+            statusEl.classList.add('hide');
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 500);
+        }, 3000);
+        
+    } catch (error) {
+        // Error
+        statusEl.classList.add('error');
+        statusIcon.textContent = '❌';
+        statusText.textContent = 'Database connection failed!';
+        console.error('❌ Database connection failed:', error);
+        
+        // Hide after 10 seconds
+        setTimeout(() => {
+            statusEl.classList.add('hide');
+        }, 10000);
+    }
+}
 
 // Loading Functions
 function showLoading() {
@@ -90,6 +149,7 @@ async function handleSignup() {
     showLoading();
 
     try {
+        console.log('📝 Checking username...');
         // Check if username exists
         const { data: usernameCheck } = await supabase
             .from('users')
@@ -103,6 +163,7 @@ async function handleSignup() {
             return;
         }
 
+        console.log('📧 Checking email...');
         // Check if email exists
         const { data: emailCheck } = await supabase
             .from('users')
@@ -116,6 +177,7 @@ async function handleSignup() {
             return;
         }
 
+        console.log('👤 Creating user...');
         // Create user
         const { data, error } = await supabase
             .from('users')
@@ -136,12 +198,13 @@ async function handleSignup() {
         hideLoading();
         currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
+        console.log('✅ User created successfully');
         showApp();
 
     } catch (error) {
         hideLoading();
         showError(errorEl, 'An error occurred during signup');
-        console.error('Signup error:', error);
+        console.error('❌ Signup error:', error);
     }
 }
 
@@ -159,6 +222,7 @@ async function handleLogin() {
     showLoading();
 
     try {
+        console.log('🔍 Checking user...');
         const { data, error } = await supabase
             .from('users')
             .select('*')
@@ -180,12 +244,13 @@ async function handleLogin() {
         hideLoading();
         currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
+        console.log('✅ Login successful');
         showApp();
 
     } catch (error) {
         hideLoading();
         showError(errorEl, 'An error occurred during login');
-        console.error('Login error:', error);
+        console.error('❌ Login error:', error);
     }
 }
 
@@ -199,6 +264,7 @@ function handleLogout() {
 // Load Website Settings
 async function loadWebsiteSettings() {
     try {
+        console.log('⚙️ Loading website settings...');
         const { data, error } = await supabase
             .from('website_settings')
             .select('*')
@@ -207,9 +273,10 @@ async function loadWebsiteSettings() {
         if (data) {
             websiteSettings = data;
             applyWebsiteSettings();
+            console.log('✅ Website settings loaded');
         }
     } catch (error) {
-        console.error('Error loading settings:', error);
+        console.error('❌ Error loading settings:', error);
     }
 }
 
@@ -222,6 +289,7 @@ function applyWebsiteSettings() {
     logos.forEach(logo => {
         if (websiteSettings.logo_url) {
             logo.src = websiteSettings.logo_url;
+            logo.style.display = 'block';
         }
     });
 
@@ -243,6 +311,7 @@ function applyWebsiteSettings() {
 
 // Load App Data
 async function loadAppData() {
+    console.log('📦 Loading app data...');
     await Promise.all([
         loadBanners(),
         loadCategories(),
@@ -251,11 +320,13 @@ async function loadAppData() {
         loadProfile(),
         loadOrderHistory()
     ]);
+    console.log('✅ App data loaded');
 }
 
 // Load Banners
 async function loadBanners() {
     try {
+        console.log('🖼️ Loading banners...');
         const { data, error } = await supabase
             .from('banners')
             .select('*')
@@ -263,9 +334,10 @@ async function loadBanners() {
 
         if (data && data.length > 0) {
             displayBanners(data);
+            console.log(`✅ Loaded ${data.length} banners`);
         }
     } catch (error) {
-        console.error('Error loading banners:', error);
+        console.error('❌ Error loading banners:', error);
     }
 }
 
@@ -297,20 +369,31 @@ function displayBanners(banners) {
 // Load Categories
 async function loadCategories() {
     try {
+        console.log('📂 Loading categories...');
         const { data, error } = await supabase
             .from('categories')
-            .select(`
-                *,
-                category_buttons (*)
-            `)
+            .select('*')
             .order('created_at', { ascending: true });
 
-        if (data) {
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            // Load buttons for each category
+            for (const category of data) {
+                const { data: buttons } = await supabase
+                    .from('category_buttons')
+                    .select('*')
+                    .eq('category_id', category.id);
+                
+                category.category_buttons = buttons || [];
+            }
+            
             categories = data;
             displayCategories(data);
+            console.log(`✅ Loaded ${data.length} categories`);
         }
     } catch (error) {
-        console.error('Error loading categories:', error);
+        console.error('❌ Error loading categories:', error);
     }
 }
 
@@ -320,18 +403,16 @@ function displayCategories(categories) {
     container.innerHTML = '';
 
     categories.forEach(category => {
-        const section = document.createElement('div');
-        section.className = 'category-section';
+        if (category.category_buttons && category.category_buttons.length > 0) {
+            const section = document.createElement('div');
+            section.className = 'category-section';
 
-        section.innerHTML = `
-            <h3 class="category-title">${category.title}</h3>
-            <div class="category-buttons" id="category-${category.id}"></div>
-        `;
+            section.innerHTML = `
+                <h3 class="category-title">${category.title}</h3>
+                <div class="category-buttons" id="category-${category.id}"></div>
+            `;
 
-        container.appendChild(section);
-
-        // Load buttons for this category
-        if (category.category_buttons) {
+            container.appendChild(section);
             displayCategoryButtons(category.id, category.category_buttons);
         }
     });
@@ -354,24 +435,26 @@ function displayCategoryButtons(categoryId, buttons) {
     });
 }
 
-// Open Category Page (will open purchase modal)
+// Open Category Page
 async function openCategoryPage(categoryId, buttonId) {
     showLoading();
 
     try {
-        // Load tables and menus for this button
-        const [tablesData, menusData, videosData] = await Promise.all([
+        console.log(`🎮 Opening category page: ${buttonId}`);
+        // Load tables, menus, and videos for this button
+        const [tablesResult, menusResult, videosResult] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId),
             supabase.from('menus').select('*').eq('button_id', buttonId),
             supabase.from('youtube_videos').select('*').eq('button_id', buttonId)
         ]);
 
         hideLoading();
-        showPurchaseModal(tablesData.data, menusData.data, videosData.data, buttonId);
+        showPurchaseModal(tablesResult.data || [], menusResult.data || [], videosResult.data || [], buttonId);
 
     } catch (error) {
         hideLoading();
-        console.error('Error loading category page:', error);
+        console.error('❌ Error loading category page:', error);
+        alert('Error loading products. Please try again.');
     }
 }
 
@@ -401,8 +484,8 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
         html += '<div class="menu-items" id="menuItems">';
         menus.forEach(menu => {
             html += `
-                <div class="menu-item" onclick="selectMenuItem(${menu.id})">
-                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : ''}
+                <div class="menu-item" data-menu-id="${menu.id}" onclick="selectMenuItem(${menu.id})">
+                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
                         <div class="menu-item-name">${menu.name}</div>
                         <div class="menu-item-amount">${menu.amount}</div>
@@ -436,13 +519,12 @@ function showPurchaseModal(tables, menus, videos, buttonId) {
 }
 
 // Select Menu Item
-let selectedMenuItem = null;
 function selectMenuItem(menuId) {
     selectedMenuItem = menuId;
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('selected');
     });
-    event.target.closest('.menu-item').classList.add('selected');
+    document.querySelector(`[data-menu-id="${menuId}"]`).classList.add('selected');
 }
 
 // Close Purchase Modal
@@ -467,13 +549,17 @@ async function proceedToPurchase(buttonId) {
         if (!input.value.trim()) {
             allFilled = false;
         }
-        tableData[input.id] = input.value.trim();
+        const tableId = input.id.replace('table-', '');
+        tableData[tableId] = input.value.trim();
     });
 
     if (!allFilled) {
         alert('Please fill in all required fields');
         return;
     }
+
+    // Save to global
+    currentTableData = tableData;
 
     // Show payment modal
     closePurchaseModal();
@@ -483,15 +569,17 @@ async function proceedToPurchase(buttonId) {
 // Load Payments
 async function loadPayments() {
     try {
+        console.log('💳 Loading payment methods...');
         const { data, error } = await supabase
             .from('payment_methods')
             .select('*');
 
         if (data) {
             payments = data;
+            console.log(`✅ Loaded ${data.length} payment methods`);
         }
     } catch (error) {
-        console.error('Error loading payments:', error);
+        console.error('❌ Error loading payments:', error);
     }
 }
 
@@ -500,69 +588,90 @@ async function showPaymentModal(menuId, tableData, buttonId) {
     const modal = document.getElementById('paymentModal');
     const content = document.getElementById('paymentContent');
 
-    // Get menu details
-    const { data: menu } = await supabase
-        .from('menus')
-        .select('*')
-        .eq('id', menuId)
-        .single();
+    try {
+        // Get menu details
+        const { data: menu, error } = await supabase
+            .from('menus')
+            .select('*')
+            .eq('id', menuId)
+            .single();
 
-    let html = '<div class="payment-selection">';
-    html += `<div class="order-summary">
-        <h3>${menu.name}</h3>
-        <p>${menu.amount}</p>
-        <p class="price">${menu.price} MMK</p>
-    </div>`;
+        if (error) throw error;
 
-    html += '<h3>Select Payment Method</h3>';
-    html += '<div class="payment-methods">';
+        currentMenu = menu;
 
-    payments.forEach(payment => {
-        html += `
-            <div class="payment-method" onclick="selectPayment(${payment.id})">
-                <img src="${payment.icon_url}" alt="${payment.name}">
-                <span>${payment.name}</span>
-            </div>
-        `;
-    });
+        let html = '<div class="payment-selection">';
+        html += `<div class="order-summary">
+            <h3>${menu.name}</h3>
+            <p>${menu.amount}</p>
+            <p class="price">${menu.price} MMK</p>
+        </div>`;
 
-    html += '</div>';
-    html += '<div id="paymentDetails" style="display:none;"></div>';
-    html += `<button class="btn-primary" onclick="submitOrder(${menuId}, ${buttonId})">Submit Order</button>`;
-    html += '</div>';
+        html += '<h3>Select Payment Method</h3>';
+        
+        if (payments.length === 0) {
+            html += '<p>No payment methods available</p>';
+        } else {
+            html += '<div class="payment-methods">';
+            payments.forEach(payment => {
+                html += `
+                    <div class="payment-method" data-payment-id="${payment.id}" onclick="selectPayment(${payment.id})">
+                        <img src="${payment.icon_url}" alt="${payment.name}">
+                        <span>${payment.name}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
 
-    content.innerHTML = html;
-    modal.classList.add('active');
+        html += '<div id="paymentDetails" style="display:none;"></div>';
+        html += `<button class="btn-primary" onclick="submitOrder(${menuId}, ${buttonId})">Submit Order</button>`;
+        html += '</div>';
 
-    // Store table data temporarily
-    window.currentTableData = tableData;
-    window.currentMenu = menu;
+        content.innerHTML = html;
+        modal.classList.add('active');
+
+    } catch (error) {
+        console.error('❌ Error showing payment modal:', error);
+        alert('Error loading payment methods');
+    }
 }
 
 // Select Payment
-let selectedPayment = null;
 async function selectPayment(paymentId) {
     selectedPayment = paymentId;
 
-    const { data: payment } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .eq('id', paymentId)
-        .single();
+    // Remove selected class from all
+    document.querySelectorAll('.payment-method').forEach(pm => {
+        pm.classList.remove('selected');
+    });
 
-    const detailsDiv = document.getElementById('paymentDetails');
-    detailsDiv.style.display = 'block';
-    detailsDiv.innerHTML = `
-        <div class="payment-info">
-            <h4>${payment.name}</h4>
-            <p>${payment.instructions}</p>
-            <p><strong>Address:</strong> ${payment.address}</p>
-            <div class="form-group">
-                <label>Last 6 digits of transaction</label>
-                <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits">
+    // Add selected class
+    document.querySelector(`[data-payment-id="${paymentId}"]`).classList.add('selected');
+
+    try {
+        const { data: payment } = await supabase
+            .from('payment_methods')
+            .select('*')
+            .eq('id', paymentId)
+            .single();
+
+        const detailsDiv = document.getElementById('paymentDetails');
+        detailsDiv.style.display = 'block';
+        detailsDiv.innerHTML = `
+            <div class="payment-info">
+                <h4>${payment.name}</h4>
+                <p>${payment.instructions || ''}</p>
+                <p><strong>Address:</strong> ${payment.address}</p>
+                <div class="form-group">
+                    <label>Last 6 digits of transaction</label>
+                    <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits">
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    } catch (error) {
+        console.error('❌ Error loading payment details:', error);
+    }
 }
 
 // Submit Order
@@ -581,6 +690,7 @@ async function submitOrder(menuId, buttonId) {
     showLoading();
 
     try {
+        console.log('📦 Submitting order...');
         const { data, error } = await supabase
             .from('orders')
             .insert([
@@ -588,7 +698,7 @@ async function submitOrder(menuId, buttonId) {
                     user_id: currentUser.id,
                     menu_id: menuId,
                     button_id: buttonId,
-                    table_data: window.currentTableData,
+                    table_data: currentTableData,
                     payment_method_id: selectedPayment,
                     transaction_code: transactionCode,
                     status: 'pending',
@@ -603,12 +713,20 @@ async function submitOrder(menuId, buttonId) {
         hideLoading();
         closePaymentModal();
         alert('Thank you! Your order has been placed. Please wait 30 minutes.');
+        console.log('✅ Order submitted successfully');
+        
+        // Reset
+        selectedMenuItem = null;
+        selectedPayment = null;
+        currentTableData = {};
+        
+        // Reload order history
         loadOrderHistory();
 
     } catch (error) {
         hideLoading();
         alert('An error occurred while placing your order');
-        console.error('Order error:', error);
+        console.error('❌ Order error:', error);
     }
 }
 
@@ -621,6 +739,7 @@ function closePaymentModal() {
 // Load Order History
 async function loadOrderHistory() {
     try {
+        console.log('📜 Loading order history...');
         const { data, error } = await supabase
             .from('orders')
             .select(`
@@ -631,11 +750,14 @@ async function loadOrderHistory() {
             .eq('user_id', currentUser.id)
             .order('created_at', { ascending: false });
 
+        if (error) throw error;
+
         if (data) {
             displayOrderHistory(data);
+            console.log(`✅ Loaded ${data.length} orders`);
         }
     } catch (error) {
-        console.error('Error loading orders:', error);
+        console.error('❌ Error loading orders:', error);
     }
 }
 
@@ -643,8 +765,8 @@ async function loadOrderHistory() {
 function displayOrderHistory(orders) {
     const container = document.getElementById('historyContainer');
     
-    if (orders.length === 0) {
-        container.innerHTML = '<p>No orders yet</p>';
+    if (!orders || orders.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;">No orders yet</p>';
         return;
     }
 
@@ -660,13 +782,13 @@ function displayOrderHistory(orders) {
 
         item.innerHTML = `
             <div class="history-status ${statusClass}">${order.status.toUpperCase()}</div>
-            <h3>${order.menus.name}</h3>
-            <p>${order.menus.amount}</p>
-            <p><strong>Price:</strong> ${order.menus.price} MMK</p>
-            <p><strong>Payment:</strong> ${order.payment_methods.name}</p>
-            <p><strong>Order ID:</strong> ${order.id}</p>
+            <h3>${order.menus?.name || 'Unknown Product'}</h3>
+            <p>${order.menus?.amount || ''}</p>
+            <p><strong>Price:</strong> ${order.menus?.price || 0} MMK</p>
+            <p><strong>Payment:</strong> ${order.payment_methods?.name || 'N/A'}</p>
+            <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p><strong>Message:</strong> ${order.admin_message}</p>` : ''}
+            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;"><strong>Message:</strong> ${order.admin_message}</p>` : ''}
         `;
 
         container.appendChild(item);
@@ -676,6 +798,7 @@ function displayOrderHistory(orders) {
 // Load Contacts
 async function loadContacts() {
     try {
+        console.log('📞 Loading contacts...');
         const { data, error } = await supabase
             .from('contacts')
             .select('*')
@@ -684,9 +807,10 @@ async function loadContacts() {
         if (data) {
             contacts = data;
             displayContacts(data);
+            console.log(`✅ Loaded ${data.length} contacts`);
         }
     } catch (error) {
-        console.error('Error loading contacts:', error);
+        console.error('❌ Error loading contacts:', error);
     }
 }
 
@@ -694,8 +818,8 @@ async function loadContacts() {
 function displayContacts(contacts) {
     const container = document.getElementById('contactsContainer');
     
-    if (contacts.length === 0) {
-        container.innerHTML = '<p>No contacts available</p>';
+    if (!contacts || contacts.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;">No contacts available</p>';
         return;
     }
 
@@ -713,7 +837,7 @@ function displayContacts(contacts) {
             <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}">
             <div class="contact-info">
                 <h3>${contact.name}</h3>
-                <p>${contact.description}</p>
+                <p>${contact.description || ''}</p>
                 ${!contact.link && contact.address ? `<p>${contact.address}</p>` : ''}
             </div>
         `;
@@ -730,11 +854,11 @@ function loadProfile() {
 
     // Generate AI avatar
     const avatar = document.getElementById('profileAvatar');
-    const initials = currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase();
+    const initials = currentUser.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
     avatar.textContent = initials;
 
     // Random gradient for each user
-    const hue = currentUser.id % 360;
+    const hue = (currentUser.id * 137) % 360;
     avatar.style.background = `linear-gradient(135deg, hsl(${hue}, 70%, 60%), hsl(${hue + 60}, 70%, 60%))`;
 }
 
@@ -758,6 +882,7 @@ async function updateProfile() {
     showLoading();
 
     try {
+        console.log('🔄 Updating profile...');
         const { data, error } = await supabase
             .from('users')
             .update({ password: newPassword })
@@ -775,11 +900,12 @@ async function updateProfile() {
         document.getElementById('newPassword').value = '';
         
         showSuccess(successEl, 'Password updated successfully!');
+        console.log('✅ Profile updated');
 
     } catch (error) {
         hideLoading();
         showError(errorEl, 'An error occurred while updating password');
-        console.error('Update error:', error);
+        console.error('❌ Update error:', error);
     }
 }
 
@@ -797,7 +923,10 @@ function switchPage(pageName) {
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
-    document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
+    const activeNav = document.querySelector(`[data-page="${pageName}"]`);
+    if (activeNav) {
+        activeNav.classList.add('active');
+    }
 }
 
 // Utility Functions
@@ -816,3 +945,6 @@ function showSuccess(element, message) {
     element.classList.add('show');
     setTimeout(() => element.classList.remove('show'), 5000);
 }
+
+// Log initialization complete
+console.log('✅ Index.js loaded successfully');
