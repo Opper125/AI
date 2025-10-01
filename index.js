@@ -11,7 +11,7 @@ try {
     console.error('❌ Supabase initialization failed:', error);
 }
 
-// Global State
+// ========== GLOBAL STATE ==========
 window.appState = {
     currentUser: null,
     websiteSettings: null,
@@ -29,27 +29,18 @@ window.appState = {
 
 // ========== ANIMATION STICKER SUPPORT ==========
 
-/**
- * Converts URLs in text to inline animated images/videos
- * Detects GIF, PNG, WEBP, MP4, WEBM and displays them as emoji-sized animations
- */
 function renderAnimatedContent(text) {
     if (!text) return '';
     
-    // Pattern to detect URLs (images and videos)
-    const urlPattern = /(https?:\/\/[^\s]+\.(?:gif|png|jpg|jpeg|webp|mp4|webm))/gi;
+    const urlPattern = /(https?:\/\/[^\s]+\.(?:gif|png|jpg|jpeg|webp|mp4|webm)(\?[^\s]*)?)/gi;
     
     return text.replace(urlPattern, (url) => {
         const extension = url.split('.').pop().toLowerCase().split('?')[0];
         
-        // Video formats
         if (['mp4', 'webm'].includes(extension)) {
-            return `<video class="inline-animation" autoplay loop muted playsinline>
-                <source src="${url}" type="video/${extension}">
-            </video>`;
+            return `<video class="inline-animation" autoplay loop muted playsinline><source src="${url}" type="video/${extension}"></video>`;
         }
         
-        // Image formats (including animated GIF)
         if (['gif', 'png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
             return `<img class="inline-animation" src="${url}" alt="sticker">`;
         }
@@ -58,29 +49,11 @@ function renderAnimatedContent(text) {
     });
 }
 
-/**
- * Apply animation rendering to an element's text content
- */
 function applyAnimationRendering(element, text) {
     if (!element || !text) return;
     element.innerHTML = renderAnimatedContent(text);
 }
 
-// ========== INITIALIZATION ==========
-
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 App initializing...');
-    
-    // Add CSS for inline animations
-    addAnimationStyles();
-    
-    await testDatabaseConnection();
-    await loadWebsiteSettings();
-    checkAuth();
-    hideLoading();
-});
-
-// Add CSS styles for inline animations
 function addAnimationStyles() {
     const style = document.createElement('style');
     style.textContent = `
@@ -110,9 +83,25 @@ function addAnimationStyles() {
             width: 22px;
             height: 22px;
         }
+
+        .order-summary .inline-animation {
+            width: 22px;
+            height: 22px;
+        }
     `;
     document.head.appendChild(style);
 }
+
+// ========== INITIALIZATION ==========
+
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 App initializing...');
+    addAnimationStyles();
+    await testDatabaseConnection();
+    await loadWebsiteSettings();
+    checkAuth();
+    hideLoading();
+});
 
 // ========== DATABASE CONNECTION ==========
 
@@ -427,6 +416,7 @@ async function loadBanners() {
 
 function displayBanners(banners) {
     const container = document.getElementById('bannerContainer');
+    container.innerHTML = '';
     const wrapper = document.createElement('div');
     wrapper.className = 'banner-wrapper';
 
@@ -464,7 +454,8 @@ async function loadCategories() {
                 const { data: buttons } = await supabase
                     .from('category_buttons')
                     .select('*')
-                    .eq('category_id', category.id);
+                    .eq('category_id', category.id)
+                    .order('created_at', { ascending: true });
                 
                 category.category_buttons = buttons || [];
             }
@@ -523,46 +514,71 @@ function displayCategoryButtons(categoryId, buttons) {
     });
 }
 
-// ========== PURCHASE MODAL ==========
+// ========== PURCHASE MODAL (FIXED) ==========
 
 async function openCategoryPage(categoryId, buttonId) {
+    console.log('\n🎮 ========== OPENING CATEGORY PAGE ==========');
+    console.log('Category ID:', categoryId);
+    console.log('Button ID:', buttonId);
+    
     showLoading();
 
     try {
-        console.log(`🎮 Opening button ID: ${buttonId}`);
-        
+        // Reset state
         window.appState.currentButtonId = buttonId;
+        window.appState.selectedMenuItem = null;
+        window.appState.currentMenu = null;
+        window.appState.currentTableData = {};
+        window.appState.allMenus = [];
+        window.appState.currentTables = [];
         
+        // Load data
         const [tablesResult, menusResult, videosResult] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
             supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
             supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true })
         ]);
 
-        window.appState.allMenus = menusResult.data || [];
-        window.appState.currentTables = tablesResult.data || [];
+        if (menusResult.error) throw menusResult.error;
+        if (tablesResult.error) throw tablesResult.error;
+        if (videosResult.error) throw videosResult.error;
 
-        console.log('📊 Loaded:', {
-            tables: tablesResult.data?.length || 0,
-            menus: menusResult.data?.length || 0,
-            videos: videosResult.data?.length || 0
-        });
+        const tables = tablesResult.data || [];
+        const menus = menusResult.data || [];
+        const videos = videosResult.data || [];
+
+        // Store in global state
+        window.appState.allMenus = menus;
+        window.appState.currentTables = tables;
+
+        console.log('✅ Loaded data:');
+        console.log('  - Tables:', tables.length);
+        console.log('  - Menus:', menus.length);
+        console.log('  - Videos:', videos.length);
+        console.log('  - Menus data:', menus);
 
         hideLoading();
-        showPurchaseModal(
-            tablesResult.data || [], 
-            menusResult.data || [], 
-            videosResult.data || []
-        );
+
+        if (menus.length === 0) {
+            alert('No products available for this category');
+            return;
+        }
+
+        showPurchaseModal(tables, menus, videos);
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Error:', error);
-        alert('Error loading products');
+        console.error('❌ Error loading category data:', error);
+        alert('Error loading products. Please try again.');
     }
 }
 
 function showPurchaseModal(tables, menus, videos) {
+    console.log('\n📦 ========== SHOWING PURCHASE MODAL ==========');
+    console.log('Tables:', tables.length);
+    console.log('Menus:', menus.length);
+    console.log('Videos:', videos.length);
+    
     const modal = document.getElementById('purchaseModal');
     const content = document.getElementById('purchaseContent');
     
@@ -577,8 +593,8 @@ function showPurchaseModal(tables, menus, videos) {
                     <label data-table-label="${table.id}"></label>
                     <input type="text" 
                            id="table-${table.id}" 
-                           data-table-instruction="${table.id}"
-                           placeholder=""
+                           data-table-id="${table.id}"
+                           placeholder="${table.instruction || ''}"
                            required>
                 </div>
             `;
@@ -593,7 +609,7 @@ function showPurchaseModal(tables, menus, videos) {
         menus.forEach(menu => {
             html += `
                 <div class="menu-item" data-menu-id="${menu.id}">
-                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
+                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" alt="Product">` : '<div class="menu-item-icon" style="background: rgba(255,255,255,0.1);"></div>'}
                     <div class="menu-item-info">
                         <div class="menu-item-name" data-menu-name="${menu.id}"></div>
                         <div class="menu-item-amount" data-menu-amount="${menu.id}"></div>
@@ -603,6 +619,8 @@ function showPurchaseModal(tables, menus, videos) {
             `;
         });
         html += '</div>';
+    } else {
+        html += '<p style="text-align:center;padding:20px;color:#94a3b8;">No products available</p>';
     }
 
     // Video Tutorials
@@ -610,8 +628,8 @@ function showPurchaseModal(tables, menus, videos) {
         html += '<div class="video-section"><h3>Tutorials</h3>';
         videos.forEach(video => {
             html += `
-                <div class="video-item" onclick="window.open('${video.video_url}', '_blank')">
-                    <img src="${video.banner_url}" alt="Video">
+                <div class="video-item" style="cursor:pointer;">
+                    <img src="${video.banner_url}" alt="Video" onclick="window.open('${video.video_url}', '_blank')">
                     <p data-video-desc="${video.id}"></p>
                 </div>
             `;
@@ -625,17 +643,17 @@ function showPurchaseModal(tables, menus, videos) {
     content.innerHTML = html;
     modal.classList.add('active');
 
-    // Apply animation rendering after DOM ready
+    // Apply animations and attach events
     setTimeout(() => {
-        // Render table labels and placeholders
+        console.log('🎨 Applying animations and attaching events...');
+        
+        // Render table labels
         tables.forEach(table => {
             const labelEl = document.querySelector(`[data-table-label="${table.id}"]`);
-            const inputEl = document.querySelector(`[data-table-instruction="${table.id}"]`);
             if (labelEl) applyAnimationRendering(labelEl, table.name);
-            if (inputEl) inputEl.placeholder = table.instruction || '';
         });
 
-        // Render menu names and amounts
+        // Render menu items
         menus.forEach(menu => {
             const nameEl = document.querySelector(`[data-menu-name="${menu.id}"]`);
             const amountEl = document.querySelector(`[data-menu-amount="${menu.id}"]`);
@@ -649,91 +667,150 @@ function showPurchaseModal(tables, menus, videos) {
             if (descEl) applyAnimationRendering(descEl, video.description);
         });
 
-        // Add event listeners
-        document.querySelectorAll('.menu-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const menuId = parseInt(this.getAttribute('data-menu-id'));
+        // Attach menu item click events
+        const menuItems = document.querySelectorAll('.menu-item');
+        console.log('📌 Attaching click events to', menuItems.length, 'menu items');
+        
+        menuItems.forEach(item => {
+            const menuId = parseInt(item.getAttribute('data-menu-id'));
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ Menu item clicked:', menuId);
                 selectMenuItem(menuId);
             });
         });
 
+        // Attach buy button event
         const buyBtn = document.getElementById('buyNowBtn');
         if (buyBtn) {
-            buyBtn.addEventListener('click', proceedToPurchase);
+            buyBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🛒 Buy button clicked');
+                proceedToPurchase();
+            });
         }
-    }, 100);
+
+        console.log('✅ Events attached successfully');
+    }, 150);
 }
 
 function selectMenuItem(menuId) {
-    console.log('🔍 Selecting menu:', menuId);
+    console.log('\n🔍 ========== SELECTING MENU ITEM ==========');
+    console.log('Menu ID:', menuId, '(type:', typeof menuId, ')');
+    console.log('Available menus:', window.appState.allMenus.length);
     
     if (!menuId || isNaN(menuId)) {
         console.error('❌ Invalid menu ID');
+        alert('Invalid product selection');
         return;
     }
 
-    window.appState.selectedMenuItem = parseInt(menuId);
+    const parsedMenuId = parseInt(menuId);
+    window.appState.selectedMenuItem = parsedMenuId;
     
-    const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
+    // Find menu in stored data
+    const menu = window.appState.allMenus.find(m => m.id === parsedMenuId);
+    
     if (menu) {
         window.appState.currentMenu = menu;
-        console.log('✅ Menu stored:', menu);
+        console.log('✅ Menu found and stored:');
+        console.log('  - ID:', menu.id);
+        console.log('  - Name:', menu.name);
+        console.log('  - Price:', menu.price);
+        console.log('  - Amount:', menu.amount);
     } else {
-        console.error('❌ Menu not found');
+        console.error('❌ Menu not found in stored menus');
+        console.log('Available menu IDs:', window.appState.allMenus.map(m => m.id));
+        alert('Product data not found. Please try again.');
+        return;
     }
 
+    // Update UI
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('selected');
     });
     
-    const selectedItem = document.querySelector(`[data-menu-id="${menuId}"]`);
+    const selectedItem = document.querySelector(`[data-menu-id="${parsedMenuId}"]`);
     if (selectedItem) {
         selectedItem.classList.add('selected');
+        console.log('✅ UI updated - item marked as selected');
+    } else {
+        console.warn('⚠️ Could not find menu item element to mark as selected');
     }
 }
 
 function closePurchaseModal() {
+    console.log('🚪 Closing purchase modal');
     document.getElementById('purchaseModal').classList.remove('active');
-    window.appState.selectedMenuItem = null;
-    window.appState.currentMenu = null;
 }
 
 async function proceedToPurchase() {
-    console.log('🛒 === PURCHASE START ===');
+    console.log('\n🛒 ========== PROCEEDING TO PURCHASE ==========');
+    console.log('Selected menu ID:', window.appState.selectedMenuItem);
+    console.log('Current menu:', window.appState.currentMenu);
+    console.log('Button ID:', window.appState.currentButtonId);
     
-    if (!window.appState.selectedMenuItem || !window.appState.currentMenu) {
-        alert('Please select a product to purchase');
+    // Validation
+    if (!window.appState.selectedMenuItem) {
+        console.error('❌ No menu selected');
+        alert('Please select a product first');
         return;
+    }
+
+    if (!window.appState.currentMenu) {
+        console.error('❌ Menu data not found');
+        console.log('Attempting to recover menu data...');
+        
+        // Try to recover
+        const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
+        if (menu) {
+            window.appState.currentMenu = menu;
+            console.log('✅ Menu data recovered:', menu);
+        } else {
+            console.error('❌ Could not recover menu data');
+            alert('Product data not found. Please select the product again.');
+            return;
+        }
     }
 
     // Collect table data
     const tableData = {};
     let allFilled = true;
 
+    console.log('📝 Collecting table data from', window.appState.currentTables.length, 'tables');
+    
     window.appState.currentTables.forEach(table => {
-        const inputEl = document.getElementById(`table-${table.id}`);
+        const inputEl = document.querySelector(`[data-table-id="${table.id}"]`);
         if (inputEl) {
             const value = inputEl.value.trim();
+            console.log(`  - Table ${table.id} (${table.name}):`, value || '(empty)');
             if (!value) {
                 allFilled = false;
             }
-            tableData[table.id] = value;
+            tableData[table.name] = value; // Use table name as key
+        } else {
+            console.warn(`⚠️ Input element not found for table ${table.id}`);
         }
     });
 
     if (window.appState.currentTables.length > 0 && !allFilled) {
+        console.error('❌ Not all required fields filled');
         alert('Please fill in all required fields');
         return;
     }
 
     window.appState.currentTableData = tableData;
-    console.log('📝 Table data collected:', tableData);
+    console.log('✅ Table data collected:', tableData);
 
     closePurchaseModal();
+    
+    console.log('➡️ Moving to payment modal...');
     await showPaymentModal();
 }
 
-// ========== PAYMENT MODAL ==========
+// ========== PAYMENT MODAL (FIXED) ==========
 
 async function loadPayments() {
     try {
@@ -746,31 +823,50 @@ async function loadPayments() {
 
         window.appState.payments = data || [];
         console.log(`✅ Loaded ${data?.length || 0} payment methods`);
+        return data || [];
     } catch (error) {
         console.error('❌ Error loading payments:', error);
         window.appState.payments = [];
+        return [];
     }
 }
 
 async function showPaymentModal() {
-    console.log('💳 === PAYMENT MODAL ===');
+    console.log('\n💳 ========== SHOWING PAYMENT MODAL ==========');
     
     const menu = window.appState.currentMenu;
+    
     if (!menu) {
-        alert('Error: Product data not found');
+        console.error('❌ Menu data not found in payment modal');
+        console.log('State:', {
+            selectedMenuItem: window.appState.selectedMenuItem,
+            currentMenu: window.appState.currentMenu,
+            allMenus: window.appState.allMenus.length
+        });
+        alert('Error: Product data not found. Please try again.');
         return;
     }
+
+    console.log('✅ Menu data available:');
+    console.log('  - Name:', menu.name);
+    console.log('  - Price:', menu.price);
+    console.log('  - Amount:', menu.amount);
 
     const modal = document.getElementById('paymentModal');
     const content = document.getElementById('paymentContent');
 
     showLoading();
 
+    // Load payments if not loaded
     if (!window.appState.payments || window.appState.payments.length === 0) {
+        console.log('📥 Loading payment methods...');
         await loadPayments();
     }
 
     hideLoading();
+
+    const payments = window.appState.payments;
+    console.log('💳 Available payment methods:', payments.length);
 
     let html = '<div class="payment-selection">';
     
@@ -784,11 +880,11 @@ async function showPaymentModal() {
     html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
     
     // Payment Methods
-    if (window.appState.payments.length === 0) {
+    if (payments.length === 0) {
         html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">⚠️ No payment methods available</p>';
     } else {
         html += '<div class="payment-methods">';
-        window.appState.payments.forEach(payment => {
+        payments.forEach(payment => {
             html += `
                 <div class="payment-method" data-payment-id="${payment.id}">
                     <img src="${payment.icon_url}" alt="${payment.name}">
@@ -806,52 +902,79 @@ async function showPaymentModal() {
     content.innerHTML = html;
     modal.classList.add('active');
 
-    // Apply animation rendering
+    // Apply animations and attach events
     setTimeout(() => {
+        console.log('🎨 Rendering payment modal content...');
+        
         // Render order summary
         const summaryNameEl = document.querySelector('[data-order-summary-name]');
         const summaryAmountEl = document.querySelector('[data-order-summary-amount]');
         if (summaryNameEl) applyAnimationRendering(summaryNameEl, menu.name);
         if (summaryAmountEl) applyAnimationRendering(summaryAmountEl, menu.amount);
 
-        // Render payment method names
-        window.appState.payments.forEach(payment => {
+        // Render payment names
+        payments.forEach(payment => {
             const nameEl = document.querySelector(`[data-payment-name="${payment.id}"]`);
             if (nameEl) applyAnimationRendering(nameEl, payment.name);
         });
 
-        // Add event listeners
-        document.querySelectorAll('.payment-method').forEach(item => {
-            item.addEventListener('click', function() {
-                const paymentId = parseInt(this.getAttribute('data-payment-id'));
+        // Attach payment method click events
+        const paymentMethods = document.querySelectorAll('.payment-method');
+        console.log('📌 Attaching click events to', paymentMethods.length, 'payment methods');
+        
+        paymentMethods.forEach(item => {
+            const paymentId = parseInt(item.getAttribute('data-payment-id'));
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ Payment method clicked:', paymentId);
                 selectPayment(paymentId);
             });
         });
 
+        // Attach submit button event
         const submitBtn = document.getElementById('submitOrderBtn');
         if (submitBtn) {
-            submitBtn.addEventListener('click', submitOrder);
+            submitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📤 Submit order button clicked');
+                submitOrder();
+            });
         }
-    }, 100);
+
+        console.log('✅ Payment modal events attached');
+    }, 150);
 }
 
 async function selectPayment(paymentId) {
+    console.log('\n💳 ========== SELECTING PAYMENT ==========');
+    console.log('Payment ID:', paymentId);
+    
     window.appState.selectedPayment = parseInt(paymentId);
-    console.log('💳 Payment selected:', window.appState.selectedPayment);
 
+    // Update UI
     document.querySelectorAll('.payment-method').forEach(pm => {
         pm.classList.remove('selected');
     });
 
     const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
-    if (selectedEl) selectedEl.classList.add('selected');
+    if (selectedEl) {
+        selectedEl.classList.add('selected');
+        console.log('✅ Payment method marked as selected');
+    }
 
+    // Load payment details
     try {
-        const { data: payment } = await supabase
+        const { data: payment, error } = await supabase
             .from('payment_methods')
             .select('*')
             .eq('id', paymentId)
             .single();
+
+        if (error) throw error;
+
+        console.log('✅ Payment details loaded:', payment.name);
 
         const detailsDiv = document.getElementById('paymentDetails');
         if (detailsDiv && payment) {
@@ -863,12 +986,12 @@ async function selectPayment(paymentId) {
                     <p><strong>Address:</strong> <span data-payment-detail-address></span></p>
                     <div class="form-group" style="margin-top: 15px;">
                         <label>Last 6 digits of transaction ID</label>
-                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits">
+                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits" required>
                     </div>
                 </div>
             `;
 
-            // Render payment details with animation support
+            // Render with animations
             setTimeout(() => {
                 const nameEl = document.querySelector('[data-payment-detail-name]');
                 const instructionEl = document.querySelector('[data-payment-detail-instruction]');
@@ -881,30 +1004,41 @@ async function selectPayment(paymentId) {
         }
     } catch (error) {
         console.error('❌ Error loading payment details:', error);
+        alert('Error loading payment details');
     }
 }
 
 function closePaymentModal() {
+    console.log('🚪 Closing payment modal');
     document.getElementById('paymentModal').classList.remove('active');
-    window.appState.selectedPayment = null;
 }
 
 async function submitOrder() {
-    console.log('📦 === SUBMIT ORDER ===');
+    console.log('\n📤 ========== SUBMITTING ORDER ==========');
+    console.log('State check:');
+    console.log('  - User ID:', window.appState.currentUser?.id);
+    console.log('  - Menu ID:', window.appState.selectedMenuItem);
+    console.log('  - Button ID:', window.appState.currentButtonId);
+    console.log('  - Payment ID:', window.appState.selectedPayment);
+    console.log('  - Table data:', window.appState.currentTableData);
 
+    // Validation
     if (!window.appState.selectedPayment) {
+        console.error('❌ No payment method selected');
         alert('Please select a payment method');
         return;
     }
 
     const transactionCode = document.getElementById('transactionCode')?.value;
-    if (!transactionCode || transactionCode.length !== 6) {
-        alert('Please enter last 6 digits of transaction');
+    if (!transactionCode || transactionCode.trim().length !== 6) {
+        console.error('❌ Invalid transaction code');
+        alert('Please enter last 6 digits of transaction ID');
         return;
     }
 
     if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
-        alert('Error: Missing order information');
+        console.error('❌ Missing order information');
+        alert('Error: Missing order information. Please try again.');
         return;
     }
 
@@ -922,7 +1056,7 @@ async function submitOrder() {
             created_at: new Date().toISOString()
         };
 
-        console.log('📤 Submitting order:', orderData);
+        console.log('📦 Order data prepared:', orderData);
 
         const { data, error } = await supabase
             .from('orders')
@@ -932,10 +1066,13 @@ async function submitOrder() {
 
         if (error) throw error;
 
+        console.log('✅ Order submitted successfully:', data);
+
         hideLoading();
         closePaymentModal();
         
-        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${window.appState.currentMenu.name}\nPrice: ${window.appState.currentMenu.price} MMK\n\nPlease wait up to 30 minutes.`);
+        const menu = window.appState.currentMenu;
+        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${menu.name}\nPrice: ${menu.price} MMK\n\nYour order will be processed within 30 minutes.\nPlease check your order history.`);
 
         // Reset state
         window.appState.selectedMenuItem = null;
@@ -945,13 +1082,14 @@ async function submitOrder() {
         window.appState.currentButtonId = null;
         window.appState.currentTables = [];
         
+        // Reload history and switch to history page
         await loadOrderHistory();
         switchPage('history');
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Order submission error:', error);
-        alert('Error: ' + error.message);
+        console.error('❌ Order submission failed:', error);
+        alert('Error submitting order: ' + error.message);
     }
 }
 
@@ -1008,7 +1146,6 @@ function displayOrderHistory(orders) {
 
         container.appendChild(item);
 
-        // Apply animation rendering
         setTimeout(() => {
             const nameEl = document.querySelector(`[data-order-name="${order.id}"]`);
             const amountEl = document.querySelector(`[data-order-amount="${order.id}"]`);
@@ -1070,7 +1207,6 @@ function displayContacts(contacts) {
 
         container.appendChild(item);
 
-        // Apply animation rendering
         setTimeout(() => {
             const nameEl = document.querySelector(`[data-contact-name="${contact.id}"]`);
             const descEl = document.querySelector(`[data-contact-desc="${contact.id}"]`);
@@ -1178,4 +1314,4 @@ function showSuccess(element, message) {
     setTimeout(() => element.classList.remove('show'), 5000);
 }
 
-console.log('✅ App ready with animation support!');
+console.log('✅ Gaming Store App initialized with full debugging support!');
