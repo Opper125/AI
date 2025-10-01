@@ -3,15 +3,17 @@ const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA0MjczOCwiZXhwIjoyMDc0NjE4NzM4fQ.RIeMmmXUz4f2R3-3fhyu5neWt6e7ihVWuqXYe4ovhMg';
 
-// Admin Password (Change this!)
-const ADMIN_PASSWORD = 'Zarchiver125';
+// Admin Password
+const ADMIN_PASSWORD = 'admin123';
 
-// Initialize Supabase Client
+// Initialize Supabase
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Global State
 let currentFilter = 'all';
 let websiteSettings = null;
+let allAnimations = []; // Store all animations
+let currentEmojiTarget = null; // Current input field for emoji insertion
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -70,21 +72,16 @@ function adminLogout() {
 
 // Switch Section
 function switchSection(sectionName) {
-    // Hide all sections
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
     });
-
-    // Show selected section
     document.getElementById(sectionName).classList.add('active');
 
-    // Update nav
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
     });
     document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
 
-    // Load section data
     loadSectionData(sectionName);
 }
 
@@ -93,7 +90,8 @@ async function loadAllData() {
     await Promise.all([
         loadWebsiteSettings(),
         loadCategories(),
-        loadBanners()
+        loadBanners(),
+        loadAnimations() // Load animations globally
     ]);
 }
 
@@ -131,6 +129,9 @@ function loadSectionData(section) {
             loadVideos();
             loadCategoriesForSelect();
             break;
+        case 'animations':
+            loadAnimations();
+            break;
         case 'orders':
             loadOrders();
             break;
@@ -167,6 +168,314 @@ async function uploadFile(file, folder) {
     }
 }
 
+// ==================== ANIMATIONS/EMOJI SYSTEM ====================
+
+// Load All Animations
+async function loadAnimations() {
+    try {
+        console.log('✨ Loading animations...');
+        const { data, error } = await supabase
+            .from('animations')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        allAnimations = data || [];
+        console.log(`✅ Loaded ${allAnimations.length} animations`);
+        
+        displayAnimations(allAnimations);
+    } catch (error) {
+        console.error('❌ Error loading animations:', error);
+        allAnimations = [];
+    }
+}
+
+// Display Animations
+function displayAnimations(animations) {
+    const container = document.getElementById('animationsContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (animations.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No animations yet. Upload your first animation!</p>';
+        return;
+    }
+
+    animations.forEach(anim => {
+        const item = document.createElement('div');
+        item.className = 'animation-item';
+        
+        let preview = '';
+        if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
+            preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+        } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
+            preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
+        } else if (anim.file_type === 'json') {
+            preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+        }
+
+        item.innerHTML = `
+            <div class="animation-preview">${preview}</div>
+            <div class="animation-name">${anim.name}</div>
+            <div class="animation-type">${anim.file_type.toUpperCase()}</div>
+            <button class="animation-delete" onclick="deleteAnimation(${anim.id})">×</button>
+        `;
+
+        container.appendChild(item);
+    });
+}
+
+// Upload Animation
+async function uploadAnimation() {
+    const name = document.getElementById('animationName').value.trim();
+    const file = document.getElementById('animationFile').files[0];
+
+    if (!name || !file) {
+        alert('Please enter name and select file');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        // Upload file
+        const fileUrl = await uploadFile(file, 'animations');
+        
+        if (!fileUrl) {
+            throw new Error('File upload failed');
+        }
+
+        // Get file type
+        const fileExt = file.name.split('.').pop().toLowerCase();
+        
+        // Insert into database
+        const { data, error } = await supabase
+            .from('animations')
+            .insert([{
+                name: name,
+                file_url: fileUrl,
+                file_type: fileExt,
+                file_size: file.size,
+                width: null,
+                height: null
+            }])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('✅ Animation uploaded successfully!');
+        
+        // Reset form
+        document.getElementById('animationName').value = '';
+        document.getElementById('animationFile').value = '';
+        document.getElementById('animationFileInfo').innerHTML = '';
+        
+        // Reload animations
+        await loadAnimations();
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Upload error:', error);
+        alert('Error uploading animation: ' + error.message);
+    }
+}
+
+// Delete Animation
+async function deleteAnimation(id) {
+    if (!confirm('Delete this animation?')) return;
+
+    showLoading();
+
+    try {
+        const { error } = await supabase
+            .from('animations')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('✅ Animation deleted!');
+        await loadAnimations();
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Delete error:', error);
+        alert('Error deleting animation');
+    }
+}
+
+// Show file info when selected
+document.addEventListener('DOMContentLoaded', () => {
+    const animFileInput = document.getElementById('animationFile');
+    if (animFileInput) {
+        animFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const infoDiv = document.getElementById('animationFileInfo');
+            
+            if (file) {
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                infoDiv.innerHTML = `
+                    <strong>File:</strong> ${file.name}<br>
+                    <strong>Type:</strong> ${file.type}<br>
+                    <strong>Size:</strong> ${sizeMB} MB
+                `;
+            } else {
+                infoDiv.innerHTML = '';
+            }
+        });
+    }
+});
+
+// ==================== EMOJI PICKER ====================
+
+// Open Emoji Picker for specific input
+function openEmojiPicker(inputId) {
+    currentEmojiTarget = document.getElementById(inputId);
+    if (!currentEmojiTarget) return;
+
+    const modal = document.getElementById('emojiPickerModal');
+    const grid = document.getElementById('emojiGrid');
+    
+    // Load emoji grid
+    grid.innerHTML = '';
+    
+    if (allAnimations.length === 0) {
+        grid.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No animations available. Upload some first!</p>';
+    } else {
+        allAnimations.forEach(anim => {
+            const item = document.createElement('div');
+            item.className = 'emoji-item';
+            item.onclick = () => insertEmoji(anim);
+            
+            let preview = '';
+            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
+                preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
+            } else {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            }
+            
+            item.innerHTML = `
+                ${preview}
+                <div class="emoji-item-name">${anim.name}</div>
+            `;
+            
+            grid.appendChild(item);
+        });
+    }
+    
+    modal.classList.add('active');
+}
+
+// Open Emoji Picker for class-based inputs
+function openEmojiPickerForClass(button, className) {
+    const inputGroup = button.closest('.table-input-group, .menu-input-group');
+    if (inputGroup) {
+        currentEmojiTarget = inputGroup.querySelector('.' + className);
+    } else {
+        currentEmojiTarget = button.previousElementSibling;
+    }
+    
+    if (!currentEmojiTarget) return;
+
+    const modal = document.getElementById('emojiPickerModal');
+    const grid = document.getElementById('emojiGrid');
+    
+    grid.innerHTML = '';
+    
+    if (allAnimations.length === 0) {
+        grid.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No animations available</p>';
+    } else {
+        allAnimations.forEach(anim => {
+            const item = document.createElement('div');
+            item.className = 'emoji-item';
+            item.onclick = () => insertEmoji(anim);
+            
+            let preview = '';
+            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
+                preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
+            } else {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            }
+            
+            item.innerHTML = `
+                ${preview}
+                <div class="emoji-item-name">${anim.name}</div>
+            `;
+            
+            grid.appendChild(item);
+        });
+    }
+    
+    modal.classList.add('active');
+}
+
+// Insert Emoji into target input
+function insertEmoji(animation) {
+    if (!currentEmojiTarget) return;
+
+    const cursorPos = currentEmojiTarget.selectionStart || currentEmojiTarget.value.length;
+    const textBefore = currentEmojiTarget.value.substring(0, cursorPos);
+    const textAfter = currentEmojiTarget.value.substring(cursorPos);
+    
+    // Insert emoji marker: {anim:ID:URL:TYPE}
+    const emojiCode = `{anim:${animation.id}:${animation.file_url}:${animation.file_type}}`;
+    
+    currentEmojiTarget.value = textBefore + emojiCode + textAfter;
+    
+    // Set cursor position after emoji
+    const newPos = cursorPos + emojiCode.length;
+    currentEmojiTarget.setSelectionRange(newPos, newPos);
+    currentEmojiTarget.focus();
+    
+    closeEmojiPicker();
+}
+
+// Close Emoji Picker
+function closeEmojiPicker() {
+    document.getElementById('emojiPickerModal').classList.remove('active');
+    currentEmojiTarget = null;
+}
+
+// Filter Emojis
+function filterEmojis() {
+    const searchTerm = document.getElementById('emojiSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.emoji-item');
+    
+    items.forEach(item => {
+        const name = item.querySelector('.emoji-item-name').textContent.toLowerCase();
+        if (name.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Render Animated Emojis in HTML
+function renderAnimatedText(text) {
+    if (!text) return text;
+    
+    // Replace {anim:ID:URL:TYPE} with actual HTML
+    return text.replace(/\{anim:(\d+):([^:]+):([^}]+)\}/g, (match, id, url, type) => {
+        if (type === 'gif' || type === 'png' || type === 'jpg' || type === 'jpeg') {
+            return `<span class="animated-emoji"><img src="${url}" alt="emoji"></span>`;
+        } else if (type === 'video' || type === 'webm' || type === 'mp4') {
+            return `<span class="animated-emoji"><video autoplay loop muted><source src="${url}" type="video/${type}"></video></span>`;
+        } else {
+            return `<span class="animated-emoji"><img src="${url}" alt="emoji"></span>`;
+        }
+    });
+}
+
 // ==================== WEBSITE SETTINGS ====================
 
 async function loadWebsiteSettings() {
@@ -193,13 +502,9 @@ async function loadWebsiteSettings() {
                 document.getElementById('buttonPreview').innerHTML = `<img src="${data.button_style_url}">`;
             }
         } else {
-            // Create default settings
-            const { data: newData } = await supabase
-                .from('website_settings')
-                .insert([{ website_name: 'Gaming Store' }])
-                .select()
-                .single();
-            websiteSettings = newData;
+            await supabase.from('website_settings').insert([{
+                website_name: 'Gaming Store'
+            }]);
             loadWebsiteSettings();
         }
     } catch (error) {
@@ -209,11 +514,6 @@ async function loadWebsiteSettings() {
 
 async function updateWebsiteName() {
     const name = document.getElementById('websiteName').value;
-    if (!name) {
-        alert('Please enter a website name');
-        return;
-    }
-
     showLoading();
 
     try {
@@ -225,11 +525,11 @@ async function updateWebsiteName() {
         if (error) throw error;
 
         hideLoading();
-        alert('Website name updated successfully!');
+        alert('Website name updated!');
         loadWebsiteSettings();
     } catch (error) {
         hideLoading();
-        alert('Error updating website name');
+        alert('Error updating');
         console.error(error);
     }
 }
@@ -258,10 +558,10 @@ async function uploadLogo() {
     if (url) {
         await updateSettings({ logo_url: url });
         hideLoading();
-        alert('Logo uploaded successfully!');
+        alert('Logo uploaded!');
     } else {
         hideLoading();
-        alert('Error uploading logo');
+        alert('Error uploading');
     }
 }
 
@@ -289,10 +589,10 @@ async function uploadBackground() {
     if (url) {
         await updateSettings({ background_url: url });
         hideLoading();
-        alert('Background uploaded successfully!');
+        alert('Background uploaded!');
     } else {
         hideLoading();
-        alert('Error uploading background');
+        alert('Error uploading');
     }
 }
 
@@ -309,10 +609,10 @@ async function uploadLoadingAnimation() {
     if (url) {
         await updateSettings({ loading_animation_url: url });
         hideLoading();
-        alert('Loading animation uploaded successfully!');
+        alert('Loading animation uploaded!');
     } else {
         hideLoading();
-        alert('Error uploading animation');
+        alert('Error uploading');
     }
 }
 
@@ -329,10 +629,10 @@ async function uploadButtonStyle() {
     if (url) {
         await updateSettings({ button_style_url: url });
         hideLoading();
-        alert('Button style uploaded successfully!');
+        alert('Button style uploaded!');
     } else {
         hideLoading();
-        alert('Error uploading button style');
+        alert('Error uploading');
     }
 }
 
@@ -400,7 +700,7 @@ async function addBanner() {
             if (error) throw error;
 
             hideLoading();
-            alert('Banner added successfully!');
+            alert('Banner added!');
             document.getElementById('bannerFile').value = '';
             loadBanners();
         } catch (error) {
@@ -410,12 +710,12 @@ async function addBanner() {
         }
     } else {
         hideLoading();
-        alert('Error uploading banner');
+        alert('Error uploading');
     }
 }
 
 async function deleteBanner(id) {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
+    if (!confirm('Delete this banner?')) return;
 
     showLoading();
     try {
@@ -427,11 +727,11 @@ async function deleteBanner(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Banner deleted successfully!');
+        alert('Banner deleted!');
         loadBanners();
     } catch (error) {
         hideLoading();
-        alert('Error deleting banner');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -450,9 +750,10 @@ async function loadCategories() {
 
         if (data && data.length > 0) {
             data.forEach(category => {
+                const titleHtml = renderAnimatedText(category.title);
                 container.innerHTML += `
                     <div class="item-card">
-                        <h4>${category.title}</h4>
+                        <h4>${titleHtml}</h4>
                         <p>Created: ${new Date(category.created_at).toLocaleDateString()}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editCategory(${category.id}, '${category.title.replace(/'/g, "\\'")}')">Edit</button>
@@ -485,7 +786,7 @@ async function addCategory() {
         if (error) throw error;
 
         hideLoading();
-        alert('Category added successfully!');
+        alert('Category added!');
         document.getElementById('categoryTitle').value = '';
         loadCategories();
         loadCategoriesForSelect();
@@ -510,17 +811,17 @@ async function editCategory(id, currentTitle) {
         if (error) throw error;
 
         hideLoading();
-        alert('Category updated successfully!');
+        alert('Category updated!');
         loadCategories();
     } catch (error) {
         hideLoading();
-        alert('Error updating category');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deleteCategory(id) {
-    if (!confirm('Are you sure? This will delete all related buttons, tables, and menus!')) return;
+    if (!confirm('Delete this category? All related data will be deleted!')) return;
 
     showLoading();
     try {
@@ -532,11 +833,11 @@ async function deleteCategory(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Category deleted successfully!');
+        alert('Category deleted!');
         loadCategories();
     } catch (error) {
         hideLoading();
-        alert('Error deleting category');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -563,13 +864,14 @@ async function loadCategoriesForSelect() {
                 select.innerHTML = '<option value="">Select Category</option>';
                 if (data) {
                     data.forEach(cat => {
-                        select.innerHTML += `<option value="${cat.id}">${cat.title}</option>`;
+                        const titleText = cat.title.replace(/\{anim:[^}]+\}/g, ''); // Remove emoji codes for select
+                        select.innerHTML += `<option value="${cat.id}">${titleText}</option>`;
                     });
                 }
             }
         });
     } catch (error) {
-        console.error('Error loading categories for select:', error);
+        console.error('Error loading categories:', error);
     }
 }
 
@@ -588,11 +890,13 @@ async function loadCategoryButtons() {
 
         if (data && data.length > 0) {
             data.forEach(button => {
+                const nameHtml = renderAnimatedText(button.name);
+                const categoryHtml = renderAnimatedText(button.categories.title);
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${button.icon_url}" alt="${button.name}">
-                        <h4>${button.name}</h4>
-                        <p>Category: ${button.categories.title}</p>
+                        <h4>${nameHtml}</h4>
+                        <p>Category: ${categoryHtml}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editButton(${button.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteButton(${button.id})">Delete</button>
@@ -634,7 +938,7 @@ async function addCategoryButton() {
             if (error) throw error;
 
             hideLoading();
-            alert('Button added successfully!');
+            alert('Button added!');
             document.getElementById('buttonName').value = '';
             document.getElementById('buttonIconFile').value = '';
             loadCategoryButtons();
@@ -660,7 +964,10 @@ async function editButton(id) {
     modalBody.innerHTML = `
         <div class="form-group">
             <label>Name</label>
-            <input type="text" id="editButtonName" value="${button.name}">
+            <div class="input-with-emoji">
+                <input type="text" id="editButtonName" value="${button.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editButtonName')">😀</button>
+            </div>
         </div>
         <button class="btn-primary" onclick="updateButton(${id})">Save Changes</button>
     `;
@@ -687,17 +994,17 @@ async function updateButton(id) {
 
         hideLoading();
         closeEditModal();
-        alert('Button updated successfully!');
+        alert('Button updated!');
         loadCategoryButtons();
     } catch (error) {
         hideLoading();
-        alert('Error updating button');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deleteButton(id) {
-    if (!confirm('Are you sure? This will delete all related tables and menus!')) return;
+    if (!confirm('Delete this button? All related data will be deleted!')) return;
 
     showLoading();
     try {
@@ -709,11 +1016,11 @@ async function deleteButton(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Button deleted successfully!');
+        alert('Button deleted!');
         loadCategoryButtons();
     } catch (error) {
         hideLoading();
-        alert('Error deleting button');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -738,7 +1045,8 @@ async function loadButtonsForTables() {
         
         if (data) {
             data.forEach(btn => {
-                select.innerHTML += `<option value="${btn.id}">${btn.name}</option>`;
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
             });
         }
     } catch (error) {
@@ -752,8 +1060,14 @@ function addTableInput() {
     newInput.className = 'table-input-group';
     newInput.innerHTML = `
         <button class="remove-input" onclick="this.parentElement.remove()">×</button>
-        <input type="text" class="table-name" placeholder="Table Name">
-        <input type="text" class="table-instruction" placeholder="Instruction">
+        <div class="input-with-emoji">
+            <input type="text" class="table-name" placeholder="Table Name">
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
+        </div>
+        <div class="input-with-emoji">
+            <input type="text" class="table-instruction" placeholder="Instruction">
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
+        </div>
     `;
     container.appendChild(newInput);
 }
@@ -792,11 +1106,17 @@ async function saveTables() {
         if (error) throw error;
 
         hideLoading();
-        alert('Tables saved successfully!');
+        alert('Tables saved!');
         document.getElementById('tablesInputContainer').innerHTML = `
             <div class="table-input-group">
-                <input type="text" class="table-name" placeholder="Table Name">
-                <input type="text" class="table-instruction" placeholder="Instruction">
+                <div class="input-with-emoji">
+                    <input type="text" class="table-name" placeholder="Table Name">
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
+                </div>
+                <div class="input-with-emoji">
+                    <input type="text" class="table-instruction" placeholder="Instruction">
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
+                </div>
             </div>
         `;
         loadInputTables();
@@ -822,12 +1142,17 @@ async function loadInputTables() {
 
         if (data && data.length > 0) {
             data.forEach(table => {
+                const nameHtml = renderAnimatedText(table.name);
+                const instructionHtml = renderAnimatedText(table.instruction);
+                const buttonNameHtml = renderAnimatedText(table.category_buttons.name);
+                const categoryHtml = renderAnimatedText(table.category_buttons.categories.title);
+                
                 container.innerHTML += `
                     <div class="item-card">
-                        <h4>${table.name}</h4>
-                        <p>Button: ${table.category_buttons.name}</p>
-                        <p>Category: ${table.category_buttons.categories.title}</p>
-                        <p>Instruction: ${table.instruction}</p>
+                        <h4>${nameHtml}</h4>
+                        <p>Button: ${buttonNameHtml}</p>
+                        <p>Category: ${categoryHtml}</p>
+                        <p>Instruction: ${instructionHtml}</p>
                         <div class="item-actions">
                             <button class="btn-danger" onclick="deleteTable(${table.id})">Delete</button>
                         </div>
@@ -843,7 +1168,7 @@ async function loadInputTables() {
 }
 
 async function deleteTable(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -855,16 +1180,16 @@ async function deleteTable(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Table deleted successfully!');
+        alert('Table deleted!');
         loadInputTables();
     } catch (error) {
         hideLoading();
-        alert('Error deleting table');
+        alert('Error deleting');
         console.error(error);
     }
 }
 
-// ==================== MENUS ====================
+// ==================== MENUS/PRODUCTS ====================
 
 async function loadButtonsForMenus() {
     const categoryId = document.getElementById('menuCategorySelect').value;
@@ -884,7 +1209,8 @@ async function loadButtonsForMenus() {
         
         if (data) {
             data.forEach(btn => {
-                select.innerHTML += `<option value="${btn.id}">${btn.name}</option>`;
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
             });
         }
     } catch (error) {
@@ -898,8 +1224,14 @@ function addMenuInput() {
     newInput.className = 'menu-input-group';
     newInput.innerHTML = `
         <button class="remove-input" onclick="this.parentElement.remove()">×</button>
-        <input type="text" class="menu-name" placeholder="Product Name">
-        <input type="text" class="menu-amount" placeholder="Amount/Details">
+        <div class="input-with-emoji">
+            <input type="text" class="menu-name" placeholder="Product Name">
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+        </div>
+        <div class="input-with-emoji">
+            <input type="text" class="menu-amount" placeholder="Amount/Details">
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+        </div>
         <input type="number" class="menu-price" placeholder="Price">
     `;
     container.appendChild(newInput);
@@ -952,11 +1284,17 @@ async function saveMenus() {
         if (error) throw error;
 
         hideLoading();
-        alert('Products saved successfully!');
+        alert('Products saved!');
         document.getElementById('menusInputContainer').innerHTML = `
             <div class="menu-input-group">
-                <input type="text" class="menu-name" placeholder="Product Name">
-                <input type="text" class="menu-amount" placeholder="Amount/Details">
+                <div class="input-with-emoji">
+                    <input type="text" class="menu-name" placeholder="Product Name">
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+                </div>
+                <div class="input-with-emoji">
+                    <input type="text" class="menu-amount" placeholder="Amount/Details">
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+                </div>
                 <input type="number" class="menu-price" placeholder="Price">
                 <input type="file" class="menu-icon" accept="image/*">
             </div>
@@ -984,13 +1322,17 @@ async function loadMenus() {
 
         if (data && data.length > 0) {
             data.forEach(menu => {
+                const nameHtml = renderAnimatedText(menu.name);
+                const amountHtml = renderAnimatedText(menu.amount);
+                const buttonNameHtml = renderAnimatedText(menu.category_buttons.name);
+                
                 container.innerHTML += `
                     <div class="item-card">
                         ${menu.icon_url ? `<img src="${menu.icon_url}" alt="${menu.name}">` : ''}
-                        <h4>${menu.name}</h4>
-                        <p>${menu.amount}</p>
+                        <h4>${nameHtml}</h4>
+                        <p>${amountHtml}</p>
                         <p><strong>${menu.price} MMK</strong></p>
-                        <p>Button: ${menu.category_buttons.name}</p>
+                        <p>Button: ${buttonNameHtml}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editMenu(${menu.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteMenu(${menu.id})">Delete</button>
@@ -1017,11 +1359,17 @@ async function editMenu(id) {
     modalBody.innerHTML = `
         <div class="form-group">
             <label>Name</label>
-            <input type="text" id="editMenuName" value="${menu.name}">
+            <div class="input-with-emoji">
+                <input type="text" id="editMenuName" value="${menu.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editMenuName')">😀</button>
+            </div>
         </div>
         <div class="form-group">
             <label>Amount</label>
-            <input type="text" id="editMenuAmount" value="${menu.amount}">
+            <div class="input-with-emoji">
+                <input type="text" id="editMenuAmount" value="${menu.amount}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editMenuAmount')">😀</button>
+            </div>
         </div>
         <div class="form-group">
             <label>Price</label>
@@ -1058,17 +1406,17 @@ async function updateMenu(id) {
 
         hideLoading();
         closeEditModal();
-        alert('Menu updated successfully!');
+        alert('Menu updated!');
         loadMenus();
     } catch (error) {
         hideLoading();
-        alert('Error updating menu');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deleteMenu(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -1080,11 +1428,11 @@ async function deleteMenu(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Menu deleted successfully!');
+        alert('Menu deleted!');
         loadMenus();
     } catch (error) {
         hideLoading();
-        alert('Error deleting menu');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -1103,12 +1451,15 @@ async function loadPaymentMethods() {
 
         if (data && data.length > 0) {
             data.forEach(payment => {
+                const nameHtml = renderAnimatedText(payment.name);
+                const instructionsHtml = renderAnimatedText(payment.instructions || '');
+                
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${payment.icon_url}" alt="${payment.name}">
-                        <h4>${payment.name}</h4>
+                        <h4>${nameHtml}</h4>
                         <p>${payment.address}</p>
-                        <p>${payment.instructions || ''}</p>
+                        <p>${instructionsHtml}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editPayment(${payment.id})">Edit</button>
                             <button class="btn-danger" onclick="deletePayment(${payment.id})">Delete</button>
@@ -1152,7 +1503,7 @@ async function addPaymentMethod() {
             if (error) throw error;
 
             hideLoading();
-            alert('Payment method added successfully!');
+            alert('Payment method added!');
             document.getElementById('paymentName').value = '';
             document.getElementById('paymentAddress').value = '';
             document.getElementById('paymentInstructions').value = '';
@@ -1180,7 +1531,10 @@ async function editPayment(id) {
     modalBody.innerHTML = `
         <div class="form-group">
             <label>Name</label>
-            <input type="text" id="editPaymentName" value="${payment.name}">
+            <div class="input-with-emoji">
+                <input type="text" id="editPaymentName" value="${payment.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentName')">😀</button>
+            </div>
         </div>
         <div class="form-group">
             <label>Address</label>
@@ -1188,7 +1542,10 @@ async function editPayment(id) {
         </div>
         <div class="form-group">
             <label>Instructions</label>
-            <textarea id="editPaymentInstructions">${payment.instructions || ''}</textarea>
+            <div class="textarea-with-emoji">
+                <textarea id="editPaymentInstructions">${payment.instructions || ''}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentInstructions')">😀</button>
+            </div>
         </div>
         <button class="btn-primary" onclick="updatePayment(${id})">Save Changes</button>
     `;
@@ -1221,17 +1578,17 @@ async function updatePayment(id) {
 
         hideLoading();
         closeEditModal();
-        alert('Payment method updated successfully!');
+        alert('Payment method updated!');
         loadPaymentMethods();
     } catch (error) {
         hideLoading();
-        alert('Error updating payment method');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deletePayment(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -1243,11 +1600,11 @@ async function deletePayment(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Payment method deleted successfully!');
+        alert('Payment method deleted!');
         loadPaymentMethods();
     } catch (error) {
         hideLoading();
-        alert('Error deleting payment method');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -1266,11 +1623,14 @@ async function loadContacts() {
 
         if (data && data.length > 0) {
             data.forEach(contact => {
+                const nameHtml = renderAnimatedText(contact.name);
+                const descHtml = renderAnimatedText(contact.description || '');
+                
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${contact.icon_url}" alt="${contact.name}">
-                        <h4>${contact.name}</h4>
-                        <p>${contact.description || ''}</p>
+                        <h4>${nameHtml}</h4>
+                        <p>${descHtml}</p>
                         <p>${contact.link || contact.address || ''}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editContact(${contact.id})">Edit</button>
@@ -1317,7 +1677,7 @@ async function addContact() {
             if (error) throw error;
 
             hideLoading();
-            alert('Contact added successfully!');
+            alert('Contact added!');
             document.getElementById('contactName').value = '';
             document.getElementById('contactDescription').value = '';
             document.getElementById('contactLink').value = '';
@@ -1346,11 +1706,17 @@ async function editContact(id) {
     modalBody.innerHTML = `
         <div class="form-group">
             <label>Name</label>
-            <input type="text" id="editContactName" value="${contact.name}">
+            <div class="input-with-emoji">
+                <input type="text" id="editContactName" value="${contact.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactName')">😀</button>
+            </div>
         </div>
         <div class="form-group">
             <label>Description</label>
-            <textarea id="editContactDescription">${contact.description || ''}</textarea>
+            <div class="textarea-with-emoji">
+                <textarea id="editContactDescription">${contact.description || ''}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactDescription')">😀</button>
+            </div>
         </div>
         <div class="form-group">
             <label>Link</label>
@@ -1393,17 +1759,17 @@ async function updateContact(id) {
 
         hideLoading();
         closeEditModal();
-        alert('Contact updated successfully!');
+        alert('Contact updated!');
         loadContacts();
     } catch (error) {
         hideLoading();
-        alert('Error updating contact');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deleteContact(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -1415,11 +1781,11 @@ async function deleteContact(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Contact deleted successfully!');
+        alert('Contact deleted!');
         loadContacts();
     } catch (error) {
         hideLoading();
-        alert('Error deleting contact');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -1444,7 +1810,8 @@ async function loadButtonsForVideos() {
         
         if (data) {
             data.forEach(btn => {
-                select.innerHTML += `<option value="${btn.id}">${btn.name}</option>`;
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
             });
         }
     } catch (error) {
@@ -1467,11 +1834,14 @@ async function loadVideos() {
 
         if (data && data.length > 0) {
             data.forEach(video => {
+                const descHtml = renderAnimatedText(video.description);
+                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
+                
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${video.banner_url}" alt="Video">
-                        <h4>${video.description}</h4>
-                        <p>Button: ${video.category_buttons.name}</p>
+                        <h4>${descHtml}</h4>
+                        <p>Button: ${buttonNameHtml}</p>
                         <p><a href="${video.video_url}" target="_blank">View Video</a></p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editVideo(${video.id})">Edit</button>
@@ -1516,7 +1886,7 @@ async function addVideo() {
             if (error) throw error;
 
             hideLoading();
-            alert('Video added successfully!');
+            alert('Video added!');
             document.getElementById('videoBannerFile').value = '';
             document.getElementById('videoUrl').value = '';
             document.getElementById('videoDescription').value = '';
@@ -1547,7 +1917,10 @@ async function editVideo(id) {
         </div>
         <div class="form-group">
             <label>Description</label>
-            <textarea id="editVideoDescription">${video.description}</textarea>
+            <div class="textarea-with-emoji">
+                <textarea id="editVideoDescription">${video.description}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editVideoDescription')">😀</button>
+            </div>
         </div>
         <button class="btn-primary" onclick="updateVideo(${id})">Save Changes</button>
     `;
@@ -1578,17 +1951,17 @@ async function updateVideo(id) {
 
         hideLoading();
         closeEditModal();
-        alert('Video updated successfully!');
+        alert('Video updated!');
         loadVideos();
     } catch (error) {
         hideLoading();
-        alert('Error updating video');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deleteVideo(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -1600,11 +1973,11 @@ async function deleteVideo(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Video deleted successfully!');
+        alert('Video deleted!');
         loadVideos();
     } catch (error) {
         hideLoading();
-        alert('Error deleting video');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -1649,6 +2022,10 @@ async function loadOrders() {
                 if (order.status === 'approved') statusClass = 'approved';
                 if (order.status === 'rejected') statusClass = 'rejected';
 
+                const menuNameHtml = renderAnimatedText(order.menus?.name || 'Unknown');
+                const menuAmountHtml = renderAnimatedText(order.menus?.amount || '');
+                const paymentNameHtml = renderAnimatedText(order.payment_methods?.name || 'N/A');
+
                 container.innerHTML += `
                     <div class="order-card">
                         <div class="order-header">
@@ -1669,19 +2046,19 @@ async function loadOrders() {
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Product</span>
-                                <span class="info-value">${order.menus.name}</span>
+                                <span class="info-value">${menuNameHtml}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Amount</span>
-                                <span class="info-value">${order.menus.amount}</span>
+                                <span class="info-value">${menuAmountHtml}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Price</span>
-                                <span class="info-value">${order.menus.price} MMK</span>
+                                <span class="info-value">${order.menus?.price || 0} MMK</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Payment</span>
-                                <span class="info-value">${order.payment_methods.name}</span>
+                                <span class="info-value">${paymentNameHtml}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Transaction Code</span>
@@ -1707,7 +2084,7 @@ async function loadOrders() {
 }
 
 async function approveOrder(id) {
-    const message = prompt('Enter a message for the customer (optional):');
+    const message = prompt('Enter message (optional):');
     
     showLoading();
     try {
@@ -1722,17 +2099,17 @@ async function approveOrder(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Order approved successfully!');
+        alert('Order approved!');
         loadOrders();
     } catch (error) {
         hideLoading();
-        alert('Error approving order');
+        alert('Error approving');
         console.error(error);
     }
 }
 
 async function rejectOrder(id) {
-    const message = prompt('Enter a reason for rejection:');
+    const message = prompt('Enter rejection reason:');
     if (!message) return;
     
     showLoading();
@@ -1752,7 +2129,7 @@ async function rejectOrder(id) {
         loadOrders();
     } catch (error) {
         hideLoading();
-        alert('Error rejecting order');
+        alert('Error rejecting');
         console.error(error);
     }
 }
@@ -1770,7 +2147,6 @@ async function loadUsers() {
         container.innerHTML = '';
 
         if (data && data.length > 0) {
-            // Update stats
             document.getElementById('totalUsers').textContent = data.length;
             
             const today = new Date().toDateString();
@@ -1779,7 +2155,6 @@ async function loadUsers() {
             });
             document.getElementById('todayUsers').textContent = todayUsers.length;
 
-            // Display users
             data.forEach(user => {
                 container.innerHTML += `
                     <div class="user-card">
@@ -1825,3 +2200,5 @@ function showSuccess(element, message) {
     element.classList.add('show');
     setTimeout(() => element.classList.remove('show'), 5000);
 }
+
+console.log('✅ Admin panel initialized with animations support!');
