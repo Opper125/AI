@@ -63,6 +63,9 @@
                 <button class="nav-btn" data-section="videos" onclick="switchSection('videos')">
                     <span>🎥</span> YouTube Videos
                 </button>
+                <button class="nav-btn" data-section="animations" onclick="switchSection('animations')">
+                    <span>✨</span> Animations/Stickers
+                </button>
                 <button class="nav-btn" data-section="orders" onclick="switchSection('orders')">
                     <span>📦</span> Orders
                 </button>
@@ -81,7 +84,10 @@
                 <div class="settings-grid">
                     <div class="setting-card">
                         <h3>Website Name</h3>
-                        <input type="text" id="websiteName" placeholder="Enter website name">
+                        <div class="input-with-emoji">
+                            <input type="text" id="websiteName" placeholder="Enter website name">
+                            <button class="emoji-picker-btn" onclick="openEmojiPicker('websiteName')">😀</button>
+                        </div>
                         <button onclick="updateWebsiteName()" class="btn-primary">Save</button>
                     </div>
 
@@ -125,9 +131,7 @@
                     <button onclick="addBanner()" class="btn-primary">Add Banner</button>
                 </div>
 
-                <div class="items-grid" id="bannersContainer">
-                    <!-- Banners will be loaded here -->
-                </div>
+                <div class="items-grid" id="bannersContainer"></div>
             </section>
 
             <!-- Categories Section -->
@@ -136,13 +140,14 @@
                 
                 <div class="action-card">
                     <h3>Add New Category</h3>
-                    <input type="text" id="categoryTitle" placeholder="Category Title">
+                    <div class="input-with-emoji">
+                        <input type="text" id="categoryTitle" placeholder="Category Title">
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('categoryTitle')">😀</button>
+                    </div>
                     <button onclick="addCategory()" class="btn-primary">Add Category</button>
                 </div>
 
-                <div class="items-list" id="categoriesContainer">
-                    <!-- Categories will be loaded here -->
-                </div>
+                <div class="items-list" id="categoriesContainer"></div>
             </section>
 
             <!-- Category Buttons Section -->
@@ -154,14 +159,15 @@
                     <select id="buttonCategorySelect" class="form-select">
                         <option value="">Select Category</option>
                     </select>
-                    <input type="text" id="buttonName" placeholder="Button Name">
+                    <div class="input-with-emoji">
+                        <input type="text" id="buttonName" placeholder="Button Name">
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('buttonName')">😀</button>
+                    </div>
                     <input type="file" id="buttonIconFile" accept="image/*">
                     <button onclick="addCategoryButton()" class="btn-primary">Add Button</button>
                 </div>
 
-                <div class="items-grid" id="buttonsContainer">
-                    <!-- Buttons will be loaded here -->
-                </div>
+                <div class="items-grid" id="buttonsContainer"></div>
             </section>
 
             <!-- Input Tables Section -->
@@ -179,8 +185,14 @@
                     
                     <div id="tablesInputContainer">
                         <div class="table-input-group">
-                            <input type="text" class="table-name" placeholder="Table Name">
-                            <input type="text" class="table-instruction" placeholder="Instruction">
+                            <div class="input-with-emoji">
+                                <input type="text" class="table-name" placeholder="Table Name">
+                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
+                            </div>
+                            <div class="input-with-emoji">
+                                <input type="text" class="table-instruction" placeholder="Instruction">
+                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
+                            </div>
                         </div>
                     </div>
                     
@@ -188,9 +200,7 @@
                     <button onclick="saveTables()" class="btn-primary">Save All Tables</button>
                 </div>
 
-                <div class="items-list" id="tablesContainer">
-                    <!-- Tables will be loaded here -->
-                </div>
+                <div class="items-list" id="tablesContainer"></div>
             </section>
 
             <!-- Menus Section -->
@@ -208,8 +218,14 @@
                     
                     <div id="menusInputContainer">
                         <div class="menu-input-group">
-                            <input type="text" class="menu-name" placeholder="Product Name">
-                            <input type="text" class="menu-amount" placeholder="Amount/Details">
+                            <div class="input-with-emoji">
+                                <input type="text" class="menu-name" placeholder="Product Name">
+                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+                            </div>
+                            <div class="input-with-emoji">
+                                <input type="text" class="menu-amount" placeholder="Amount/Details">
+                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+                            </div>
                             <input type="number" class="menu-price" placeholder="Price">
                             <input type="file" class="menu-icon" accept="image/*">
                         </div>
@@ -219,9 +235,7 @@
                     <button onclick="saveMenus()" class="btn-primary">Save All Products</button>
                 </div>
 
-                <div class="items-grid" id="menusContainer">
-                    <!-- Menus will be loaded here -->
-                </div>
+                <div class="items-grid" id="menusContainer"></div>
             </section>
 
             <!-- Payment Methods Section -->
@@ -230,16 +244,20 @@
                 
                 <div class="action-card">
                     <h3>Add Payment Method</h3>
-                    <input type="text" id="paymentName" placeholder="Payment Name">
+                    <div class="input-with-emoji">
+                        <input type="text" id="paymentName" placeholder="Payment Name">
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('paymentName')">😀</button>
+                    </div>
                     <input type="text" id="paymentAddress" placeholder="Payment Address">
-                    <textarea id="paymentInstructions" placeholder="Instructions" rows="3"></textarea>
+                    <div class="textarea-with-emoji">
+                        <textarea id="paymentInstructions" placeholder="Instructions" rows="3"></textarea>
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('paymentInstructions')">😀</button>
+                    </div>
                     <input type="file" id="paymentIconFile" accept="image/*">
                     <button onclick="addPaymentMethod()" class="btn-primary">Add Payment</button>
                 </div>
 
-                <div class="items-grid" id="paymentsContainer">
-                    <!-- Payments will be loaded here -->
-                </div>
+                <div class="items-grid" id="paymentsContainer"></div>
             </section>
 
             <!-- Contacts Section -->
@@ -248,17 +266,21 @@
                 
                 <div class="action-card">
                     <h3>Add Contact</h3>
-                    <input type="text" id="contactName" placeholder="Contact Name">
-                    <textarea id="contactDescription" placeholder="Description" rows="2"></textarea>
+                    <div class="input-with-emoji">
+                        <input type="text" id="contactName" placeholder="Contact Name">
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('contactName')">😀</button>
+                    </div>
+                    <div class="textarea-with-emoji">
+                        <textarea id="contactDescription" placeholder="Description" rows="2"></textarea>
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('contactDescription')">😀</button>
+                    </div>
                     <input type="text" id="contactLink" placeholder="Link (optional)">
                     <input type="text" id="contactAddress" placeholder="Address (optional)">
                     <input type="file" id="contactIconFile" accept="image/*">
                     <button onclick="addContact()" class="btn-primary">Add Contact</button>
                 </div>
 
-                <div class="items-grid" id="contactsContainer">
-                    <!-- Contacts will be loaded here -->
-                </div>
+                <div class="items-grid" id="contactsContainer"></div>
             </section>
 
             <!-- YouTube Videos Section -->
@@ -273,14 +295,35 @@
                     <select id="videoButtonSelect" class="form-select">
                         <option value="">Select Button</option>
                     </select>
-                    <input type="file" id="videoBannerFile" accept="image/*" placeholder="Video Banner">
+                    <input type="file" id="videoBannerFile" accept="image/*">
                     <input type="text" id="videoUrl" placeholder="YouTube Video URL">
-                    <textarea id="videoDescription" placeholder="Description" rows="2"></textarea>
+                    <div class="textarea-with-emoji">
+                        <textarea id="videoDescription" placeholder="Description" rows="2"></textarea>
+                        <button class="emoji-picker-btn" onclick="openEmojiPicker('videoDescription')">😀</button>
+                    </div>
                     <button onclick="addVideo()" class="btn-primary">Add Video</button>
                 </div>
 
-                <div class="items-grid" id="videosContainer">
-                    <!-- Videos will be loaded here -->
+                <div class="items-grid" id="videosContainer"></div>
+            </section>
+
+            <!-- ✨ NEW: Animations/Stickers Section -->
+            <section id="animations" class="content-section">
+                <h2>✨ Animations & Stickers Management</h2>
+                
+                <div class="action-card">
+                    <h3>Upload Animation/Sticker</h3>
+                    <input type="text" id="animationName" placeholder="Animation Name">
+                    <input type="file" id="animationFile" accept="image/*,video/*,.gif,.webm,.json">
+                    <div class="file-info" id="animationFileInfo"></div>
+                    <button onclick="uploadAnimation()" class="btn-primary">Upload Animation</button>
+                    <p style="font-size: 12px; color: #94a3b8; margin-top: 10px;">
+                        Supported formats: GIF, Video (MP4, WebM), Images (PNG, JPG), JSON (Lottie)
+                    </p>
+                </div>
+
+                <div class="animations-grid" id="animationsContainer">
+                    <!-- Animations will be loaded here -->
                 </div>
             </section>
 
@@ -295,9 +338,7 @@
                     <button class="filter-btn" onclick="filterOrders('rejected')">Rejected</button>
                 </div>
 
-                <div class="orders-list" id="ordersContainer">
-                    <!-- Orders will be loaded here -->
-                </div>
+                <div class="orders-list" id="ordersContainer"></div>
             </section>
 
             <!-- Users Section -->
@@ -315,11 +356,23 @@
                     </div>
                 </div>
 
-                <div class="users-list" id="usersContainer">
-                    <!-- Users will be loaded here -->
-                </div>
+                <div class="users-list" id="usersContainer"></div>
             </section>
         </main>
+    </div>
+
+    <!-- Emoji Picker Modal -->
+    <div id="emojiPickerModal" class="modal">
+        <div class="modal-content emoji-picker-content">
+            <span class="close-modal" onclick="closeEmojiPicker()">&times;</span>
+            <h2>Select Animation/Sticker</h2>
+            <div class="emoji-search">
+                <input type="text" id="emojiSearch" placeholder="Search animations..." onkeyup="filterEmojis()">
+            </div>
+            <div class="emoji-grid" id="emojiGrid">
+                <!-- Animations will be loaded here -->
+            </div>
+        </div>
     </div>
 
     <!-- Edit Modal -->
