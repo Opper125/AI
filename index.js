@@ -18,6 +18,7 @@ const AppState = {
     categories: [],
     payments: [],
     contacts: [],
+    animations: [], // Store all loaded animations
     // Current purchase flow
     currentButtonId: null,
     currentMenus: [], // All menus for current button
@@ -25,6 +26,9 @@ const AppState = {
     selectedPaymentId: null,
     tableData: {}
 };
+
+// Current sticker target for insertion
+let currentStickerTarget = null;
 
 // Make functions globally accessible
 window.AppState = AppState;
@@ -35,6 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Initializing app...');
     await testDatabaseConnection();
     await loadWebsiteSettings();
+    await loadAnimations(); // Load animations on startup
     checkAuth();
     hideLoading();
 });
@@ -79,6 +84,163 @@ function hideLoading() {
     setTimeout(() => {
         document.getElementById('loadingScreen').style.display = 'none';
     }, 1000);
+}
+
+// ==================== ANIMATIONS/STICKER SYSTEM ====================
+
+// Load All Animations from Database
+async function loadAnimations() {
+    try {
+        console.log('🎨 Loading animations...');
+        const { data, error } = await supabase
+            .from('animations')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        AppState.animations = data || [];
+        console.log(`✅ Loaded ${AppState.animations.length} animations`);
+        
+    } catch (error) {
+        console.error('❌ Error loading animations:', error);
+        AppState.animations = [];
+    }
+}
+
+// Render Animated Text (Convert {anim:ID:URL:TYPE} to HTML)
+function renderAnimatedText(text) {
+    if (!text) return text;
+    
+    // Replace {anim:ID:URL:TYPE} with actual HTML elements
+    return text.replace(/\{anim:(\d+):([^:]+):([^}]+)\}/g, (match, id, url, type) => {
+        if (type === 'gif' || type === 'png' || type === 'jpg' || type === 'jpeg') {
+            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
+        } else if (type === 'video' || type === 'webm' || type === 'mp4') {
+            return `<span class="animated-emoji"><video autoplay loop muted><source src="${url}" type="video/${type}"></video></span>`;
+        } else if (type === 'json') {
+            // For Lottie animations (if needed in future)
+            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
+        } else {
+            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
+        }
+    });
+}
+
+// Show Sticker Modal
+function showStickerModal(targetElement) {
+    currentStickerTarget = targetElement;
+    const modal = document.getElementById('stickerModal');
+    const grid = document.getElementById('stickerGrid');
+    
+    // Clear search
+    document.getElementById('stickerSearch').value = '';
+    
+    // Load sticker grid
+    grid.innerHTML = '';
+    
+    if (AppState.animations.length === 0) {
+        grid.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;grid-column:1/-1;">No stickers available yet! 🎨</p>';
+    } else {
+        AppState.animations.forEach(anim => {
+            const item = document.createElement('div');
+            item.className = 'sticker-item';
+            item.onclick = () => insertSticker(anim);
+            
+            let preview = '';
+            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
+                preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
+            } else {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            }
+            
+            item.innerHTML = `
+                ${preview}
+                <div class="sticker-item-name">${anim.name}</div>
+            `;
+            
+            grid.appendChild(item);
+        });
+    }
+    
+    modal.classList.add('active');
+}
+
+// Insert Sticker into Target Input
+function insertSticker(animation) {
+    if (!currentStickerTarget) return;
+
+    const cursorPos = currentStickerTarget.selectionStart || currentStickerTarget.value.length;
+    const textBefore = currentStickerTarget.value.substring(0, cursorPos);
+    const textAfter = currentStickerTarget.value.substring(cursorPos);
+    
+    // Insert sticker code: {anim:ID:URL:TYPE}
+    const stickerCode = `{anim:${animation.id}:${animation.file_url}:${animation.file_type}}`;
+    
+    currentStickerTarget.value = textBefore + stickerCode + textAfter;
+    
+    // Set cursor position after sticker
+    const newPos = cursorPos + stickerCode.length;
+    currentStickerTarget.setSelectionRange(newPos, newPos);
+    currentStickerTarget.focus();
+    
+    closeStickerModal();
+    
+    // Show preview if element has preview functionality
+    if (currentStickerTarget.dataset.preview) {
+        updateTextPreview(currentStickerTarget);
+    }
+}
+
+// Close Sticker Modal
+function closeStickerModal() {
+    document.getElementById('stickerModal').classList.remove('active');
+    currentStickerTarget = null;
+}
+
+// Filter Stickers by Search
+function filterStickers() {
+    const searchTerm = document.getElementById('stickerSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.sticker-item');
+    
+    items.forEach(item => {
+        const name = item.querySelector('.sticker-item-name');
+        if (name && name.textContent.toLowerCase().includes(searchTerm)) {
+            item.style.display = 'flex';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+// Update Text Preview (for elements that show live preview)
+function updateTextPreview(inputElement) {
+    const previewId = inputElement.dataset.preview;
+    if (previewId) {
+        const previewElement = document.getElementById(previewId);
+        if (previewElement) {
+            previewElement.innerHTML = renderAnimatedText(inputElement.value);
+        }
+    }
+}
+
+// Add Sticker Button to Text Inputs
+function addStickerButtonToInput(inputElement, buttonText = '🎨') {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'form-group-with-sticker';
+    
+    const stickerBtn = document.createElement('button');
+    stickerBtn.type = 'button';
+    stickerBtn.className = 'sticker-btn';
+    stickerBtn.textContent = buttonText;
+    stickerBtn.onclick = () => showStickerModal(inputElement);
+    
+    // Insert wrapper
+    inputElement.parentNode.insertBefore(wrapper, inputElement);
+    wrapper.appendChild(inputElement);
+    wrapper.appendChild(stickerBtn);
 }
 
 // ==================== AUTHENTICATION ====================
@@ -382,8 +544,12 @@ function displayCategories(categories) {
         if (category.category_buttons && category.category_buttons.length > 0) {
             const section = document.createElement('div');
             section.className = 'category-section';
+            
+            // Render animated title
+            const titleHtml = renderAnimatedText(category.title);
+            
             section.innerHTML = `
-                <h3 class="category-title">${category.title}</h3>
+                <h3 class="category-title has-animations">${titleHtml}</h3>
                 <div class="category-buttons" id="category-${category.id}"></div>
             `;
             container.appendChild(section);
@@ -399,9 +565,13 @@ function displayCategoryButtons(categoryId, buttons) {
     buttons.forEach(button => {
         const btnEl = document.createElement('div');
         btnEl.className = 'category-button';
+        
+        // Render animated name
+        const nameHtml = renderAnimatedText(button.name);
+        
         btnEl.innerHTML = `
             <img src="${button.icon_url}" alt="${button.name}">
-            <span>${button.name}</span>
+            <span class="has-animations">${nameHtml}</span>
         `;
         btnEl.addEventListener('click', () => openCategoryPage(button.id));
         container.appendChild(btnEl);
@@ -455,10 +625,14 @@ function showPurchaseModal(tables, menus, videos) {
     if (tables && tables.length > 0) {
         html += '<div class="input-tables">';
         tables.forEach(table => {
+            // Render animated text for table name and instruction
+            const nameHtml = renderAnimatedText(table.name);
+            const instructionHtml = renderAnimatedText(table.instruction);
+            
             html += `
                 <div class="form-group">
-                    <label>${table.name}</label>
-                    <input type="text" class="table-input" data-table-id="${table.id}" placeholder="${table.instruction}" required>
+                    <label class="has-animations">${nameHtml}</label>
+                    <input type="text" class="table-input" data-table-id="${table.id}" placeholder="${instructionHtml}" required>
                 </div>
             `;
         });
@@ -470,12 +644,16 @@ function showPurchaseModal(tables, menus, videos) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
         html += '<div class="menu-items" id="menuItemsContainer">';
         menus.forEach(menu => {
+            // Render animated text for menu name and amount
+            const nameHtml = renderAnimatedText(menu.name);
+            const amountHtml = renderAnimatedText(menu.amount);
+            
             html += `
                 <div class="menu-item" data-menu-id="${menu.id}">
                     ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
-                        <div class="menu-item-name">${menu.name}</div>
-                        <div class="menu-item-amount">${menu.amount}</div>
+                        <div class="menu-item-name has-animations">${nameHtml}</div>
+                        <div class="menu-item-amount has-animations">${amountHtml}</div>
                         <div class="menu-item-price">${menu.price} MMK</div>
                     </div>
                 </div>
@@ -490,10 +668,13 @@ function showPurchaseModal(tables, menus, videos) {
     if (videos && videos.length > 0) {
         html += '<div class="video-section"><h3>Tutorials</h3>';
         videos.forEach(video => {
+            // Render animated description
+            const descriptionHtml = renderAnimatedText(video.description);
+            
             html += `
                 <div class="video-item" onclick="window.open('${video.video_url}', '_blank')">
                     <img src="${video.banner_url}" alt="Video">
-                    <p>${video.description}</p>
+                    <p class="has-animations">${descriptionHtml}</p>
                 </div>
             `;
         });
@@ -634,10 +815,15 @@ async function showPaymentModal() {
     const menu = AppState.selectedMenu;
 
     let html = '<div class="payment-selection">';
+    
+    // Render animated menu info
+    const menuNameHtml = renderAnimatedText(menu.name);
+    const menuAmountHtml = renderAnimatedText(menu.amount);
+    
     html += `
         <div class="order-summary">
-            <h3>${menu.name}</h3>
-            <p>${menu.amount}</p>
+            <h3 class="has-animations">${menuNameHtml}</h3>
+            <p class="has-animations">${menuAmountHtml}</p>
             <p class="price">${menu.price} MMK</p>
         </div>
     `;
@@ -649,10 +835,13 @@ async function showPaymentModal() {
     } else {
         html += '<div class="payment-methods" id="paymentMethodsContainer">';
         AppState.payments.forEach(payment => {
+            // Render animated payment name
+            const paymentNameHtml = renderAnimatedText(payment.name);
+            
             html += `
                 <div class="payment-method" data-payment-id="${payment.id}">
                     <img src="${payment.icon_url}" alt="${payment.name}">
-                    <span>${payment.name}</span>
+                    <span class="has-animations">${paymentNameHtml}</span>
                 </div>
             `;
         });
@@ -709,11 +898,15 @@ async function selectPayment(paymentId) {
 
         const detailsDiv = document.getElementById('paymentDetailsDiv');
         if (detailsDiv && payment) {
+            // Render animated payment info
+            const paymentNameHtml = renderAnimatedText(payment.name);
+            const instructionsHtml = renderAnimatedText(payment.instructions || 'Please complete payment and enter details.');
+            
             detailsDiv.style.display = 'block';
             detailsDiv.innerHTML = `
                 <div class="payment-info">
-                    <h4>${payment.name}</h4>
-                    <p>${payment.instructions || 'Please complete payment and enter details.'}</p>
+                    <h4 class="has-animations">${paymentNameHtml}</h4>
+                    <p class="has-animations">${instructionsHtml}</p>
                     <p><strong>Address:</strong> ${payment.address}</p>
                     <div class="form-group" style="margin-top:15px;">
                         <label>Last 6 digits of transaction ID</label>
@@ -841,15 +1034,21 @@ function displayOrderHistory(orders) {
         if (order.status === 'approved') statusClass = 'approved';
         if (order.status === 'rejected') statusClass = 'rejected';
 
+        // Render animated menu info
+        const menuNameHtml = renderAnimatedText(order.menus?.name || 'Unknown');
+        const menuAmountHtml = renderAnimatedText(order.menus?.amount || '');
+        const paymentNameHtml = renderAnimatedText(order.payment_methods?.name || 'N/A');
+        const adminMessageHtml = order.admin_message ? renderAnimatedText(order.admin_message) : '';
+
         item.innerHTML = `
             <div class="history-status ${statusClass}">${order.status.toUpperCase()}</div>
-            <h3>${order.menus?.name || 'Unknown'}</h3>
-            <p>${order.menus?.amount || ''}</p>
+            <h3 class="has-animations">${menuNameHtml}</h3>
+            <p class="has-animations">${menuAmountHtml}</p>
             <p><strong>Price:</strong> ${order.menus?.price || 0} MMK</p>
-            <p><strong>Payment:</strong> ${order.payment_methods?.name || 'N/A'}</p>
+            <p><strong>Payment:</strong> <span class="has-animations">${paymentNameHtml}</span></p>
             <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> ${order.admin_message}</p>` : ''}
+            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> <span class="has-animations">${adminMessageHtml}</span></p>` : ''}
         `;
 
         container.appendChild(item);
@@ -890,12 +1089,17 @@ function displayContacts(contacts) {
             item.addEventListener('click', () => window.open(contact.link, '_blank'));
         }
 
+        // Render animated contact info
+        const nameHtml = renderAnimatedText(contact.name);
+        const descriptionHtml = renderAnimatedText(contact.description || '');
+        const addressHtml = renderAnimatedText(contact.address || '');
+
         item.innerHTML = `
             <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}">
             <div class="contact-info">
-                <h3>${contact.name}</h3>
-                <p>${contact.description || ''}</p>
-                ${!contact.link && contact.address ? `<p>${contact.address}</p>` : ''}
+                <h3 class="has-animations">${nameHtml}</h3>
+                <p class="has-animations">${descriptionHtml}</p>
+                ${!contact.link && contact.address ? `<p class="has-animations">${addressHtml}</p>` : ''}
             </div>
         `;
 
@@ -994,4 +1198,4 @@ function showSuccess(element, message) {
     setTimeout(() => element.classList.remove('show'), 5000);
 }
 
-console.log('✅ App initialized successfully!');
+console.log('✅ App initialized successfully with animations support! 🎨');
