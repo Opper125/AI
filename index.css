@@ -215,11 +215,40 @@ body {
     border: 3px solid var(--primary-color);
 }
 
-.auth-header h1 {
+/* Website Title with Animation Support */
+.website-title {
     font-size: 24px;
     background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.website-title .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.website-title .animated-emoji img,
+.website-title .animated-emoji video {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 4px;
+}
+
+/* App Header Website Title */
+.app-header .website-title {
+    font-size: 20px;
+}
+
+.app-header .website-title .animated-emoji img,
+.app-header .website-title .animated-emoji video {
+    width: 24px;
+    height: 24px;
 }
 
 .auth-form {
@@ -401,13 +430,6 @@ body {
     border: 2px solid var(--primary-color);
 }
 
-.app-header h1 {
-    font-size: 20px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
 /* Content Wrapper */
 .content-wrapper {
     padding: 20px;
@@ -510,6 +532,23 @@ body {
     margin-bottom: 15px;
     color: var(--text-primary);
     text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.category-title .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.category-title .animated-emoji img,
+.category-title .animated-emoji video {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 4px;
 }
 
 .category-buttons {
@@ -549,6 +588,23 @@ body {
     display: block;
     font-size: 14px;
     color: var(--text-secondary);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.category-button span .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.category-button span .animated-emoji img,
+.category-button span .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 /* Menu Items */
@@ -601,12 +657,46 @@ body {
     font-size: 16px;
     font-weight: 600;
     margin-bottom: 5px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.menu-item-name .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.menu-item-name .animated-emoji img,
+.menu-item-name .animated-emoji video {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .menu-item-amount {
     font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 5px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.menu-item-amount .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.menu-item-amount .animated-emoji img,
+.menu-item-amount .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .menu-item-price {
@@ -811,6 +901,28 @@ body {
     border: 1px solid #ef4444;
 }
 
+/* History items with animation support */
+.history-item h3,
+.history-item p {
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.history-item .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.history-item .animated-emoji img,
+.history-item .animated-emoji video {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
+}
+
 /* Contacts */
 .contacts-container {
     display: grid;
@@ -847,11 +959,45 @@ body {
 .contact-info h3 {
     font-size: 16px;
     margin-bottom: 5px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.contact-info h3 .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.contact-info h3 .animated-emoji img,
+.contact-info h3 .animated-emoji video {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .contact-info p {
     font-size: 14px;
     color: var(--text-secondary);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.contact-info p .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.contact-info p .animated-emoji img,
+.contact-info p .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 /* Video Items */
@@ -893,6 +1039,23 @@ body {
 .video-item p {
     font-size: 14px;
     color: var(--text-secondary);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.video-item p .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.video-item p .animated-emoji img,
+.video-item p .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 /* Payment Methods Display */
@@ -935,6 +1098,23 @@ body {
     display: block;
     font-size: 14px;
     color: var(--text-secondary);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.payment-method span .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.payment-method span .animated-emoji img,
+.payment-method span .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .payment-info {
@@ -949,12 +1129,46 @@ body {
     font-size: 16px;
     margin-bottom: 10px;
     color: var(--text-primary);
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.payment-info h4 .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.payment-info h4 .animated-emoji img,
+.payment-info h4 .animated-emoji video {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .payment-info p {
     font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 8px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.payment-info p .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.payment-info p .animated-emoji img,
+.payment-info p .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .order-summary {
@@ -968,6 +1182,43 @@ body {
 .order-summary h3 {
     font-size: 18px;
     margin-bottom: 8px;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.order-summary h3 .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.order-summary h3 .animated-emoji img,
+.order-summary h3 .animated-emoji video {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
+}
+
+.order-summary p {
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.order-summary p .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.order-summary p .animated-emoji img,
+.order-summary p .animated-emoji video {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 .order-summary .price {
@@ -1098,13 +1349,25 @@ body {
     flex: 1;
 }
 
-/* Enhanced Menu/Category display with animations */
-.category-title.has-animations,
-.menu-item-name.has-animations,
-.menu-item-amount.has-animations,
-.contact-info h3.has-animations,
-.contact-info p.has-animations {
+/* Enhanced input tables display with animations */
+.input-tables .form-group label {
     line-height: 1.4;
+    word-wrap: break-word;
+}
+
+.input-tables .form-group label .animated-emoji {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0 2px;
+}
+
+.input-tables .form-group label .animated-emoji img,
+.input-tables .form-group label .animated-emoji video {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    border-radius: 3px;
 }
 
 /* Responsive adjustments for stickers */
@@ -1122,6 +1385,18 @@ body {
     
     .animated-emoji img,
     .animated-emoji video {
+        width: 20px;
+        height: 20px;
+    }
+    
+    .website-title .animated-emoji img,
+    .website-title .animated-emoji video {
+        width: 24px;
+        height: 24px;
+    }
+    
+    .app-header .website-title .animated-emoji img,
+    .app-header .website-title .animated-emoji video {
         width: 20px;
         height: 20px;
     }
