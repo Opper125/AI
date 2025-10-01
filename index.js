@@ -2,47 +2,119 @@
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 
-// Initialize Supabase
+// Initialize Supabase Client
 let supabase;
 try {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    console.log('✅ Supabase initialized');
+    console.log('✅ Supabase initialized successfully');
 } catch (error) {
-    console.error('❌ Supabase init failed:', error);
+    console.error('❌ Supabase initialization failed:', error);
 }
 
-// Global App State
-const AppState = {
+// Global State
+window.appState = {
     currentUser: null,
     websiteSettings: null,
     categories: [],
     payments: [],
     contacts: [],
-    animations: [], // Store all loaded animations
-    // Current purchase flow
+    selectedMenuItem: null,
+    currentMenu: null,
+    selectedPayment: null,
     currentButtonId: null,
-    currentMenus: [], // All menus for current button
-    selectedMenu: null, // Selected menu object
-    selectedPaymentId: null,
-    tableData: {}
+    currentTableData: {},
+    allMenus: [],
+    currentTables: []
 };
 
-// Current sticker target for insertion
-let currentStickerTarget = null;
+// ========== ANIMATION STICKER SUPPORT ==========
 
-// Make functions globally accessible
-window.AppState = AppState;
+/**
+ * Converts URLs in text to inline animated images/videos
+ * Detects GIF, PNG, WEBP, MP4, WEBM and displays them as emoji-sized animations
+ */
+function renderAnimatedContent(text) {
+    if (!text) return '';
+    
+    // Pattern to detect URLs (images and videos)
+    const urlPattern = /(https?:\/\/[^\s]+\.(?:gif|png|jpg|jpeg|webp|mp4|webm))/gi;
+    
+    return text.replace(urlPattern, (url) => {
+        const extension = url.split('.').pop().toLowerCase().split('?')[0];
+        
+        // Video formats
+        if (['mp4', 'webm'].includes(extension)) {
+            return `<video class="inline-animation" autoplay loop muted playsinline>
+                <source src="${url}" type="video/${extension}">
+            </video>`;
+        }
+        
+        // Image formats (including animated GIF)
+        if (['gif', 'png', 'jpg', 'jpeg', 'webp'].includes(extension)) {
+            return `<img class="inline-animation" src="${url}" alt="sticker">`;
+        }
+        
+        return url;
+    });
+}
 
-// ==================== INITIALIZATION ====================
+/**
+ * Apply animation rendering to an element's text content
+ */
+function applyAnimationRendering(element, text) {
+    if (!element || !text) return;
+    element.innerHTML = renderAnimatedContent(text);
+}
+
+// ========== INITIALIZATION ==========
 
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 Initializing app...');
+    console.log('🚀 App initializing...');
+    
+    // Add CSS for inline animations
+    addAnimationStyles();
+    
     await testDatabaseConnection();
     await loadWebsiteSettings();
-    await loadAnimations(); // Load animations on startup
     checkAuth();
     hideLoading();
 });
+
+// Add CSS styles for inline animations
+function addAnimationStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .inline-animation {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
+            vertical-align: middle;
+            margin: 0 2px;
+            border-radius: 4px;
+        }
+        
+        .menu-item-name .inline-animation,
+        .menu-item-amount .inline-animation {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .history-item .inline-animation,
+        .contact-info .inline-animation {
+            width: 18px;
+            height: 18px;
+        }
+        
+        .payment-info .inline-animation {
+            width: 22px;
+            height: 22px;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+// ========== DATABASE CONNECTION ==========
 
 async function testDatabaseConnection() {
     const statusEl = document.getElementById('connectionStatus');
@@ -50,7 +122,9 @@ async function testDatabaseConnection() {
     const statusIcon = statusEl.querySelector('.status-icon');
     
     try {
-        statusText.textContent = 'Testing database...';
+        statusText.textContent = 'Testing database connection...';
+        console.log('🔍 Testing database connection...');
+        
         const { data, error } = await supabase
             .from('website_settings')
             .select('id')
@@ -60,7 +134,8 @@ async function testDatabaseConnection() {
         
         statusEl.classList.add('connected');
         statusIcon.textContent = '✅';
-        statusText.textContent = 'Database connected!';
+        statusText.textContent = 'Database connected successfully!';
+        console.log('✅ Database connection successful');
         
         setTimeout(() => {
             statusEl.classList.add('hide');
@@ -71,10 +146,12 @@ async function testDatabaseConnection() {
         statusEl.classList.add('error');
         statusIcon.textContent = '❌';
         statusText.textContent = 'Database connection failed!';
-        console.error('❌ DB Error:', error);
+        console.error('❌ Database connection failed:', error);
         setTimeout(() => statusEl.classList.add('hide'), 10000);
     }
 }
+
+// ========== LOADING & AUTH ==========
 
 function showLoading() {
     document.getElementById('loadingScreen').style.display = 'flex';
@@ -86,169 +163,10 @@ function hideLoading() {
     }, 1000);
 }
 
-// ==================== ANIMATIONS/STICKER SYSTEM ====================
-
-// Load All Animations from Database
-async function loadAnimations() {
-    try {
-        console.log('🎨 Loading animations...');
-        const { data, error } = await supabase
-            .from('animations')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) throw error;
-
-        AppState.animations = data || [];
-        console.log(`✅ Loaded ${AppState.animations.length} animations`);
-        
-    } catch (error) {
-        console.error('❌ Error loading animations:', error);
-        AppState.animations = [];
-    }
-}
-
-// Render Animated Text (Convert {anim:ID:URL:TYPE} to HTML)
-function renderAnimatedText(text) {
-    if (!text) return text;
-    
-    // Replace {anim:ID:URL:TYPE} with actual HTML elements
-    return text.replace(/\{anim:(\d+):([^:]+):([^}]+)\}/g, (match, id, url, type) => {
-        if (type === 'gif' || type === 'png' || type === 'jpg' || type === 'jpeg') {
-            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
-        } else if (type === 'video' || type === 'webm' || type === 'mp4') {
-            return `<span class="animated-emoji"><video autoplay loop muted><source src="${url}" type="video/${type}"></video></span>`;
-        } else if (type === 'json') {
-            // For Lottie animations (if needed in future)
-            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
-        } else {
-            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
-        }
-    });
-}
-
-// Show Sticker Modal
-function showStickerModal(targetElement) {
-    currentStickerTarget = targetElement;
-    const modal = document.getElementById('stickerModal');
-    const grid = document.getElementById('stickerGrid');
-    
-    // Clear search
-    document.getElementById('stickerSearch').value = '';
-    
-    // Load sticker grid
-    grid.innerHTML = '';
-    
-    if (AppState.animations.length === 0) {
-        grid.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;grid-column:1/-1;">No stickers available yet! 🎨</p>';
-    } else {
-        AppState.animations.forEach(anim => {
-            const item = document.createElement('div');
-            item.className = 'sticker-item';
-            item.onclick = () => insertSticker(anim);
-            
-            let preview = '';
-            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
-                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
-            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
-                preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
-            } else {
-                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
-            }
-            
-            item.innerHTML = `
-                ${preview}
-                <div class="sticker-item-name">${anim.name}</div>
-            `;
-            
-            grid.appendChild(item);
-        });
-    }
-    
-    modal.classList.add('active');
-}
-
-// Insert Sticker into Target Input
-function insertSticker(animation) {
-    if (!currentStickerTarget) return;
-
-    const cursorPos = currentStickerTarget.selectionStart || currentStickerTarget.value.length;
-    const textBefore = currentStickerTarget.value.substring(0, cursorPos);
-    const textAfter = currentStickerTarget.value.substring(cursorPos);
-    
-    // Insert sticker code: {anim:ID:URL:TYPE}
-    const stickerCode = `{anim:${animation.id}:${animation.file_url}:${animation.file_type}}`;
-    
-    currentStickerTarget.value = textBefore + stickerCode + textAfter;
-    
-    // Set cursor position after sticker
-    const newPos = cursorPos + stickerCode.length;
-    currentStickerTarget.setSelectionRange(newPos, newPos);
-    currentStickerTarget.focus();
-    
-    closeStickerModal();
-    
-    // Show preview if element has preview functionality
-    if (currentStickerTarget.dataset.preview) {
-        updateTextPreview(currentStickerTarget);
-    }
-}
-
-// Close Sticker Modal
-function closeStickerModal() {
-    document.getElementById('stickerModal').classList.remove('active');
-    currentStickerTarget = null;
-}
-
-// Filter Stickers by Search
-function filterStickers() {
-    const searchTerm = document.getElementById('stickerSearch').value.toLowerCase();
-    const items = document.querySelectorAll('.sticker-item');
-    
-    items.forEach(item => {
-        const name = item.querySelector('.sticker-item-name');
-        if (name && name.textContent.toLowerCase().includes(searchTerm)) {
-            item.style.display = 'flex';
-        } else {
-            item.style.display = 'none';
-        }
-    });
-}
-
-// Update Text Preview (for elements that show live preview)
-function updateTextPreview(inputElement) {
-    const previewId = inputElement.dataset.preview;
-    if (previewId) {
-        const previewElement = document.getElementById(previewId);
-        if (previewElement) {
-            previewElement.innerHTML = renderAnimatedText(inputElement.value);
-        }
-    }
-}
-
-// Add Sticker Button to Text Inputs
-function addStickerButtonToInput(inputElement, buttonText = '🎨') {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'form-group-with-sticker';
-    
-    const stickerBtn = document.createElement('button');
-    stickerBtn.type = 'button';
-    stickerBtn.className = 'sticker-btn';
-    stickerBtn.textContent = buttonText;
-    stickerBtn.onclick = () => showStickerModal(inputElement);
-    
-    // Insert wrapper
-    inputElement.parentNode.insertBefore(wrapper, inputElement);
-    wrapper.appendChild(inputElement);
-    wrapper.appendChild(stickerBtn);
-}
-
-// ==================== AUTHENTICATION ====================
-
 function checkAuth() {
     const user = localStorage.getItem('currentUser');
     if (user) {
-        AppState.currentUser = JSON.parse(user);
+        window.appState.currentUser = JSON.parse(user);
         showApp();
     } else {
         showAuth();
@@ -276,6 +194,8 @@ function showSignup() {
     document.getElementById('loginForm').classList.remove('active');
 }
 
+// ========== SIGNUP & LOGIN ==========
+
 async function handleSignup() {
     const name = document.getElementById('signupName').value.trim();
     const username = document.getElementById('signupUsername').value.trim();
@@ -290,12 +210,12 @@ async function handleSignup() {
     }
 
     if (!terms) {
-        showError(errorEl, 'Please agree to terms');
+        showError(errorEl, 'Please agree to the terms and conditions');
         return;
     }
 
     if (!validateEmail(email)) {
-        showError(errorEl, 'Invalid email');
+        showError(errorEl, 'Please enter a valid email address');
         return;
     }
 
@@ -329,7 +249,10 @@ async function handleSignup() {
         const { data, error } = await supabase
             .from('users')
             .insert([{
-                name, username, email, password,
+                name: name,
+                username: username,
+                email: email,
+                password: password,
                 created_at: new Date().toISOString()
             }])
             .select()
@@ -338,13 +261,13 @@ async function handleSignup() {
         if (error) throw error;
 
         hideLoading();
-        AppState.currentUser = data;
+        window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         showApp();
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'Signup failed');
+        showError(errorEl, 'An error occurred during signup');
         console.error('❌ Signup error:', error);
     }
 }
@@ -370,7 +293,7 @@ async function handleLogin() {
 
         if (error || !data) {
             hideLoading();
-            showError(errorEl, 'No account found');
+            showError(errorEl, 'No account found with this email');
             return;
         }
 
@@ -381,84 +304,96 @@ async function handleLogin() {
         }
 
         hideLoading();
-        AppState.currentUser = data;
+        window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         showApp();
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'Login failed');
+        showError(errorEl, 'An error occurred during login');
         console.error('❌ Login error:', error);
     }
 }
 
 function handleLogout() {
     localStorage.removeItem('currentUser');
+    window.appState.currentUser = null;
     location.reload();
 }
 
-// ==================== WEBSITE SETTINGS ====================
+// ========== WEBSITE SETTINGS ==========
 
 async function loadWebsiteSettings() {
     try {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('website_settings')
             .select('*')
             .single();
 
         if (data) {
-            AppState.websiteSettings = data;
-            applyWebsiteSettings(data);
+            window.appState.websiteSettings = data;
+            applyWebsiteSettings();
         }
     } catch (error) {
-        console.error('❌ Settings error:', error);
+        console.error('❌ Error loading settings:', error);
     }
 }
 
-function applyWebsiteSettings(settings) {
-    // Logo
-    document.querySelectorAll('#authLogo, #appLogo').forEach(logo => {
+function applyWebsiteSettings() {
+    const settings = window.appState.websiteSettings;
+    if (!settings) return;
+
+    const logos = document.querySelectorAll('#authLogo, #appLogo');
+    logos.forEach(logo => {
         if (settings.logo_url) {
             logo.src = settings.logo_url;
             logo.style.display = 'block';
         }
     });
 
-    // Name
-    document.querySelectorAll('#authWebsiteName, #appWebsiteName').forEach(el => {
+    const names = document.querySelectorAll('#authWebsiteName, #appWebsiteName');
+    names.forEach(name => {
         if (settings.website_name) {
-            el.textContent = settings.website_name;
+            name.textContent = settings.website_name;
         }
     });
 
-    // Background
     if (settings.background_url) {
-        const bg = document.getElementById('dynamicBackground');
-        if (bg) bg.style.backgroundImage = `url(${settings.background_url})`;
+        const bgElement = document.getElementById('dynamicBackground');
+        if (bgElement) {
+            bgElement.style.backgroundImage = `url(${settings.background_url})`;
+        }
     }
 
-    // Loading animation
     if (settings.loading_animation_url) {
         applyLoadingAnimation(settings.loading_animation_url);
     }
 }
 
-function applyLoadingAnimation(url) {
-    const container = document.getElementById('loadingAnimation');
-    if (!container) return;
+function applyLoadingAnimation(animationUrl) {
+    const loadingContainer = document.getElementById('loadingAnimation');
+    if (!loadingContainer) return;
 
-    const ext = url.split('.').pop().toLowerCase();
-    const spinner = container.querySelector('.spinner');
+    const fileExt = animationUrl.split('.').pop().toLowerCase();
+    const spinner = loadingContainer.querySelector('.spinner');
     if (spinner) spinner.remove();
 
-    if (['gif', 'png', 'jpg', 'jpeg'].includes(ext)) {
-        container.innerHTML = `<img src="${url}" style="max-width:200px;max-height:200px;"><p style="margin-top:15px;color:white;">Loading...</p>`;
-    } else if (['webm', 'mp4'].includes(ext)) {
-        container.innerHTML = `<video autoplay loop muted style="max-width:200px;max-height:200px;"><source src="${url}" type="video/${ext}"></video><p style="margin-top:15px;color:white;">Loading...</p>`;
+    if (['gif', 'png', 'jpg', 'jpeg', 'json'].includes(fileExt)) {
+        loadingContainer.innerHTML = `
+            <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
+            <p style="margin-top: 15px; color: white;">Loading...</p>
+        `;
+    } else if (['webm', 'mp4'].includes(fileExt)) {
+        loadingContainer.innerHTML = `
+            <video autoplay loop muted style="max-width: 200px; max-height: 200px;">
+                <source src="${animationUrl}" type="video/${fileExt}">
+            </video>
+            <p style="margin-top: 15px; color: white;">Loading...</p>
+        `;
     }
 }
 
-// ==================== LOAD APP DATA ====================
+// ========== LOAD APP DATA ==========
 
 async function loadAppData() {
     await Promise.all([
@@ -471,18 +406,22 @@ async function loadAppData() {
     ]);
 }
 
+// ========== BANNERS ==========
+
 async function loadBanners() {
     try {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('banners')
             .select('*')
             .order('created_at', { ascending: false });
+
+        if (error) throw error;
 
         if (data && data.length > 0) {
             displayBanners(data);
         }
     } catch (error) {
-        console.error('❌ Banners error:', error);
+        console.error('❌ Error loading banners:', error);
     }
 }
 
@@ -501,22 +440,24 @@ function displayBanners(banners) {
     container.appendChild(wrapper);
 
     if (banners.length > 1) {
-        let idx = 0;
+        let currentIndex = 0;
         setInterval(() => {
-            idx = (idx + 1) % banners.length;
-            wrapper.style.transform = `translateX(-${idx * 100}%)`;
+            currentIndex = (currentIndex + 1) % banners.length;
+            wrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
         }, 5000);
     }
 }
 
-// ==================== CATEGORIES ====================
+// ========== CATEGORIES ==========
 
 async function loadCategories() {
     try {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('categories')
             .select('*')
             .order('created_at', { ascending: true });
+
+        if (error) throw error;
 
         if (data && data.length > 0) {
             for (const category of data) {
@@ -528,11 +469,11 @@ async function loadCategories() {
                 category.category_buttons = buttons || [];
             }
             
-            AppState.categories = data;
+            window.appState.categories = data;
             displayCategories(data);
         }
     } catch (error) {
-        console.error('❌ Categories error:', error);
+        console.error('❌ Error loading categories:', error);
     }
 }
 
@@ -544,14 +485,18 @@ function displayCategories(categories) {
         if (category.category_buttons && category.category_buttons.length > 0) {
             const section = document.createElement('div');
             section.className = 'category-section';
+
+            const titleDiv = document.createElement('h3');
+            titleDiv.className = 'category-title';
+            applyAnimationRendering(titleDiv, category.title);
+
+            section.appendChild(titleDiv);
             
-            // Render animated title
-            const titleHtml = renderAnimatedText(category.title);
-            
-            section.innerHTML = `
-                <h3 class="category-title has-animations">${titleHtml}</h3>
-                <div class="category-buttons" id="category-${category.id}"></div>
-            `;
+            const buttonsDiv = document.createElement('div');
+            buttonsDiv.className = 'category-buttons';
+            buttonsDiv.id = `category-${category.id}`;
+            section.appendChild(buttonsDiv);
+
             container.appendChild(section);
             displayCategoryButtons(category.id, category.category_buttons);
         }
@@ -565,44 +510,50 @@ function displayCategoryButtons(categoryId, buttons) {
     buttons.forEach(button => {
         const btnEl = document.createElement('div');
         btnEl.className = 'category-button';
-        
-        // Render animated name
-        const nameHtml = renderAnimatedText(button.name);
-        
         btnEl.innerHTML = `
             <img src="${button.icon_url}" alt="${button.name}">
-            <span class="has-animations">${nameHtml}</span>
+            <span></span>
         `;
-        btnEl.addEventListener('click', () => openCategoryPage(button.id));
+        
+        const nameSpan = btnEl.querySelector('span');
+        applyAnimationRendering(nameSpan, button.name);
+        
+        btnEl.addEventListener('click', () => openCategoryPage(categoryId, button.id));
         container.appendChild(btnEl);
     });
 }
 
-// ==================== OPEN CATEGORY (PURCHASE FLOW START) ====================
+// ========== PURCHASE MODAL ==========
 
-async function openCategoryPage(buttonId) {
-    console.log('🎮 Opening button:', buttonId);
+async function openCategoryPage(categoryId, buttonId) {
     showLoading();
 
     try {
-        AppState.currentButtonId = buttonId;
+        console.log(`🎮 Opening button ID: ${buttonId}`);
         
-        const [tablesRes, menusRes, videosRes] = await Promise.all([
-            supabase.from('input_tables').select('*').eq('button_id', buttonId),
-            supabase.from('menus').select('*').eq('button_id', buttonId),
-            supabase.from('youtube_videos').select('*').eq('button_id', buttonId)
+        window.appState.currentButtonId = buttonId;
+        
+        const [tablesResult, menusResult, videosResult] = await Promise.all([
+            supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true })
         ]);
 
-        AppState.currentMenus = menusRes.data || [];
-        
+        window.appState.allMenus = menusResult.data || [];
+        window.appState.currentTables = tablesResult.data || [];
+
         console.log('📊 Loaded:', {
-            tables: tablesRes.data?.length || 0,
-            menus: menusRes.data?.length || 0,
-            videos: videosRes.data?.length || 0
+            tables: tablesResult.data?.length || 0,
+            menus: menusResult.data?.length || 0,
+            videos: videosResult.data?.length || 0
         });
 
         hideLoading();
-        showPurchaseModal(tablesRes.data || [], menusRes.data || [], videosRes.data || []);
+        showPurchaseModal(
+            tablesResult.data || [], 
+            menusResult.data || [], 
+            videosResult.data || []
+        );
 
     } catch (error) {
         hideLoading();
@@ -611,121 +562,126 @@ async function openCategoryPage(buttonId) {
     }
 }
 
-// ==================== PURCHASE MODAL ====================
-
 function showPurchaseModal(tables, menus, videos) {
-    console.log('🛍️ Showing purchase modal with', menus.length, 'menus');
-    
     const modal = document.getElementById('purchaseModal');
     const content = document.getElementById('purchaseContent');
     
     let html = '<div class="purchase-form">';
 
-    // Input tables
+    // Input Tables
     if (tables && tables.length > 0) {
         html += '<div class="input-tables">';
         tables.forEach(table => {
-            // Render animated text for table name and instruction
-            const nameHtml = renderAnimatedText(table.name);
-            const instructionHtml = renderAnimatedText(table.instruction);
-            
             html += `
                 <div class="form-group">
-                    <label class="has-animations">${nameHtml}</label>
-                    <input type="text" class="table-input" data-table-id="${table.id}" placeholder="${instructionHtml}" required>
+                    <label data-table-label="${table.id}"></label>
+                    <input type="text" 
+                           id="table-${table.id}" 
+                           data-table-instruction="${table.id}"
+                           placeholder=""
+                           required>
                 </div>
             `;
         });
         html += '</div>';
     }
 
-    // Menu items (Products)
+    // Menu Items
     if (menus && menus.length > 0) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
-        html += '<div class="menu-items" id="menuItemsContainer">';
+        html += '<div class="menu-items">';
         menus.forEach(menu => {
-            // Render animated text for menu name and amount
-            const nameHtml = renderAnimatedText(menu.name);
-            const amountHtml = renderAnimatedText(menu.amount);
-            
             html += `
                 <div class="menu-item" data-menu-id="${menu.id}">
                     ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
-                        <div class="menu-item-name has-animations">${nameHtml}</div>
-                        <div class="menu-item-amount has-animations">${amountHtml}</div>
+                        <div class="menu-item-name" data-menu-name="${menu.id}"></div>
+                        <div class="menu-item-amount" data-menu-amount="${menu.id}"></div>
                         <div class="menu-item-price">${menu.price} MMK</div>
                     </div>
                 </div>
             `;
         });
         html += '</div>';
-    } else {
-        html += '<p style="text-align:center;padding:40px;color:#f59e0b;">No products available</p>';
     }
 
-    // Videos
+    // Video Tutorials
     if (videos && videos.length > 0) {
         html += '<div class="video-section"><h3>Tutorials</h3>';
         videos.forEach(video => {
-            // Render animated description
-            const descriptionHtml = renderAnimatedText(video.description);
-            
             html += `
                 <div class="video-item" onclick="window.open('${video.video_url}', '_blank')">
                     <img src="${video.banner_url}" alt="Video">
-                    <p class="has-animations">${descriptionHtml}</p>
+                    <p data-video-desc="${video.id}"></p>
                 </div>
             `;
         });
         html += '</div>';
     }
 
-    html += '<button class="btn-primary" id="buyNowButton" style="margin-top:20px;">Buy Now</button>';
+    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 20px;">Buy Now</button>`;
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 
-    // Attach event listeners
-    attachPurchaseEventListeners();
-}
-
-function attachPurchaseEventListeners() {
-    // Menu item selection using event delegation
-    const menuContainer = document.getElementById('menuItemsContainer');
-    if (menuContainer) {
-        menuContainer.addEventListener('click', (e) => {
-            const menuItem = e.target.closest('.menu-item');
-            if (menuItem) {
-                const menuId = parseInt(menuItem.getAttribute('data-menu-id'));
-                selectMenu(menuId);
-            }
+    // Apply animation rendering after DOM ready
+    setTimeout(() => {
+        // Render table labels and placeholders
+        tables.forEach(table => {
+            const labelEl = document.querySelector(`[data-table-label="${table.id}"]`);
+            const inputEl = document.querySelector(`[data-table-instruction="${table.id}"]`);
+            if (labelEl) applyAnimationRendering(labelEl, table.name);
+            if (inputEl) inputEl.placeholder = table.instruction || '';
         });
-    }
 
-    // Buy button
-    const buyBtn = document.getElementById('buyNowButton');
-    if (buyBtn) {
-        buyBtn.addEventListener('click', handleBuyNow);
-    }
+        // Render menu names and amounts
+        menus.forEach(menu => {
+            const nameEl = document.querySelector(`[data-menu-name="${menu.id}"]`);
+            const amountEl = document.querySelector(`[data-menu-amount="${menu.id}"]`);
+            if (nameEl) applyAnimationRendering(nameEl, menu.name);
+            if (amountEl) applyAnimationRendering(amountEl, menu.amount);
+        });
+
+        // Render video descriptions
+        videos.forEach(video => {
+            const descEl = document.querySelector(`[data-video-desc="${video.id}"]`);
+            if (descEl) applyAnimationRendering(descEl, video.description);
+        });
+
+        // Add event listeners
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const menuId = parseInt(this.getAttribute('data-menu-id'));
+                selectMenuItem(menuId);
+            });
+        });
+
+        const buyBtn = document.getElementById('buyNowBtn');
+        if (buyBtn) {
+            buyBtn.addEventListener('click', proceedToPurchase);
+        }
+    }, 100);
 }
 
-function selectMenu(menuId) {
-    console.log('🔍 Selecting menu ID:', menuId);
+function selectMenuItem(menuId) {
+    console.log('🔍 Selecting menu:', menuId);
     
-    // Find menu from stored menus
-    const menu = AppState.currentMenus.find(m => m.id === menuId);
-    
-    if (!menu) {
-        console.error('❌ Menu not found!');
+    if (!menuId || isNaN(menuId)) {
+        console.error('❌ Invalid menu ID');
         return;
     }
 
-    AppState.selectedMenu = menu;
-    console.log('✅ Menu selected:', menu);
+    window.appState.selectedMenuItem = parseInt(menuId);
+    
+    const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
+    if (menu) {
+        window.appState.currentMenu = menu;
+        console.log('✅ Menu stored:', menu);
+    } else {
+        console.error('❌ Menu not found');
+    }
 
-    // Update UI
     document.querySelectorAll('.menu-item').forEach(item => {
         item.classList.remove('selected');
     });
@@ -736,68 +692,72 @@ function selectMenu(menuId) {
     }
 }
 
-function handleBuyNow() {
-    console.log('🛒 Buy Now clicked');
-    console.log('Selected menu:', AppState.selectedMenu);
+function closePurchaseModal() {
+    document.getElementById('purchaseModal').classList.remove('active');
+    window.appState.selectedMenuItem = null;
+    window.appState.currentMenu = null;
+}
+
+async function proceedToPurchase() {
+    console.log('🛒 === PURCHASE START ===');
     
-    if (!AppState.selectedMenu) {
+    if (!window.appState.selectedMenuItem || !window.appState.currentMenu) {
         alert('Please select a product to purchase');
         return;
     }
 
     // Collect table data
-    const tableInputs = document.querySelectorAll('.table-input');
     const tableData = {};
     let allFilled = true;
 
-    tableInputs.forEach(input => {
-        const value = input.value.trim();
-        if (!value) {
-            allFilled = false;
+    window.appState.currentTables.forEach(table => {
+        const inputEl = document.getElementById(`table-${table.id}`);
+        if (inputEl) {
+            const value = inputEl.value.trim();
+            if (!value) {
+                allFilled = false;
+            }
+            tableData[table.id] = value;
         }
-        const tableId = input.getAttribute('data-table-id');
-        tableData[tableId] = value;
     });
 
-    if (tableInputs.length > 0 && !allFilled) {
+    if (window.appState.currentTables.length > 0 && !allFilled) {
         alert('Please fill in all required fields');
         return;
     }
 
-    AppState.tableData = tableData;
-    console.log('📝 Table data:', tableData);
+    window.appState.currentTableData = tableData;
+    console.log('📝 Table data collected:', tableData);
 
     closePurchaseModal();
-    showPaymentModal();
+    await showPaymentModal();
 }
 
-function closePurchaseModal() {
-    document.getElementById('purchaseModal').classList.remove('active');
-}
-
-// ==================== PAYMENT MODAL ====================
+// ========== PAYMENT MODAL ==========
 
 async function loadPayments() {
     try {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('payment_methods')
             .select('*')
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: true});
 
-        AppState.payments = data || [];
-        console.log('✅ Loaded', data?.length || 0, 'payment methods');
+        if (error) throw error;
+
+        window.appState.payments = data || [];
+        console.log(`✅ Loaded ${data?.length || 0} payment methods`);
     } catch (error) {
-        console.error('❌ Payments error:', error);
-        AppState.payments = [];
+        console.error('❌ Error loading payments:', error);
+        window.appState.payments = [];
     }
 }
 
 async function showPaymentModal() {
-    console.log('💳 Showing payment modal');
-    console.log('Current menu:', AppState.selectedMenu);
+    console.log('💳 === PAYMENT MODAL ===');
     
-    if (!AppState.selectedMenu) {
-        alert('Error: Product data not found. Please try again.');
+    const menu = window.appState.currentMenu;
+    if (!menu) {
+        alert('Error: Product data not found');
         return;
     }
 
@@ -806,88 +766,85 @@ async function showPaymentModal() {
 
     showLoading();
 
-    if (!AppState.payments || AppState.payments.length === 0) {
+    if (!window.appState.payments || window.appState.payments.length === 0) {
         await loadPayments();
     }
 
     hideLoading();
 
-    const menu = AppState.selectedMenu;
-
     let html = '<div class="payment-selection">';
     
-    // Render animated menu info
-    const menuNameHtml = renderAnimatedText(menu.name);
-    const menuAmountHtml = renderAnimatedText(menu.amount);
-    
-    html += `
-        <div class="order-summary">
-            <h3 class="has-animations">${menuNameHtml}</h3>
-            <p class="has-animations">${menuAmountHtml}</p>
-            <p class="price">${menu.price} MMK</p>
-        </div>
-    `;
+    // Order Summary
+    html += `<div class="order-summary">
+        <h3 data-order-summary-name></h3>
+        <p data-order-summary-amount></p>
+        <p class="price">${menu.price} MMK</p>
+    </div>`;
 
     html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
     
-    if (AppState.payments.length === 0) {
-        html += '<p style="text-align:center;padding:20px;background:rgba(245,158,11,0.1);border-radius:12px;color:#f59e0b;">⚠️ No payment methods available</p>';
+    // Payment Methods
+    if (window.appState.payments.length === 0) {
+        html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">⚠️ No payment methods available</p>';
     } else {
-        html += '<div class="payment-methods" id="paymentMethodsContainer">';
-        AppState.payments.forEach(payment => {
-            // Render animated payment name
-            const paymentNameHtml = renderAnimatedText(payment.name);
-            
+        html += '<div class="payment-methods">';
+        window.appState.payments.forEach(payment => {
             html += `
                 <div class="payment-method" data-payment-id="${payment.id}">
                     <img src="${payment.icon_url}" alt="${payment.name}">
-                    <span class="has-animations">${paymentNameHtml}</span>
+                    <span data-payment-name="${payment.id}"></span>
                 </div>
             `;
         });
         html += '</div>';
     }
 
-    html += '<div id="paymentDetailsDiv" style="display:none;"></div>';
-    html += '<button class="btn-primary" id="submitOrderButton" style="margin-top:20px;">Submit Order</button>';
+    html += '<div id="paymentDetails" style="display:none;"></div>';
+    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 20px;">Submit Order</button>`;
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 
-    attachPaymentEventListeners();
-}
+    // Apply animation rendering
+    setTimeout(() => {
+        // Render order summary
+        const summaryNameEl = document.querySelector('[data-order-summary-name]');
+        const summaryAmountEl = document.querySelector('[data-order-summary-amount]');
+        if (summaryNameEl) applyAnimationRendering(summaryNameEl, menu.name);
+        if (summaryAmountEl) applyAnimationRendering(summaryAmountEl, menu.amount);
 
-function attachPaymentEventListeners() {
-    const paymentContainer = document.getElementById('paymentMethodsContainer');
-    if (paymentContainer) {
-        paymentContainer.addEventListener('click', (e) => {
-            const paymentMethod = e.target.closest('.payment-method');
-            if (paymentMethod) {
-                const paymentId = parseInt(paymentMethod.getAttribute('data-payment-id'));
-                selectPayment(paymentId);
-            }
+        // Render payment method names
+        window.appState.payments.forEach(payment => {
+            const nameEl = document.querySelector(`[data-payment-name="${payment.id}"]`);
+            if (nameEl) applyAnimationRendering(nameEl, payment.name);
         });
-    }
 
-    const submitBtn = document.getElementById('submitOrderButton');
-    if (submitBtn) {
-        submitBtn.addEventListener('click', submitOrder);
-    }
+        // Add event listeners
+        document.querySelectorAll('.payment-method').forEach(item => {
+            item.addEventListener('click', function() {
+                const paymentId = parseInt(this.getAttribute('data-payment-id'));
+                selectPayment(paymentId);
+            });
+        });
+
+        const submitBtn = document.getElementById('submitOrderBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', submitOrder);
+        }
+    }, 100);
 }
 
 async function selectPayment(paymentId) {
-    console.log('💳 Selecting payment:', paymentId);
-    AppState.selectedPaymentId = paymentId;
+    window.appState.selectedPayment = parseInt(paymentId);
+    console.log('💳 Payment selected:', window.appState.selectedPayment);
 
-    document.querySelectorAll('.payment-method').forEach(el => {
-        el.classList.remove('selected');
+    document.querySelectorAll('.payment-method').forEach(pm => {
+        pm.classList.remove('selected');
     });
 
     const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
-    if (selectedEl) {
-        selectedEl.classList.add('selected');
-    }
+    if (selectedEl) selectedEl.classList.add('selected');
 
     try {
         const { data: payment } = await supabase
@@ -896,57 +853,57 @@ async function selectPayment(paymentId) {
             .eq('id', paymentId)
             .single();
 
-        const detailsDiv = document.getElementById('paymentDetailsDiv');
+        const detailsDiv = document.getElementById('paymentDetails');
         if (detailsDiv && payment) {
-            // Render animated payment info
-            const paymentNameHtml = renderAnimatedText(payment.name);
-            const instructionsHtml = renderAnimatedText(payment.instructions || 'Please complete payment and enter details.');
-            
             detailsDiv.style.display = 'block';
             detailsDiv.innerHTML = `
                 <div class="payment-info">
-                    <h4 class="has-animations">${paymentNameHtml}</h4>
-                    <p class="has-animations">${instructionsHtml}</p>
-                    <p><strong>Address:</strong> ${payment.address}</p>
-                    <div class="form-group" style="margin-top:15px;">
+                    <h4 data-payment-detail-name></h4>
+                    <p data-payment-detail-instruction></p>
+                    <p><strong>Address:</strong> <span data-payment-detail-address></span></p>
+                    <div class="form-group" style="margin-top: 15px;">
                         <label>Last 6 digits of transaction ID</label>
-                        <input type="text" id="transactionCodeInput" maxlength="6" placeholder="Enter last 6 digits">
+                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits">
                     </div>
                 </div>
             `;
+
+            // Render payment details with animation support
+            setTimeout(() => {
+                const nameEl = document.querySelector('[data-payment-detail-name]');
+                const instructionEl = document.querySelector('[data-payment-detail-instruction]');
+                const addressEl = document.querySelector('[data-payment-detail-address]');
+                
+                if (nameEl) applyAnimationRendering(nameEl, payment.name);
+                if (instructionEl) applyAnimationRendering(instructionEl, payment.instructions || 'Please complete payment and enter transaction details.');
+                if (addressEl) applyAnimationRendering(addressEl, payment.address);
+            }, 50);
         }
     } catch (error) {
-        console.error('❌ Payment details error:', error);
+        console.error('❌ Error loading payment details:', error);
     }
 }
 
 function closePaymentModal() {
     document.getElementById('paymentModal').classList.remove('active');
-    AppState.selectedPaymentId = null;
+    window.appState.selectedPayment = null;
 }
 
-// ==================== SUBMIT ORDER ====================
-
 async function submitOrder() {
-    console.log('📦 === SUBMITTING ORDER ===');
-    console.log('User ID:', AppState.currentUser?.id);
-    console.log('Menu:', AppState.selectedMenu);
-    console.log('Button ID:', AppState.currentButtonId);
-    console.log('Payment ID:', AppState.selectedPaymentId);
-    console.log('Table data:', AppState.tableData);
+    console.log('📦 === SUBMIT ORDER ===');
 
-    if (!AppState.selectedPaymentId) {
+    if (!window.appState.selectedPayment) {
         alert('Please select a payment method');
         return;
     }
 
-    const transactionCode = document.getElementById('transactionCodeInput')?.value;
+    const transactionCode = document.getElementById('transactionCode')?.value;
     if (!transactionCode || transactionCode.length !== 6) {
         alert('Please enter last 6 digits of transaction');
         return;
     }
 
-    if (!AppState.selectedMenu || !AppState.currentButtonId) {
+    if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
         alert('Error: Missing order information');
         return;
     }
@@ -955,17 +912,17 @@ async function submitOrder() {
 
     try {
         const orderData = {
-            user_id: parseInt(AppState.currentUser.id),
-            menu_id: parseInt(AppState.selectedMenu.id),
-            button_id: parseInt(AppState.currentButtonId),
-            payment_method_id: parseInt(AppState.selectedPaymentId),
-            table_data: AppState.tableData,
+            user_id: parseInt(window.appState.currentUser.id),
+            menu_id: parseInt(window.appState.selectedMenuItem),
+            button_id: parseInt(window.appState.currentButtonId),
+            payment_method_id: parseInt(window.appState.selectedPayment),
+            table_data: window.appState.currentTableData,
             transaction_code: transactionCode.trim(),
             status: 'pending',
             created_at: new Date().toISOString()
         };
 
-        console.log('📤 Order data:', orderData);
+        console.log('📤 Submitting order:', orderData);
 
         const { data, error } = await supabase
             .from('orders')
@@ -978,41 +935,45 @@ async function submitOrder() {
         hideLoading();
         closePaymentModal();
         
-        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${AppState.selectedMenu.name}\nPrice: ${AppState.selectedMenu.price} MMK\n\nPlease wait up to 30 minutes for processing.`);
+        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${window.appState.currentMenu.name}\nPrice: ${window.appState.currentMenu.price} MMK\n\nPlease wait up to 30 minutes.`);
 
         // Reset state
-        AppState.selectedMenu = null;
-        AppState.selectedPaymentId = null;
-        AppState.currentButtonId = null;
-        AppState.tableData = {};
-        AppState.currentMenus = [];
+        window.appState.selectedMenuItem = null;
+        window.appState.selectedPayment = null;
+        window.appState.currentTableData = {};
+        window.appState.currentMenu = null;
+        window.appState.currentButtonId = null;
+        window.appState.currentTables = [];
         
         await loadOrderHistory();
+        switchPage('history');
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Order error:', error);
-        alert('Error placing order: ' + error.message);
+        console.error('❌ Order submission error:', error);
+        alert('Error: ' + error.message);
     }
 }
 
-// ==================== ORDER HISTORY ====================
+// ========== ORDER HISTORY ==========
 
 async function loadOrderHistory() {
     try {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('orders')
             .select(`
                 *,
                 menus (name, price, amount),
                 payment_methods (name)
             `)
-            .eq('user_id', AppState.currentUser.id)
+            .eq('user_id', window.appState.currentUser.id)
             .order('created_at', { ascending: false });
+
+        if (error) throw error;
 
         displayOrderHistory(data || []);
     } catch (error) {
-        console.error('❌ Orders error:', error);
+        console.error('❌ Error loading orders:', error);
     }
 }
 
@@ -1034,39 +995,48 @@ function displayOrderHistory(orders) {
         if (order.status === 'approved') statusClass = 'approved';
         if (order.status === 'rejected') statusClass = 'rejected';
 
-        // Render animated menu info
-        const menuNameHtml = renderAnimatedText(order.menus?.name || 'Unknown');
-        const menuAmountHtml = renderAnimatedText(order.menus?.amount || '');
-        const paymentNameHtml = renderAnimatedText(order.payment_methods?.name || 'N/A');
-        const adminMessageHtml = order.admin_message ? renderAnimatedText(order.admin_message) : '';
-
         item.innerHTML = `
             <div class="history-status ${statusClass}">${order.status.toUpperCase()}</div>
-            <h3 class="has-animations">${menuNameHtml}</h3>
-            <p class="has-animations">${menuAmountHtml}</p>
+            <h3 data-order-name="${order.id}"></h3>
+            <p data-order-amount="${order.id}"></p>
             <p><strong>Price:</strong> ${order.menus?.price || 0} MMK</p>
-            <p><strong>Payment:</strong> <span class="has-animations">${paymentNameHtml}</span></p>
+            <p><strong>Payment:</strong> <span data-order-payment="${order.id}"></span></p>
             <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> <span class="has-animations">${adminMessageHtml}</span></p>` : ''}
+            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;" data-order-message="${order.id}"></p>` : ''}
         `;
 
         container.appendChild(item);
+
+        // Apply animation rendering
+        setTimeout(() => {
+            const nameEl = document.querySelector(`[data-order-name="${order.id}"]`);
+            const amountEl = document.querySelector(`[data-order-amount="${order.id}"]`);
+            const paymentEl = document.querySelector(`[data-order-payment="${order.id}"]`);
+            const messageEl = document.querySelector(`[data-order-message="${order.id}"]`);
+
+            if (nameEl) applyAnimationRendering(nameEl, order.menus?.name || 'Unknown');
+            if (amountEl) applyAnimationRendering(amountEl, order.menus?.amount || '');
+            if (paymentEl) applyAnimationRendering(paymentEl, order.payment_methods?.name || 'N/A');
+            if (messageEl) applyAnimationRendering(messageEl, `<strong>Message:</strong> ${order.admin_message}`);
+        }, 50);
     });
 }
 
-// ==================== CONTACTS ====================
+// ========== CONTACTS ==========
 
 async function loadContacts() {
     try {
-        const { data } = await supabase
+        const { data, error } = await supabase
             .from('contacts')
             .select('*')
             .order('created_at', { ascending: true });
 
+        if (error) throw error;
+
         displayContacts(data || []);
     } catch (error) {
-        console.error('❌ Contacts error:', error);
+        console.error('❌ Error loading contacts:', error);
     }
 }
 
@@ -1089,28 +1059,34 @@ function displayContacts(contacts) {
             item.addEventListener('click', () => window.open(contact.link, '_blank'));
         }
 
-        // Render animated contact info
-        const nameHtml = renderAnimatedText(contact.name);
-        const descriptionHtml = renderAnimatedText(contact.description || '');
-        const addressHtml = renderAnimatedText(contact.address || '');
-
         item.innerHTML = `
             <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}">
             <div class="contact-info">
-                <h3 class="has-animations">${nameHtml}</h3>
-                <p class="has-animations">${descriptionHtml}</p>
-                ${!contact.link && contact.address ? `<p class="has-animations">${addressHtml}</p>` : ''}
+                <h3 data-contact-name="${contact.id}"></h3>
+                <p data-contact-desc="${contact.id}"></p>
+                ${!contact.link && contact.address ? `<p data-contact-address="${contact.id}"></p>` : ''}
             </div>
         `;
 
         container.appendChild(item);
+
+        // Apply animation rendering
+        setTimeout(() => {
+            const nameEl = document.querySelector(`[data-contact-name="${contact.id}"]`);
+            const descEl = document.querySelector(`[data-contact-desc="${contact.id}"]`);
+            const addressEl = document.querySelector(`[data-contact-address="${contact.id}"]`);
+
+            if (nameEl) applyAnimationRendering(nameEl, contact.name);
+            if (descEl) applyAnimationRendering(descEl, contact.description || '');
+            if (addressEl) applyAnimationRendering(addressEl, contact.address || '');
+        }, 50);
     });
 }
 
-// ==================== PROFILE ====================
+// ========== PROFILE ==========
 
 function loadProfile() {
-    const user = AppState.currentUser;
+    const user = window.appState.currentUser;
     document.getElementById('profileName').value = user.name;
     document.getElementById('profileUsername').value = user.username;
     document.getElementById('profileEmail').value = user.email;
@@ -1134,7 +1110,7 @@ async function updateProfile() {
         return;
     }
 
-    if (currentPassword !== AppState.currentUser.password) {
+    if (currentPassword !== window.appState.currentUser.password) {
         showError(errorEl, 'Current password is incorrect');
         return;
     }
@@ -1145,42 +1121,46 @@ async function updateProfile() {
         const { data, error } = await supabase
             .from('users')
             .update({ password: newPassword })
-            .eq('id', AppState.currentUser.id)
+            .eq('id', window.appState.currentUser.id)
             .select()
             .single();
 
         if (error) throw error;
 
         hideLoading();
-        AppState.currentUser = data;
+        window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
         
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         
-        showSuccess(successEl, 'Password updated!');
+        showSuccess(successEl, 'Password updated successfully!');
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'Update failed');
+        showError(errorEl, 'Error updating password');
         console.error('❌ Update error:', error);
     }
 }
 
-// ==================== UTILITIES ====================
+// ========== NAVIGATION ==========
 
 function switchPage(pageName) {
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
+
     document.getElementById(pageName + 'Page').classList.add('active');
 
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
     });
+    
     const activeNav = document.querySelector(`[data-page="${pageName}"]`);
     if (activeNav) activeNav.classList.add('active');
 }
+
+// ========== UTILITY FUNCTIONS ==========
 
 function validateEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -1198,4 +1178,4 @@ function showSuccess(element, message) {
     setTimeout(() => element.classList.remove('show'), 5000);
 }
 
-console.log('✅ App initialized successfully with animations support! 🎨');
+console.log('✅ App ready with animation support!');
