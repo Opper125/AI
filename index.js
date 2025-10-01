@@ -1,6 +1,6 @@
 // Supabase Configuration
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOGifed_1XNUral5FnXGHyjD_eQ4';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 
 // Initialize Supabase
 let supabase;
@@ -108,90 +108,23 @@ async function loadAnimations() {
     }
 }
 
-// Enhanced Animation URL Detection Function
-function detectAnimationUrls(text) {
-    if (!text || typeof text !== 'string') return [];
-    
-    // Improved regex patterns to detect various sticker link formats
-    const patterns = [
-        // Direct file URLs from animations table
-        /(https?:\/\/[^\s]+\.(?:gif|webm|mp4|png|jpg|jpeg|json))/gi,
-        // Supabase storage URLs  
-        /(https?:\/\/[^\s]*supabase[^\s]*\.(?:gif|webm|mp4|png|jpg|jpeg|json))/gi,
-        // Image hosting URLs
-        /(https?:\/\/[^\s]*\.(?:com|net|org|io)\/[^\s]*\.(?:gif|webm|mp4|png|jpg|jpeg))/gi
-    ];
-    
-    const urls = [];
-    patterns.forEach(pattern => {
-        const matches = text.match(pattern);
-        if (matches) {
-            urls.push(...matches);
-        }
-    });
-    
-    return [...new Set(urls)]; // Remove duplicates
-}
-
-// Enhanced Animation URL Replacement Function
-function replaceAnimationUrls(text) {
-    if (!text || typeof text !== 'string') return text;
-    
-    const animationUrls = detectAnimationUrls(text);
-    let processedText = text;
-    
-    animationUrls.forEach(url => {
-        const cleanUrl = url.trim();
-        const fileExtension = cleanUrl.split('.').pop().toLowerCase();
-        
-        let replacement = '';
-        
-        if (['gif', 'png', 'jpg', 'jpeg'].includes(fileExtension)) {
-            replacement = `<span class="animated-emoji"><img src="${cleanUrl}" alt="sticker" loading="lazy" onerror="this.style.display='none'"></span>`;
-        } else if (['webm', 'mp4'].includes(fileExtension)) {
-            replacement = `<span class="animated-emoji"><video autoplay loop muted playsinline preload="metadata" onerror="this.style.display='none'"><source src="${cleanUrl}" type="video/${fileExtension}"></video></span>`;
-        } else if (fileExtension === 'json') {
-            // For Lottie animations, fallback to image
-            replacement = `<span class="animated-emoji"><img src="${cleanUrl}" alt="sticker" loading="lazy" onerror="this.style.display='none'"></span>`;
-        }
-        
-        // Replace the URL with the HTML element
-        if (replacement) {
-            processedText = processedText.replace(new RegExp(escapeRegExp(url), 'g'), replacement);
-        }
-    });
-    
-    return processedText;
-}
-
-// Helper function to escape special regex characters
-function escapeRegExp(string) {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-// Enhanced Render Animated Text Function (supports both {anim:} format and direct URLs)
+// Render Animated Text (Convert {anim:ID:URL:TYPE} to HTML)
 function renderAnimatedText(text) {
-    if (!text || typeof text !== 'string') return text;
+    if (!text) return text;
     
-    let processedText = text;
-    
-    // First, handle the original {anim:ID:URL:TYPE} format
-    processedText = processedText.replace(/\{anim:(\d+):([^:]+):([^}]+)\}/g, (match, id, url, type) => {
-        if (['gif', 'png', 'jpg', 'jpeg'].includes(type)) {
-            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}" loading="lazy" onerror="this.style.display='none'"></span>`;
-        } else if (['video', 'webm', 'mp4'].includes(type)) {
-            return `<span class="animated-emoji"><video autoplay loop muted playsinline preload="metadata" title="Animation ID: ${id}" onerror="this.style.display='none'"><source src="${url}" type="video/${type}"></video></span>`;
+    // Replace {anim:ID:URL:TYPE} with actual HTML elements
+    return text.replace(/\{anim:(\d+):([^:]+):([^}]+)\}/g, (match, id, url, type) => {
+        if (type === 'gif' || type === 'png' || type === 'jpg' || type === 'jpeg') {
+            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
+        } else if (type === 'video' || type === 'webm' || type === 'mp4') {
+            return `<span class="animated-emoji"><video autoplay loop muted><source src="${url}" type="video/${type}"></video></span>`;
         } else if (type === 'json') {
-            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}" loading="lazy" onerror="this.style.display='none'"></span>`;
+            // For Lottie animations (if needed in future)
+            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
         } else {
-            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}" loading="lazy" onerror="this.style.display='none'"></span>`;
+            return `<span class="animated-emoji"><img src="${url}" alt="sticker" title="Animation ID: ${id}"></span>`;
         }
     });
-    
-    // Then, handle direct animation URLs that admin might have pasted
-    processedText = replaceAnimationUrls(processedText);
-    
-    return processedText;
 }
 
 // Show Sticker Modal
@@ -215,12 +148,12 @@ function showStickerModal(targetElement) {
             item.onclick = () => insertSticker(anim);
             
             let preview = '';
-            if (['gif', 'png', 'jpg', 'jpeg'].includes(anim.file_type)) {
-                preview = `<img src="${anim.file_url}" alt="${anim.name}" loading="lazy" onerror="this.style.display='none'">`;
-            } else if (['video', 'webm', 'mp4'].includes(anim.file_type)) {
-                preview = `<video autoplay loop muted playsinline preload="metadata" onerror="this.style.display='none'"><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
+            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
+            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
+                preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
             } else {
-                preview = `<img src="${anim.file_url}" alt="${anim.name}" loading="lazy" onerror="this.style.display='none'">`;
+                preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
             }
             
             item.innerHTML = `
@@ -491,11 +424,10 @@ function applyWebsiteSettings(settings) {
         }
     });
 
-    // Website Name with Animation Support
+    // Name
     document.querySelectorAll('#authWebsiteName, #appWebsiteName').forEach(el => {
         if (settings.website_name) {
-            // Use the enhanced renderAnimatedText function
-            el.innerHTML = renderAnimatedText(settings.website_name);
+            el.textContent = settings.website_name;
         }
     });
 
@@ -520,9 +452,9 @@ function applyLoadingAnimation(url) {
     if (spinner) spinner.remove();
 
     if (['gif', 'png', 'jpg', 'jpeg'].includes(ext)) {
-        container.innerHTML = `<img src="${url}" style="max-width:200px;max-height:200px;" loading="lazy"><p style="margin-top:15px;color:white;">Loading...</p>`;
+        container.innerHTML = `<img src="${url}" style="max-width:200px;max-height:200px;"><p style="margin-top:15px;color:white;">Loading...</p>`;
     } else if (['webm', 'mp4'].includes(ext)) {
-        container.innerHTML = `<video autoplay loop muted playsinline style="max-width:200px;max-height:200px;" preload="metadata"><source src="${url}" type="video/${ext}"></video><p style="margin-top:15px;color:white;">Loading...</p>`;
+        container.innerHTML = `<video autoplay loop muted style="max-width:200px;max-height:200px;"><source src="${url}" type="video/${ext}"></video><p style="margin-top:15px;color:white;">Loading...</p>`;
     }
 }
 
@@ -562,7 +494,7 @@ function displayBanners(banners) {
     banners.forEach(banner => {
         const item = document.createElement('div');
         item.className = 'banner-item';
-        item.innerHTML = `<img src="${banner.image_url}" alt="Banner" loading="lazy">`;
+        item.innerHTML = `<img src="${banner.image_url}" alt="Banner">`;
         wrapper.appendChild(item);
     });
 
@@ -613,11 +545,11 @@ function displayCategories(categories) {
             const section = document.createElement('div');
             section.className = 'category-section';
             
-            // Render animated title with enhanced function
+            // Render animated title
             const titleHtml = renderAnimatedText(category.title);
             
             section.innerHTML = `
-                <h3 class="category-title">${titleHtml}</h3>
+                <h3 class="category-title has-animations">${titleHtml}</h3>
                 <div class="category-buttons" id="category-${category.id}"></div>
             `;
             container.appendChild(section);
@@ -634,12 +566,12 @@ function displayCategoryButtons(categoryId, buttons) {
         const btnEl = document.createElement('div');
         btnEl.className = 'category-button';
         
-        // Render animated name with enhanced function
+        // Render animated name
         const nameHtml = renderAnimatedText(button.name);
         
         btnEl.innerHTML = `
-            <img src="${button.icon_url}" alt="${button.name}" loading="lazy">
-            <span>${nameHtml}</span>
+            <img src="${button.icon_url}" alt="${button.name}">
+            <span class="has-animations">${nameHtml}</span>
         `;
         btnEl.addEventListener('click', () => openCategoryPage(button.id));
         container.appendChild(btnEl);
@@ -693,14 +625,14 @@ function showPurchaseModal(tables, menus, videos) {
     if (tables && tables.length > 0) {
         html += '<div class="input-tables">';
         tables.forEach(table => {
-            // Render animated text for table name and instruction with enhanced function
+            // Render animated text for table name and instruction
             const nameHtml = renderAnimatedText(table.name);
             const instructionHtml = renderAnimatedText(table.instruction);
             
             html += `
                 <div class="form-group">
-                    <label>${nameHtml}</label>
-                    <input type="text" class="table-input" data-table-id="${table.id}" placeholder="${table.instruction}" required>
+                    <label class="has-animations">${nameHtml}</label>
+                    <input type="text" class="table-input" data-table-id="${table.id}" placeholder="${instructionHtml}" required>
                 </div>
             `;
         });
@@ -712,16 +644,16 @@ function showPurchaseModal(tables, menus, videos) {
         html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
         html += '<div class="menu-items" id="menuItemsContainer">';
         menus.forEach(menu => {
-            // Render animated text for menu name and amount with enhanced function
+            // Render animated text for menu name and amount
             const nameHtml = renderAnimatedText(menu.name);
             const amountHtml = renderAnimatedText(menu.amount);
             
             html += `
                 <div class="menu-item" data-menu-id="${menu.id}">
-                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" loading="lazy">` : '<div class="menu-item-icon"></div>'}
+                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon">` : '<div class="menu-item-icon"></div>'}
                     <div class="menu-item-info">
-                        <div class="menu-item-name">${nameHtml}</div>
-                        <div class="menu-item-amount">${amountHtml}</div>
+                        <div class="menu-item-name has-animations">${nameHtml}</div>
+                        <div class="menu-item-amount has-animations">${amountHtml}</div>
                         <div class="menu-item-price">${menu.price} MMK</div>
                     </div>
                 </div>
@@ -736,13 +668,13 @@ function showPurchaseModal(tables, menus, videos) {
     if (videos && videos.length > 0) {
         html += '<div class="video-section"><h3>Tutorials</h3>';
         videos.forEach(video => {
-            // Render animated description with enhanced function
+            // Render animated description
             const descriptionHtml = renderAnimatedText(video.description);
             
             html += `
                 <div class="video-item" onclick="window.open('${video.video_url}', '_blank')">
-                    <img src="${video.banner_url}" alt="Video" loading="lazy">
-                    <p>${descriptionHtml}</p>
+                    <img src="${video.banner_url}" alt="Video">
+                    <p class="has-animations">${descriptionHtml}</p>
                 </div>
             `;
         });
@@ -884,14 +816,14 @@ async function showPaymentModal() {
 
     let html = '<div class="payment-selection">';
     
-    // Render animated menu info with enhanced function
+    // Render animated menu info
     const menuNameHtml = renderAnimatedText(menu.name);
     const menuAmountHtml = renderAnimatedText(menu.amount);
     
     html += `
         <div class="order-summary">
-            <h3>${menuNameHtml}</h3>
-            <p>${menuAmountHtml}</p>
+            <h3 class="has-animations">${menuNameHtml}</h3>
+            <p class="has-animations">${menuAmountHtml}</p>
             <p class="price">${menu.price} MMK</p>
         </div>
     `;
@@ -903,13 +835,13 @@ async function showPaymentModal() {
     } else {
         html += '<div class="payment-methods" id="paymentMethodsContainer">';
         AppState.payments.forEach(payment => {
-            // Render animated payment name with enhanced function
+            // Render animated payment name
             const paymentNameHtml = renderAnimatedText(payment.name);
             
             html += `
                 <div class="payment-method" data-payment-id="${payment.id}">
-                    <img src="${payment.icon_url}" alt="${payment.name}" loading="lazy">
-                    <span>${paymentNameHtml}</span>
+                    <img src="${payment.icon_url}" alt="${payment.name}">
+                    <span class="has-animations">${paymentNameHtml}</span>
                 </div>
             `;
         });
@@ -966,15 +898,15 @@ async function selectPayment(paymentId) {
 
         const detailsDiv = document.getElementById('paymentDetailsDiv');
         if (detailsDiv && payment) {
-            // Render animated payment info with enhanced function
+            // Render animated payment info
             const paymentNameHtml = renderAnimatedText(payment.name);
             const instructionsHtml = renderAnimatedText(payment.instructions || 'Please complete payment and enter details.');
             
             detailsDiv.style.display = 'block';
             detailsDiv.innerHTML = `
                 <div class="payment-info">
-                    <h4>${paymentNameHtml}</h4>
-                    <p>${instructionsHtml}</p>
+                    <h4 class="has-animations">${paymentNameHtml}</h4>
+                    <p class="has-animations">${instructionsHtml}</p>
                     <p><strong>Address:</strong> ${payment.address}</p>
                     <div class="form-group" style="margin-top:15px;">
                         <label>Last 6 digits of transaction ID</label>
@@ -1102,7 +1034,7 @@ function displayOrderHistory(orders) {
         if (order.status === 'approved') statusClass = 'approved';
         if (order.status === 'rejected') statusClass = 'rejected';
 
-        // Render animated menu info with enhanced function
+        // Render animated menu info
         const menuNameHtml = renderAnimatedText(order.menus?.name || 'Unknown');
         const menuAmountHtml = renderAnimatedText(order.menus?.amount || '');
         const paymentNameHtml = renderAnimatedText(order.payment_methods?.name || 'N/A');
@@ -1110,13 +1042,13 @@ function displayOrderHistory(orders) {
 
         item.innerHTML = `
             <div class="history-status ${statusClass}">${order.status.toUpperCase()}</div>
-            <h3>${menuNameHtml}</h3>
-            <p>${menuAmountHtml}</p>
+            <h3 class="has-animations">${menuNameHtml}</h3>
+            <p class="has-animations">${menuAmountHtml}</p>
             <p><strong>Price:</strong> ${order.menus?.price || 0} MMK</p>
-            <p><strong>Payment:</strong> <span>${paymentNameHtml}</span></p>
+            <p><strong>Payment:</strong> <span class="has-animations">${paymentNameHtml}</span></p>
             <p><strong>Order ID:</strong> #${order.id}</p>
             <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> <span>${adminMessageHtml}</span></p>` : ''}
+            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;"><strong>Message:</strong> <span class="has-animations">${adminMessageHtml}</span></p>` : ''}
         `;
 
         container.appendChild(item);
@@ -1157,17 +1089,17 @@ function displayContacts(contacts) {
             item.addEventListener('click', () => window.open(contact.link, '_blank'));
         }
 
-        // Render animated contact info with enhanced function
+        // Render animated contact info
         const nameHtml = renderAnimatedText(contact.name);
         const descriptionHtml = renderAnimatedText(contact.description || '');
         const addressHtml = renderAnimatedText(contact.address || '');
 
         item.innerHTML = `
-            <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}" loading="lazy">
+            <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}">
             <div class="contact-info">
-                <h3>${nameHtml}</h3>
-                <p>${descriptionHtml}</p>
-                ${!contact.link && contact.address ? `<p>${addressHtml}</p>` : ''}
+                <h3 class="has-animations">${nameHtml}</h3>
+                <p class="has-animations">${descriptionHtml}</p>
+                ${!contact.link && contact.address ? `<p class="has-animations">${addressHtml}</p>` : ''}
             </div>
         `;
 
@@ -1266,4 +1198,4 @@ function showSuccess(element, message) {
     setTimeout(() => element.classList.remove('show'), 5000);
 }
 
-console.log('✅ Enhanced App initialized successfully with improved animation URL detection! 🎨🔗');
+console.log('✅ App initialized successfully with animations support! 🎨');
