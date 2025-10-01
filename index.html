@@ -191,6 +191,20 @@
         </div>
     </div>
 
+    <!-- Animated Sticker/Emoji Modal -->
+    <div id="stickerModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeStickerModal()">&times;</span>
+            <h2>🎨 Choose Sticker</h2>
+            <div class="sticker-search">
+                <input type="text" id="stickerSearch" placeholder="Search stickers..." onkeyup="filterStickers()">
+            </div>
+            <div id="stickerGrid" class="sticker-grid">
+                <!-- Stickers will be loaded here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="index.js"></script>
