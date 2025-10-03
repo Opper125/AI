@@ -529,7 +529,7 @@ body {
     cursor: pointer;
     transition: var(--transition);
     text-align: center;
-    min-width: 90px;
+    min-width: 120px;
 }
 
 .category-button:hover {
@@ -542,7 +542,7 @@ body {
     width: 200px;
     height: 200px;
     object-fit: contain;
-    margin-bottom: 120px;
+    margin-bottom: 20px;
 }
 
 .category-button span {
