@@ -6,6 +6,130 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="admin.css">
+    <style>
+        /* Enhanced IP-based security styles */
+        .ip-info {
+            margin: 10px 0;
+        }
+        
+        .access-denied {
+            margin: 15px 0;
+        }
+        
+        .ip-status .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .ip-status .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .ip-status .info-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .ip-status .info-value {
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .ip-status .info-value.secured {
+            color: var(--success);
+        }
+        
+        .ip-status .info-value.warning {
+            color: var(--warning);
+        }
+        
+        .security-info {
+            background: var(--bg-glass);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .security-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .security-warning .warning-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+            display: block;
+        }
+        
+        .security-warning p {
+            color: #fbbf24;
+            font-size: 13px;
+            margin: 0;
+        }
+        
+        .btn-login.loading {
+            position: relative;
+            color: transparent;
+        }
+        
+        .btn-login.loading::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            border: 2px solid #ffffff40;
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .error-message.show {
+            opacity: 1;
+            transform: translateY(0);
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        .error-message.show.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+        }
+        
+        .error-message.show.success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #86efac;
+        }
+        
+        .card-badge.security {
+            background: var(--success);
+            color: white;
+        }
+        
+        .card-badge.warning {
+            background: var(--warning);
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <!-- Loading Screen -->
