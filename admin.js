@@ -12,11 +12,18 @@ const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3Mi
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Global State Management
-let currentFilter = 'all';
-let websiteSettings = null;
-let allAnimations = []; // Store all animations
-let currentEmojiTarget = null; // Current input field for emoji insertion
-
+window.adminState = {
+    currentUser: null,
+    sessionToken: null,
+    websiteSettings: null,
+    allAnimations: [],
+    currentEmojiTarget: null,
+    isLoading: false,
+    sidebar: {
+        collapsed: false,
+        mobile: false
+    }
+};
 
 // =====================================================
 // UTILITY FUNCTIONS
