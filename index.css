@@ -254,8 +254,8 @@ body::after {
 
 .loading-animation img,
 .loading-animation video {
-    max-width: 300px;
-    max-height: 300px;
+    max-width: 150px;
+    max-height: 150px;
     object-fit: contain;
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-xl);
@@ -668,8 +668,8 @@ body::after {
 }
 
 .header-logo {
-    width: 50px;
-    height: 50px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
     object-fit: cover;
     border: 3px solid var(--primary-color);
@@ -733,91 +733,47 @@ body::after {
 /* =====================================================
    BANNER CONTAINER
    ===================================================== */
-
+/* Banner Container */
 .banner-container {
-    margin-bottom: var(--space-2xl);
-    overflow: hidden;
-    border-radius: var(--radius-xl);
-    position: relative;
+    margin-bottom: 30px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
 }
 
-.banner-container::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: var(--gradient-overlay);
-    z-index: 1;
-    pointer-events: none;
+.banner-container::-webkit-scrollbar {
+    display: none;
 }
 
 .banner-wrapper {
     display: flex;
-    gap: var(--space-lg);
-    padding: var(--space);
+    gap: 15px;
+    padding: 5px;
     transition: transform 0.5s ease;
-    overflow-x: auto;
-    scrollbar-width: none;
-}
-
-.banner-wrapper::-webkit-scrollbar {
-    display: none;
 }
 
 .banner-item {
     min-width: 100%;
-    height: 220px;
-    border-radius: var(--radius-xl);
+    height: 200px;
+    border-radius: var(--border-radius);
     overflow: hidden;
     position: relative;
     cursor: pointer;
     transition: var(--transition);
-    border: 3px solid var(--border);
-    box-shadow: var(--shadow);
-}
-
-.banner-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, transparent, rgba(0, 255, 136, 0.1), transparent);
-    opacity: 0;
-    transition: var(--transition);
-    z-index: 2;
+    border: 2px solid rgba(0, 212, 255, 0.2);
 }
 
 .banner-item img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: var(--transition);
 }
 
 .banner-item:hover {
     transform: scale(1.02);
     border-color: var(--primary-color);
-    box-shadow: var(--glow-strong);
+    box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
 }
-
-.banner-item:hover::before {
-    opacity: 1;
-    animation: bannerShimmer 2s ease-in-out infinite;
-}
-
-.banner-item:hover img {
-    transform: scale(1.05);
-}
-
-@keyframes bannerShimmer {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
 /* =====================================================
    CATEGORIES
    ===================================================== */
@@ -929,8 +885,8 @@ body::after {
 }
 
 .category-button img {
-    width: 80px;
-    height: 80px;
+    width: 150px;
+    height: 150px;
     object-fit: contain;
     margin-bottom: var(--space-lg);
     border-radius: var(--radius);
