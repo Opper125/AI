@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="my">
 <head>
@@ -6,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="admin.css">
+    <!-- Added security meta tags -->
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 </head>
 <body>
     <!-- Loading Screen -->
@@ -23,15 +28,12 @@
                 <div class="login-icon">🔐</div>
                 <h1>Admin Dashboard</h1>
                 <p>Enter your credentials to access the admin panel</p>
-                <div class="device-info" id="deviceInfo">
-                    <span class="device-status" id="deviceStatus">🔒 Secure Login</span>
-                </div>
             </div>
             <form class="login-form" onsubmit="adminLogin(event)">
                 <div class="form-group">
                     <div class="input-group">
                         <span class="input-icon">🔒</span>
-                        <input type="password" id="adminPassword" placeholder="Enter Admin Password" required>
+                        <input type="password" id="adminPassword" placeholder="Enter Admin Password" required autocomplete="off">
                     </div>
                 </div>
                 <div class="error-message" id="loginError"></div>
@@ -41,8 +43,7 @@
                 </button>
             </form>
             <div class="login-footer">
-                <p>🛡️ IP-Protected Admin Access</p>
-                <p class="security-note">Only authorized devices can access this panel</p>
+                <p>🔒 Secure device-locked authentication</p>
             </div>
         </div>
     </div>
@@ -56,10 +57,7 @@
                     <div class="admin-avatar">👨‍💼</div>
                     <div class="admin-info">
                         <h2>Admin Panel</h2>
-                        <span class="admin-status" id="adminStatusIndicator">🟢 Online</span>
-                        <div class="device-security">
-                            <span class="device-registered" id="deviceRegistered">🔒 Device Authorized</span>
-                        </div>
+                        <span class="admin-status">🟢 Online</span>
                     </div>
                 </div>
                 <button onclick="adminLogout()" class="btn-logout">
@@ -195,49 +193,26 @@
                 </div>
                 
                 <div class="settings-grid">
-                    <!-- Device Security Card -->
-                    <div class="setting-card security-card">
-                        <div class="card-header">
-                            <h3>Device Security Status</h3>
-                            <span class="card-badge security">🛡️ IP Protection</span>
-                        </div>
-                        <div class="security-info">
-                            <div class="device-status-info">
-                                <span class="status-icon">🔒</span>
-                                <div class="status-details">
-                                    <p><strong>Registered Device:</strong> <span id="registeredDeviceStatus">Active</span></p>
-                                    <p><strong>IP Address:</strong> <span id="deviceIpAddress">Protected</span></p>
-                                    <p><strong>Last Login:</strong> <span id="lastLoginTime">Just now</span></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="security-actions">
-                            <button onclick="clearAdminSession()" class="btn-danger">🗑️ Clear Session & Reset Device</button>
-                            <p class="warning-text">⚠️ This will log out all devices and allow new device registration</p>
-                        </div>
-                    </div>
-
-                    <!-- Password Change Card -->
                     <div class="setting-card security-card">
                         <div class="card-header">
                             <h3>Change Admin Password</h3>
-                            <span class="card-badge security">Security</span>
+                            <span class="card-badge security">🔒 Security</span>
                         </div>
                         <div class="security-warning">
                             <span class="warning-icon">⚠️</span>
-                            <p>Changing your password will require you to log in again with the new password.</p>
+                            <p>Changing your password will require you to log in again. This device will remain authorized.</p>
                         </div>
                         <div class="form-group">
                             <label>Current Password</label>
-                            <input type="password" id="currentPassword" placeholder="Enter current password">
+                            <input type="password" id="currentPassword" placeholder="Enter current password" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label>New Password</label>
-                            <input type="password" id="newPassword" placeholder="Enter new password">
+                            <input type="password" id="newPassword" placeholder="Enter new password" autocomplete="new-password">
                         </div>
                         <div class="form-group">
                             <label>Confirm New Password</label>
-                            <input type="password" id="confirmPassword" placeholder="Confirm new password">
+                            <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password">
                         </div>
                         <button onclick="changeAdminPassword()" class="btn-security">Change Password</button>
                     </div>
