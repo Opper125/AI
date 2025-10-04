@@ -4,25 +4,19 @@
 // =====================================================
 
 // Supabase Configuration
+/ Supabase Configuration
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
+const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA0MjczOCwiZXhwIjoyMDc0NjE4NzM4fQ.RIeMmmXUz4f2R3-3fhyu5neWt6e7ihVWuqXYe4ovhMg';
 
-// Initialize Supabase
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Global State Management
-window.adminState = {
-    currentUser: null,
-    sessionToken: null,
-    websiteSettings: null,
-    allAnimations: [],
-    currentEmojiTarget: null,
-    isLoading: false,
-    sidebar: {
-        collapsed: false,
-        mobile: false
-    }
-};
+let currentFilter = 'all';
+let websiteSettings = null;
+let allAnimations = []; // Store all animations
+let currentEmojiTarget = null; // Current input field for emoji insertion
+
 
 // =====================================================
 // UTILITY FUNCTIONS
