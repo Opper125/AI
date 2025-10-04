@@ -1,5 +1,5 @@
 
-// Supabase Configuration
+// Supabase Configuration  
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA0MjczOCwiZXhwIjoyMDc0NjE4NzM4fQ.RIeMmmXUz4f2R3-3fhyu5neWt6e7ihVWuqXYe4ovhMg';
@@ -12,9 +12,51 @@ let currentFilter = 'all';
 let websiteSettings = null;
 let allAnimations = []; // Store all animations
 let currentEmojiTarget = null; // Current input field for emoji insertion
+let currentClientIP = null; // Store current client IP
+
+// ==================== IP ADDRESS DETECTION ====================
+
+// Get client IP address
+async function getClientIP() {
+    try {
+        // Try multiple IP services for reliability
+        const ipServices = [
+            'https://api.ipify.org?format=json',
+            'https://ipapi.co/json/',
+            'https://ipinfo.io/json'
+        ];
+        
+        for (const service of ipServices) {
+            try {
+                const response = await fetch(service);
+                const data = await response.json();
+                const ip = data.ip || data.query || data.ip_address;
+                if (ip) {
+                    console.log('🌐 Client IP detected:', ip);
+                    currentClientIP = ip;
+                    return ip;
+                }
+            } catch (error) {
+                console.warn('IP service failed:', service, error);
+                continue;
+            }
+        }
+        
+        // Fallback: Use a default or detected IP from headers
+        console.warn('⚠️ Could not detect IP, using fallback');
+        currentClientIP = 'unknown';
+        return 'unknown';
+    } catch (error) {
+        console.error('❌ IP detection failed:', error);
+        currentClientIP = 'unknown';
+        return 'unknown';
+    }
+}
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Get IP first
+    await getClientIP();
     checkAdminAuth();
     hideLoading();
 });
@@ -30,21 +72,45 @@ function hideLoading() {
     }, 800);
 }
 
-// ==================== ENHANCED ADMIN AUTHENTICATION ==================== 
+// ==================== ENHANCED IP-BASED ADMIN AUTHENTICATION ==================== 
 
-// Check if admin is authenticated
-function checkAdminAuth() {
+// Check if admin is authenticated with IP validation
+async function checkAdminAuth() {
     const isAdmin = localStorage.getItem('isAdmin');
-    if (isAdmin === 'true') {
-        showDashboard();
-    } else {
-        showLogin();
+    const storedIP = localStorage.getItem('adminIP');
+    
+    if (isAdmin === 'true' && storedIP && storedIP === currentClientIP) {
+        // Verify IP is still authorized in database
+        try {
+            const { data: status } = await supabase.rpc('get_admin_status');
+            
+            if (status && status.is_ip_locked && status.authorized_ip === currentClientIP) {
+                showDashboard();
+                return;
+            } else {
+                // IP authorization revoked or changed
+                localStorage.removeItem('isAdmin');
+                localStorage.removeItem('adminIP');
+                showIPAccessDenied('IP authorization has been revoked or changed');
+                return;
+            }
+        } catch (error) {
+            console.error('Auth check error:', error);
+        }
     }
+    
+    // Clear invalid session
+    localStorage.removeItem('isAdmin');
+    localStorage.removeItem('adminIP');
+    showLogin();
 }
 
 function showLogin() {
     document.getElementById('adminLogin').style.display = 'flex';
     document.getElementById('adminDashboard').style.display = 'none';
+    
+    // Update login form to show IP info
+    updateLoginForm();
 }
 
 function showDashboard() {
@@ -53,7 +119,60 @@ function showDashboard() {
     loadAllData();
 }
 
-// Enhanced admin login with database authentication
+// Update login form to show current IP
+function updateLoginForm() {
+    const loginBox = document.querySelector('.login-box');
+    const existingIPInfo = loginBox.querySelector('.ip-info');
+    
+    if (existingIPInfo) {
+        existingIPInfo.remove();
+    }
+    
+    const ipInfo = document.createElement('div');
+    ipInfo.className = 'ip-info';
+    ipInfo.innerHTML = `
+        <div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 10px; margin: 10px 0; text-align: center;">
+            <p style="color: #a5b4fc; font-size: 12px; margin: 0;">
+                🌐 Your IP: <strong>${currentClientIP}</strong>
+            </p>
+            <p style="color: #94a3b8; font-size: 11px; margin: 5px 0 0 0;">
+                Only the first device to login will be authorized
+            </p>
+        </div>
+    `;
+    
+    const loginForm = document.querySelector('.login-form');
+    loginForm.insertBefore(ipInfo, loginForm.querySelector('.error-message'));
+}
+
+// Show IP access denied message
+function showIPAccessDenied(message) {
+    const loginBox = document.querySelector('.login-box');
+    const existingDenied = loginBox.querySelector('.access-denied');
+    
+    if (existingDenied) {
+        existingDenied.remove();
+    }
+    
+    const deniedInfo = document.createElement('div');
+    deniedInfo.className = 'access-denied';
+    deniedInfo.innerHTML = `
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 10px; padding: 15px; margin: 15px 0; text-align: center;">
+            <div style="color: #ef4444; font-size: 16px; margin-bottom: 8px;">🚫 Access Denied</div>
+            <p style="color: #fca5a5; font-size: 13px; margin: 0;">
+                ${message}
+            </p>
+            <p style="color: #94a3b8; font-size: 11px; margin: 10px 0 0 0;">
+                Your IP: <strong>${currentClientIP}</strong>
+            </p>
+        </div>
+    `;
+    
+    const loginForm = document.querySelector('.login-form');
+    loginForm.insertBefore(deniedInfo, loginForm.querySelector('.error-message'));
+}
+
+// Enhanced admin login with IP-based authentication
 async function adminLogin(event) {
     event.preventDefault(); // Prevent form submission
     
@@ -67,30 +186,49 @@ async function adminLogin(event) {
         return;
     }
 
+    if (!currentClientIP || currentClientIP === 'unknown') {
+        showError(errorEl, 'Unable to detect your IP address. Please refresh and try again.');
+        return;
+    }
+
     // Add loading state
     loginBtn.classList.add('loading');
     loginBtn.disabled = true;
 
     try {
-        // Check password against database
+        // Enhanced login with IP verification
         const { data, error } = await supabase
-            .rpc('verify_admin_password', { input_password: password });
+            .rpc('verify_admin_login', { 
+                input_password: password,
+                client_ip: currentClientIP 
+            });
 
         if (error) {
             throw error;
         }
 
-        if (data === true) {
-            // Password is correct
+        if (data.success) {
+            // Login successful
             localStorage.setItem('isAdmin', 'true');
-            showSuccess(errorEl, 'Login successful! Redirecting...');
+            localStorage.setItem('adminIP', currentClientIP);
+            
+            if (data.first_login) {
+                showSuccess(errorEl, '🎉 Device registered successfully! You are now the only authorized admin device.');
+            } else {
+                showSuccess(errorEl, '✅ Login successful! Welcome back.');
+            }
             
             setTimeout(() => {
                 showDashboard();
-            }, 1000);
+            }, 1500);
         } else {
-            // Password is incorrect
-            showError(errorEl, 'Incorrect password! Please try again.');
+            // Login failed
+            if (data.ip_locked && data.authorized_ip && data.authorized_ip !== currentClientIP) {
+                showIPAccessDenied(`This admin panel is locked to IP: ${data.authorized_ip}`);
+                showError(errorEl, 'Access denied - Device not authorized');
+            } else {
+                showError(errorEl, data.message || 'Login failed');
+            }
         }
     } catch (error) {
         console.error('Login error:', error);
@@ -106,11 +244,12 @@ async function adminLogin(event) {
 function adminLogout() {
     if (confirm('Are you sure you want to logout?')) {
         localStorage.removeItem('isAdmin');
+        localStorage.removeItem('adminIP');
         location.reload();
     }
 }
 
-// Change admin password function
+// Enhanced password change with IP verification
 async function changeAdminPassword() {
     const currentPassword = document.getElementById('currentPassword').value.trim();
     const newPassword = document.getElementById('newPassword').value.trim();
@@ -131,31 +270,34 @@ async function changeAdminPassword() {
         return;
     }
 
+    if (!currentClientIP || currentClientIP === 'unknown') {
+        alert('Unable to verify your IP address. Please refresh and try again.');
+        return;
+    }
+
     showLoading();
 
     try {
-        // First verify current password
-        const { data: isValid, error: verifyError } = await supabase
-            .rpc('verify_admin_password', { input_password: currentPassword });
-
-        if (verifyError) throw verifyError;
-
-        if (!isValid) {
-            hideLoading();
-            alert('Current password is incorrect');
-            return;
-        }
-
-        // Update password
+        // Update password with IP verification
         const { data, error } = await supabase
-            .rpc('update_admin_password', { new_password: newPassword });
+            .rpc('update_admin_password_secure', { 
+                current_password: currentPassword,
+                new_password: newPassword,
+                client_ip: currentClientIP
+            });
 
         if (error) throw error;
 
         hideLoading();
-        alert('Password changed successfully! You will be logged out.');
-        localStorage.removeItem('isAdmin');
-        location.reload();
+        
+        if (data.success) {
+            alert('✅ Password changed successfully! You will be logged out.');
+            localStorage.removeItem('isAdmin');
+            localStorage.removeItem('adminIP');
+            location.reload();
+        } else {
+            alert('❌ ' + data.message);
+        }
 
     } catch (error) {
         hideLoading();
@@ -164,7 +306,82 @@ async function changeAdminPassword() {
     }
 }
 
-// Switch Section
+// Add IP status display to admin settings
+function displayIPStatus() {
+    supabase.rpc('get_admin_status').then(({ data }) => {
+        if (data) {
+            const adminSettings = document.getElementById('admin-settings');
+            const existingStatus = adminSettings.querySelector('.ip-status');
+            
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+            
+            const statusDiv = document.createElement('div');
+            statusDiv.className = 'ip-status setting-card';
+            statusDiv.innerHTML = `
+                <div class="card-header">
+                    <h3>Device Security Status</h3>
+                    <span class="card-badge ${data.is_ip_locked ? 'security' : 'warning'}">
+                        ${data.is_ip_locked ? 'Secured' : 'Unlocked'}
+                    </span>
+                </div>
+                <div class="security-info">
+                    <div class="info-row">
+                        <span class="info-label">🔒 IP Lock Status:</span>
+                        <span class="info-value ${data.is_ip_locked ? 'secured' : 'warning'}">
+                            ${data.is_ip_locked ? 'Enabled' : 'Disabled'}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🌐 Authorized IP:</span>
+                        <span class="info-value">${data.authorized_ip || 'None'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">📱 Current IP:</span>
+                        <span class="info-value ${data.authorized_ip === currentClientIP ? 'secured' : 'warning'}">
+                            ${currentClientIP}
+                        </span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">🕐 Last Login:</span>
+                        <span class="info-value">
+                            ${data.last_login_at ? new Date(data.last_login_at).toLocaleString() : 'Never'}
+                        </span>
+                    </div>
+                </div>
+                ${!data.is_ip_locked ? `
+                    <div class="security-warning">
+                        <span class="warning-icon">⚠️</span>
+                        <p>Device security is not yet active. The first login will lock admin access to that device only.</p>
+                    </div>
+                ` : ''}
+            `;
+            
+            const settingsGrid = adminSettings.querySelector('.settings-grid');
+            settingsGrid.insertBefore(statusDiv, settingsGrid.firstChild);
+        }
+    });
+}
+
+// Utility functions for error/success messages
+function showError(element, message) {
+    element.textContent = message;
+    element.className = 'error-message show error';
+    setTimeout(() => {
+        element.className = 'error-message';
+    }, 5000);
+}
+
+function showSuccess(element, message) {
+    element.textContent = message;
+    element.className = 'error-message show success';
+    setTimeout(() => {
+        element.className = 'error-message';
+    }, 5000);
+}
+
+// Switch Section - Enhanced to show IP status in admin settings
 function switchSection(sectionName) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
@@ -177,6 +394,11 @@ function switchSection(sectionName) {
     document.querySelector(`[data-section="${sectionName}"]`).classList.add('active');
 
     loadSectionData(sectionName);
+    
+    // Show IP status when admin settings is selected
+    if (sectionName === 'admin-settings') {
+        setTimeout(displayIPStatus, 100);
+    }
 }
 
 // Load All Data
@@ -196,7 +418,7 @@ function loadSectionData(section) {
             loadWebsiteSettings();
             break;
         case 'admin-settings':
-            // Admin settings section - no data loading needed
+            // Admin settings section - IP status will be loaded by switchSection
             break;
         case 'banners':
             loadBanners();
@@ -270,7 +492,7 @@ async function uploadFile(file, folder) {
 // Load All Animations
 async function loadAnimations() {
     try {
-        console.log(' Loading animations...');
+        console.log('✨ Loading animations...');
         const { data, error } = await supabase
             .from('animations')
             .select('*')
@@ -279,11 +501,11 @@ async function loadAnimations() {
         if (error) throw error;
 
         allAnimations = data || [];
-        console.log(` Loaded ${allAnimations.length} animations`);
+        console.log(`✨ Loaded ${allAnimations.length} animations`);
         
         displayAnimations(allAnimations);
     } catch (error) {
-        console.error(' Error loading animations:', error);
+        console.error('❌ Error loading animations:', error);
         allAnimations = [];
     }
 }
@@ -317,7 +539,7 @@ function displayAnimations(animations) {
             <div class="animation-preview">${preview}</div>
             <div class="animation-name">${anim.name}</div>
             <div class="animation-type">${anim.file_type.toUpperCase()}</div>
-            <button class="animation-delete" onclick="deleteAnimation(${anim.id})"></button>
+            <button class="animation-delete" onclick="deleteAnimation(${anim.id})">🗑️</button>
         `;
 
         container.appendChild(item);
@@ -364,7 +586,7 @@ async function uploadAnimation() {
         if (error) throw error;
 
         hideLoading();
-        alert(' Animation uploaded successfully!');
+        alert('✨ Animation uploaded successfully!');
         
         // Reset form
         document.getElementById('animationName').value = '';
@@ -376,7 +598,7 @@ async function uploadAnimation() {
 
     } catch (error) {
         hideLoading();
-        console.error(' Upload error:', error);
+        console.error('❌ Upload error:', error);
         alert('Error uploading animation: ' + error.message);
     }
 }
@@ -396,12 +618,12 @@ async function deleteAnimation(id) {
         if (error) throw error;
 
         hideLoading();
-        alert(' Animation deleted!');
+        alert('✨ Animation deleted!');
         await loadAnimations();
 
     } catch (error) {
         hideLoading();
-        console.error(' Delete error:', error);
+        console.error('❌ Delete error:', error);
         alert('Error deleting animation');
     }
 }
@@ -1156,7 +1378,7 @@ function addTableInput() {
     const newInput = document.createElement('div');
     newInput.className = 'table-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()"></button>
+        <button class="remove-input" onclick="this.parentElement.remove()">✕</button>
         <div class="input-with-emoji">
             <input type="text" class="table-name" placeholder="Table Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
@@ -1320,7 +1542,7 @@ function addMenuInput() {
     const newInput = document.createElement('div');
     newInput.className = 'menu-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()"></button>
+        <button class="remove-input" onclick="this.parentElement.remove()">✕</button>
         <div class="input-with-emoji">
             <input type="text" class="menu-name" placeholder="Product Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
@@ -1550,14 +1772,14 @@ async function loadPaymentMethods() {
         if (data && data.length > 0) {
             data.forEach(payment => {
                 const nameHtml = renderAnimatedText(payment.name);
-                const instructionsHtml = renderAnimatedText(payment.instructions || '');
+                const instructionsHtml = renderAnimatedText(payment.instructions);
                 
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${payment.icon_url}" alt="${payment.name}">
                         <h4>${nameHtml}</h4>
-                        <p>${payment.address}</p>
-                        <p>${instructionsHtml}</p>
+                        <p><strong>Address:</strong> ${payment.address}</p>
+                        <p><strong>Instructions:</strong> ${instructionsHtml}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editPayment(${payment.id})">Edit</button>
                             <button class="btn-danger" onclick="deletePayment(${payment.id})">Delete</button>
@@ -1579,8 +1801,8 @@ async function addPaymentMethod() {
     const instructions = document.getElementById('paymentInstructions').value.trim();
     const file = document.getElementById('paymentIconFile').files[0];
 
-    if (!name || !address || !file) {
-        alert('Please fill all required fields');
+    if (!name || !address || !instructions || !file) {
+        alert('Please fill all fields and select an icon');
         return;
     }
 
@@ -1641,7 +1863,7 @@ async function editPayment(id) {
         <div class="form-group">
             <label>Instructions</label>
             <div class="textarea-with-emoji">
-                <textarea id="editPaymentInstructions" rows="3">${payment.instructions || ''}</textarea>
+                <textarea id="editPaymentInstructions" rows="3">${payment.instructions}</textarea>
                 <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentInstructions')">😀</button>
             </div>
         </div>
@@ -1656,8 +1878,8 @@ async function updatePayment(id) {
     const address = document.getElementById('editPaymentAddress').value.trim();
     const instructions = document.getElementById('editPaymentInstructions').value.trim();
 
-    if (!name || !address) {
-        alert('Please fill required fields');
+    if (!name || !address || !instructions) {
+        alert('Please fill all fields');
         return;
     }
 
@@ -1722,15 +1944,15 @@ async function loadContacts() {
         if (data && data.length > 0) {
             data.forEach(contact => {
                 const nameHtml = renderAnimatedText(contact.name);
-                const descriptionHtml = renderAnimatedText(contact.description || '');
+                const descriptionHtml = renderAnimatedText(contact.description);
                 
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${contact.icon_url}" alt="${contact.name}">
                         <h4>${nameHtml}</h4>
                         <p>${descriptionHtml}</p>
-                        ${contact.link ? `<p>Link: ${contact.link}</p>` : ''}
-                        ${contact.address ? `<p>Address: ${contact.address}</p>` : ''}
+                        ${contact.link ? `<p><strong>Link:</strong> ${contact.link}</p>` : ''}
+                        ${contact.address ? `<p><strong>Address:</strong> ${contact.address}</p>` : ''}
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editContact(${contact.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteContact(${contact.id})">Delete</button>
@@ -1754,7 +1976,7 @@ async function addContact() {
     const file = document.getElementById('contactIconFile').files[0];
 
     if (!name || !description || !file) {
-        alert('Please fill required fields');
+        alert('Please fill required fields and select an icon');
         return;
     }
 
@@ -1768,8 +1990,8 @@ async function addContact() {
                 .insert([{
                     name: name,
                     description: description,
-                    link: link,
-                    address: address,
+                    link: link || null,
+                    address: address || null,
                     icon_url: url
                 }]);
 
@@ -1813,16 +2035,16 @@ async function editContact(id) {
         <div class="form-group">
             <label>Description</label>
             <div class="textarea-with-emoji">
-                <textarea id="editContactDescription" rows="3">${contact.description || ''}</textarea>
+                <textarea id="editContactDescription" rows="2">${contact.description}</textarea>
                 <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactDescription')">😀</button>
             </div>
         </div>
         <div class="form-group">
-            <label>Link</label>
+            <label>Link (optional)</label>
             <input type="text" id="editContactLink" value="${contact.link || ''}">
         </div>
         <div class="form-group">
-            <label>Address</label>
+            <label>Address (optional)</label>
             <input type="text" id="editContactAddress" value="${contact.address || ''}">
         </div>
         <button class="btn-primary" onclick="updateContact(${id})">Save Changes</button>
@@ -1849,8 +2071,8 @@ async function updateContact(id) {
             .update({
                 name: name,
                 description: description,
-                link: link,
-                address: address
+                link: link || null,
+                address: address || null
             })
             .eq('id', id);
 
@@ -1889,7 +2111,7 @@ async function deleteContact(id) {
     }
 }
 
-// ==================== YOUTUBE VIDEOS ====================
+// ==================== VIDEOS ====================
 
 async function loadButtonsForVideos() {
     const categoryId = document.getElementById('videoCategorySelect').value;
@@ -1919,14 +2141,13 @@ async function loadButtonsForVideos() {
 }
 
 async function addVideo() {
-    const categoryId = document.getElementById('videoCategorySelect').value;
     const buttonId = document.getElementById('videoButtonSelect').value;
-    const url = document.getElementById('videoUrl').value.trim();
+    const videoUrl = document.getElementById('videoUrl').value.trim();
     const description = document.getElementById('videoDescription').value.trim();
     const file = document.getElementById('videoBannerFile').files[0];
 
-    if (!categoryId || !buttonId || !url || !description || !file) {
-        alert('Please fill all fields');
+    if (!buttonId || !videoUrl || !description || !file) {
+        alert('Please fill all fields and select a banner');
         return;
     }
 
@@ -1938,11 +2159,10 @@ async function addVideo() {
             const { error } = await supabase
                 .from('youtube_videos')
                 .insert([{
-                    category_id: categoryId,
                     button_id: buttonId,
-                    banner_url: bannerUrl,
-                    video_url: url,
-                    description: description
+                    video_url: videoUrl,
+                    description: description,
+                    banner_url: bannerUrl
                 }]);
 
             if (error) throw error;
@@ -1952,6 +2172,7 @@ async function addVideo() {
             document.getElementById('videoUrl').value = '';
             document.getElementById('videoDescription').value = '';
             document.getElementById('videoBannerFile').value = '';
+            document.getElementById('videoButtonSelect').innerHTML = '<option value="">Select Button</option>';
             loadVideos();
         } catch (error) {
             hideLoading();
@@ -1970,8 +2191,7 @@ async function loadVideos() {
             .from('youtube_videos')
             .select(`
                 *,
-                categories (title),
-                category_buttons (name)
+                category_buttons (name, categories (title))
             `)
             .order('created_at', { ascending: true });
 
@@ -1981,14 +2201,12 @@ async function loadVideos() {
         if (data && data.length > 0) {
             data.forEach(video => {
                 const descriptionHtml = renderAnimatedText(video.description);
-                const categoryHtml = renderAnimatedText(video.categories.title);
                 const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
                 
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${video.banner_url}" alt="Video Banner">
                         <h4>${descriptionHtml}</h4>
-                        <p>Category: ${categoryHtml}</p>
                         <p>Button: ${buttonNameHtml}</p>
                         <p><a href="${video.video_url}" target="_blank">Watch Video</a></p>
                         <div class="item-actions">
@@ -2036,146 +2254,151 @@ async function loadOrders() {
             .select(`
                 *,
                 users (name, username),
-                menus (name, price),
+                menus (name, amount, price),
                 category_buttons (name),
                 payment_methods (name)
             `)
             .order('created_at', { ascending: false });
 
-        const container = document.getElementById('ordersContainer');
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            data.forEach(order => {
-                container.innerHTML += `
-                    <div class="order-card">
-                        <div class="order-header">
-                            <h4>Order #${order.id}</h4>
-                            <span class="order-status ${order.status}">${order.status.toUpperCase()}</span>
-                        </div>
-                        <div class="order-info">
-                            <div class="info-item">
-                                <span class="info-label">Customer</span>
-                                <span class="info-value">${order.users.name} (@${order.users.username})</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Product</span>
-                                <span class="info-value">${order.menus.name}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Price</span>
-                                <span class="info-value">${order.menus.price} MMK</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Payment</span>
-                                <span class="info-value">${order.payment_methods.name}</span>
-                            </div>
-                            <div class="info-item">
-                                <span class="info-label">Date</span>
-                                <span class="info-value">${new Date(order.created_at).toLocaleDateString()}</span>
-                            </div>
-                        </div>
-                        ${order.user_data ? `<p><strong>User Data:</strong> ${order.user_data}</p>` : ''}
-                        ${order.admin_message ? `<p><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
-                        <div class="order-actions">
-                            <button class="btn-success" onclick="approveOrder(${order.id})">Approve</button>
-                            <button class="btn-danger" onclick="rejectOrder(${order.id})">Reject</button>
-                            <button class="btn-secondary" onclick="addAdminMessage(${order.id})">Add Message</button>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML = '<p>No orders yet</p>';
-        }
+        displayOrders(data || []);
     } catch (error) {
         console.error('Error loading orders:', error);
     }
 }
 
-async function approveOrder(id) {
-    if (!confirm('Approve this order?')) return;
+function displayOrders(orders) {
+    const container = document.getElementById('ordersContainer');
+    container.innerHTML = '';
 
-    showLoading();
-    try {
-        const { error } = await supabase
-            .from('orders')
-            .update({ status: 'approved' })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        hideLoading();
-        alert('Order approved!');
-        loadOrders();
-    } catch (error) {
-        hideLoading();
-        alert('Error approving order');
-        console.error(error);
+    if (orders.length === 0) {
+        container.innerHTML = '<p>No orders yet</p>';
+        return;
     }
-}
 
-async function rejectOrder(id) {
-    if (!confirm('Reject this order?')) return;
-
-    showLoading();
-    try {
-        const { error } = await supabase
-            .from('orders')
-            .update({ status: 'rejected' })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        hideLoading();
-        alert('Order rejected!');
-        loadOrders();
-    } catch (error) {
-        hideLoading();
-        alert('Error rejecting order');
-        console.error(error);
-    }
-}
-
-async function addAdminMessage(id) {
-    const message = prompt('Enter admin message:');
-    if (!message) return;
-
-    showLoading();
-    try {
-        const { error } = await supabase
-            .from('orders')
-            .update({ admin_message: message })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        hideLoading();
-        alert('Message added!');
-        loadOrders();
-    } catch (error) {
-        hideLoading();
-        alert('Error adding message');
-        console.error(error);
-    }
+    orders.forEach(order => {
+        const statusClass = order.status === 'approved' ? 'approved' : 
+                           order.status === 'rejected' ? 'rejected' : 'pending';
+        
+        const orderItem = document.createElement('div');
+        orderItem.className = `order-item ${statusClass}`;
+        orderItem.innerHTML = `
+            <div class="order-header">
+                <h4>Order #${order.id}</h4>
+                <span class="order-status ${statusClass}">${order.status}</span>
+            </div>
+            <div class="order-details">
+                <p><strong>User:</strong> ${order.users.name} (@${order.users.username})</p>
+                <p><strong>Product:</strong> ${order.menus.name}</p>
+                <p><strong>Amount:</strong> ${order.menus.amount}</p>
+                <p><strong>Price:</strong> ${order.menus.price} MMK</p>
+                <p><strong>Payment:</strong> ${order.payment_methods.name}</p>
+                <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+            </div>
+            <div class="order-actions">
+                <button class="btn-secondary" onclick="viewOrderDetails(${order.id})">View Details</button>
+                ${order.status === 'pending' ? `
+                    <button class="btn-success" onclick="updateOrderStatus(${order.id}, 'approved')">Approve</button>
+                    <button class="btn-danger" onclick="updateOrderStatus(${order.id}, 'rejected')">Reject</button>
+                ` : ''}
+            </div>
+        `;
+        container.appendChild(orderItem);
+    });
 }
 
 function filterOrders(status) {
-    currentFilter = status;
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     event.target.classList.add('active');
-
-    const orders = document.querySelectorAll('.order-card');
+    
+    const orders = document.querySelectorAll('.order-item');
     orders.forEach(order => {
-        const orderStatus = order.querySelector('.order-status').textContent.toLowerCase();
-        if (status === 'all' || orderStatus === status) {
+        if (status === 'all' || order.classList.contains(status)) {
             order.style.display = 'block';
         } else {
             order.style.display = 'none';
         }
     });
+}
+
+async function updateOrderStatus(id, status) {
+    if (!confirm(`${status} this order?`)) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: status })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert(`Order ${status}!`);
+        loadOrders();
+    } catch (error) {
+        hideLoading();
+        alert('Error updating order');
+        console.error(error);
+    }
+}
+
+async function viewOrderDetails(id) {
+    try {
+        const { data: order } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                users (name, username, email),
+                menus (name, amount, price),
+                category_buttons (name),
+                payment_methods (name, address, instructions)
+            `)
+            .eq('id', id)
+            .single();
+
+        const modalBody = document.getElementById('orderModalBody');
+        modalBody.innerHTML = `
+            <div class="order-detail-content">
+                <h3>Order #${order.id}</h3>
+                <div class="detail-section">
+                    <h4>Customer Information</h4>
+                    <p><strong>Name:</strong> ${order.users.name}</p>
+                    <p><strong>Username:</strong> @${order.users.username}</p>
+                    <p><strong>Email:</strong> ${order.users.email}</p>
+                </div>
+                <div class="detail-section">
+                    <h4>Order Information</h4>
+                    <p><strong>Product:</strong> ${order.menus.name}</p>
+                    <p><strong>Amount:</strong> ${order.menus.amount}</p>
+                    <p><strong>Price:</strong> ${order.menus.price} MMK</p>
+                    <p><strong>Button:</strong> ${order.category_buttons.name}</p>
+                    <p><strong>Status:</strong> <span class="order-status ${order.status}">${order.status}</span></p>
+                </div>
+                <div class="detail-section">
+                    <h4>Payment Information</h4>
+                    <p><strong>Method:</strong> ${order.payment_methods.name}</p>
+                    <p><strong>Address:</strong> ${order.payment_methods.address}</p>
+                    <p><strong>Instructions:</strong> ${order.payment_methods.instructions}</p>
+                </div>
+                <div class="detail-section">
+                    <h4>User Input Data</h4>
+                    <div class="user-data">
+                        ${JSON.stringify(order.user_data, null, 2)}
+                    </div>
+                </div>
+                <p><strong>Order Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+            </div>
+        `;
+
+        document.getElementById('orderModal').classList.add('active');
+    } catch (error) {
+        console.error('Error loading order details:', error);
+        alert('Error loading order details');
+    }
+}
+
+function closeOrderModal() {
+    document.getElementById('orderModal').classList.remove('active');
 }
 
 // ==================== USERS ====================
@@ -2191,36 +2414,60 @@ async function loadUsers() {
         const totalUsersEl = document.getElementById('totalUsers');
         const todayUsersEl = document.getElementById('todayUsers');
 
+        totalUsersEl.textContent = data ? data.length : 0;
+        
+        const today = new Date().toDateString();
+        const todayCount = data ? data.filter(user => 
+            new Date(user.created_at).toDateString() === today
+        ).length : 0;
+        todayUsersEl.textContent = todayCount;
+
         container.innerHTML = '';
 
         if (data && data.length > 0) {
-            totalUsersEl.textContent = data.length;
-            
-            const today = new Date().toDateString();
-            const todayUsers = data.filter(user => 
-                new Date(user.created_at).toDateString() === today
-            ).length;
-            todayUsersEl.textContent = todayUsers;
-
             data.forEach(user => {
-                container.innerHTML += `
-                    <div class="user-card">
-                        <div class="user-info">
-                            <h4>${user.name}</h4>
-                            <p>@${user.username} • ${user.email}</p>
-                            <p>Joined: ${new Date(user.created_at).toLocaleDateString()}</p>
-                        </div>
-                        <div class="user-badge">Active</div>
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.innerHTML = `
+                    <div class="user-info">
+                        <h4>${user.name}</h4>
+                        <p>@${user.username}</p>
+                        <p>${user.email}</p>
+                        <p>Joined: ${new Date(user.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <div class="user-actions">
+                        <button class="btn-danger" onclick="deleteUser(${user.id})">Delete</button>
                     </div>
                 `;
+                container.appendChild(userItem);
             });
         } else {
             container.innerHTML = '<p>No users yet</p>';
-            totalUsersEl.textContent = '0';
-            todayUsersEl.textContent = '0';
         }
     } catch (error) {
         console.error('Error loading users:', error);
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm('Delete this user? All their orders will also be deleted!')) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('User deleted!');
+        loadUsers();
+    } catch (error) {
+        hideLoading();
+        alert('Error deleting user');
+        console.error(error);
     }
 }
 
@@ -2230,24 +2477,18 @@ function closeEditModal() {
     document.getElementById('editModal').classList.remove('active');
 }
 
-function closeOrderModal() {
-    document.getElementById('orderModal').classList.remove('active');
-}
+// Close modals when clicking outside
+document.addEventListener('click', (e) => {
+    if (e.target.classList.contains('modal')) {
+        e.target.classList.remove('active');
+    }
+});
 
-// ==================== UTILITY FUNCTIONS ====================
+// ==================== INITIALIZATION ====================
 
-function showError(element, message) {
-    element.textContent = message;
-    element.className = 'error-message show';
-    setTimeout(() => {
-        element.classList.remove('show');
-    }, 5000);
-}
-
-function showSuccess(element, message) {
-    element.textContent = message;
-    element.className = 'success-message show';
-    setTimeout(() => {
-        element.classList.remove('show');
-    }, 5000);
-}
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', async () => {
+    await getClientIP();
+    checkAdminAuth();
+    hideLoading();
+});
