@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="my">
 <head>
@@ -18,12 +19,27 @@
     <!-- Admin Login -->
     <div id="adminLogin" class="admin-login">
         <div class="login-box">
-            <h1>🔐 Admin Login</h1>
-            <div class="form-group">
-                <input type="password" id="adminPassword" placeholder="Enter Admin Password">
+            <div class="login-header">
+                <div class="login-icon">🔐</div>
+                <h1>Admin Dashboard</h1>
+                <p>Enter your credentials to access the admin panel</p>
             </div>
-            <div class="error-message" id="loginError"></div>
-            <button onclick="adminLogin()" class="btn-primary">Login</button>
+            <form class="login-form" onsubmit="adminLogin(event)">
+                <div class="form-group">
+                    <div class="input-group">
+                        <span class="input-icon">🔒</span>
+                        <input type="password" id="adminPassword" placeholder="Enter Admin Password" required>
+                    </div>
+                </div>
+                <div class="error-message" id="loginError"></div>
+                <button type="submit" class="btn-login">
+                    <span class="btn-text">Login</span>
+                    <span class="btn-loader"></span>
+                </button>
+            </form>
+            <div class="login-footer">
+                <p>Secure admin access powered by database authentication</p>
+            </div>
         </div>
     </div>
 
@@ -32,45 +48,70 @@
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
-                <h2>⚙️ Admin Panel</h2>
-                <button onclick="adminLogout()" class="btn-logout">Logout</button>
+                <div class="logo-section">
+                    <div class="admin-avatar">👨‍💼</div>
+                    <div class="admin-info">
+                        <h2>Admin Panel</h2>
+                        <span class="admin-status">Online</span>
+                    </div>
+                </div>
+                <button onclick="adminLogout()" class="btn-logout">
+                    <span>🚪</span>
+                    Logout
+                </button>
             </div>
             <nav class="sidebar-nav">
                 <button class="nav-btn active" data-section="website-settings" onclick="switchSection('website-settings')">
-                    <span>🌐</span> Website Settings
+                    <span class="nav-icon">🌐</span>
+                    <span class="nav-text">Website Settings</span>
+                </button>
+                <button class="nav-btn" data-section="admin-settings" onclick="switchSection('admin-settings')">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Admin Settings</span>
                 </button>
                 <button class="nav-btn" data-section="banners" onclick="switchSection('banners')">
-                    <span>🖼️</span> Banners
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-text">Banners</span>
                 </button>
                 <button class="nav-btn" data-section="categories" onclick="switchSection('categories')">
-                    <span>📂</span> Categories
+                    <span class="nav-icon">📂</span>
+                    <span class="nav-text">Categories</span>
                 </button>
                 <button class="nav-btn" data-section="buttons" onclick="switchSection('buttons')">
-                    <span>🎮</span> Category Buttons
+                    <span class="nav-icon">🎮</span>
+                    <span class="nav-text">Category Buttons</span>
                 </button>
                 <button class="nav-btn" data-section="tables" onclick="switchSection('tables')">
-                    <span>📝</span> Input Tables
+                    <span class="nav-icon">📝</span>
+                    <span class="nav-text">Input Tables</span>
                 </button>
                 <button class="nav-btn" data-section="menus" onclick="switchSection('menus')">
-                    <span>🛒</span> Products (Menus)
+                    <span class="nav-icon">🛒</span>
+                    <span class="nav-text">Products (Menus)</span>
                 </button>
                 <button class="nav-btn" data-section="payments" onclick="switchSection('payments')">
-                    <span>💳</span> Payment Methods
+                    <span class="nav-icon">💳</span>
+                    <span class="nav-text">Payment Methods</span>
                 </button>
                 <button class="nav-btn" data-section="contacts" onclick="switchSection('contacts')">
-                    <span>📞</span> Contacts
+                    <span class="nav-icon">📞</span>
+                    <span class="nav-text">Contacts</span>
                 </button>
                 <button class="nav-btn" data-section="videos" onclick="switchSection('videos')">
-                    <span>🎥</span> YouTube Videos
+                    <span class="nav-icon">🎥</span>
+                    <span class="nav-text">YouTube Videos</span>
                 </button>
                 <button class="nav-btn" data-section="animations" onclick="switchSection('animations')">
-                    <span>✨</span> Animations/Stickers
+                    <span class="nav-icon">✨</span>
+                    <span class="nav-text">Animations/Stickers</span>
                 </button>
                 <button class="nav-btn" data-section="orders" onclick="switchSection('orders')">
-                    <span>📦</span> Orders
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Orders</span>
                 </button>
                 <button class="nav-btn" data-section="users" onclick="switchSection('users')">
-                    <span>👥</span> Users
+                    <span class="nav-icon">👥</span>
+                    <span class="nav-text">Users</span>
                 </button>
             </nav>
         </aside>
@@ -79,41 +120,59 @@
         <main class="main-content">
             <!-- Website Settings Section -->
             <section id="website-settings" class="content-section active">
-                <h2>🌐 Website Settings</h2>
+                <div class="section-header">
+                    <h2>🌐 Website Settings</h2>
+                    <p>Manage your website's appearance and configuration</p>
+                </div>
                 
                 <div class="settings-grid">
                     <div class="setting-card">
-                        <h3>Website Name</h3>
+                        <div class="card-header">
+                            <h3>Website Name</h3>
+                            <span class="card-badge">Essential</span>
+                        </div>
                         <div class="input-with-emoji">
                             <input type="text" id="websiteName" placeholder="Enter website name">
                             <button class="emoji-picker-btn" onclick="openEmojiPicker('websiteName')">😀</button>
                         </div>
-                        <button onclick="updateWebsiteName()" class="btn-primary">Save</button>
+                        <button onclick="updateWebsiteName()" class="btn-primary">Save Changes</button>
                     </div>
 
                     <div class="setting-card">
-                        <h3>Website Logo</h3>
+                        <div class="card-header">
+                            <h3>Website Logo</h3>
+                            <span class="card-badge">Branding</span>
+                        </div>
                         <div class="image-preview" id="logoPreview"></div>
                         <input type="file" id="logoFile" accept="image/*" onchange="previewLogo()">
                         <button onclick="uploadLogo()" class="btn-primary">Upload Logo</button>
                     </div>
 
                     <div class="setting-card">
-                        <h3>Background Image</h3>
+                        <div class="card-header">
+                            <h3>Background Image</h3>
+                            <span class="card-badge">Design</span>
+                        </div>
                         <div class="image-preview" id="bgPreview"></div>
                         <input type="file" id="bgFile" accept="image/*" onchange="previewBackground()">
                         <button onclick="uploadBackground()" class="btn-primary">Upload Background</button>
                     </div>
 
                     <div class="setting-card">
-                        <h3>Loading Animation</h3>
+                        <div class="card-header">
+                            <h3>Loading Animation</h3>
+                            <span class="card-badge">UX</span>
+                        </div>
                         <div class="image-preview" id="loadingPreview"></div>
                         <input type="file" id="loadingFile" accept="image/*,.json,.gif,.webm,video/*">
                         <button onclick="uploadLoadingAnimation()" class="btn-primary">Upload Animation</button>
                     </div>
 
                     <div class="setting-card">
-                        <h3>Button Style</h3>
+                        <div class="card-header">
+                            <h3>Button Style</h3>
+                            <span class="card-badge">Theme</span>
+                        </div>
                         <div class="image-preview" id="buttonPreview"></div>
                         <input type="file" id="buttonFile" accept="image/*">
                         <button onclick="uploadButtonStyle()" class="btn-primary">Upload Button Style</button>
@@ -121,9 +180,46 @@
                 </div>
             </section>
 
+            <!-- Admin Settings Section -->
+            <section id="admin-settings" class="content-section">
+                <div class="section-header">
+                    <h2>⚙️ Admin Settings</h2>
+                    <p>Manage admin panel configuration and security</p>
+                </div>
+                
+                <div class="settings-grid">
+                    <div class="setting-card security-card">
+                        <div class="card-header">
+                            <h3>Change Admin Password</h3>
+                            <span class="card-badge security">Security</span>
+                        </div>
+                        <div class="security-warning">
+                            <span class="warning-icon">⚠️</span>
+                            <p>Changing your password will require you to log in again with the new password.</p>
+                        </div>
+                        <div class="form-group">
+                            <label>Current Password</label>
+                            <input type="password" id="currentPassword" placeholder="Enter current password">
+                        </div>
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="newPassword" placeholder="Enter new password">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm New Password</label>
+                            <input type="password" id="confirmPassword" placeholder="Confirm new password">
+                        </div>
+                        <button onclick="changeAdminPassword()" class="btn-security">Change Password</button>
+                    </div>
+                </div>
+            </section>
+
             <!-- Banners Section -->
             <section id="banners" class="content-section">
-                <h2>🖼️ Banners Management</h2>
+                <div class="section-header">
+                    <h2>🖼️ Banners Management</h2>
+                    <p>Add and manage promotional banners for your website</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add New Banner</h3>
@@ -136,7 +232,10 @@
 
             <!-- Categories Section -->
             <section id="categories" class="content-section">
-                <h2>📂 Categories Management</h2>
+                <div class="section-header">
+                    <h2>📂 Categories Management</h2>
+                    <p>Organize your products into categories</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add New Category</h3>
@@ -152,7 +251,10 @@
 
             <!-- Category Buttons Section -->
             <section id="buttons" class="content-section">
-                <h2>🎮 Category Buttons Management</h2>
+                <div class="section-header">
+                    <h2>🎮 Category Buttons Management</h2>
+                    <p>Create interactive buttons for your categories</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add New Button</h3>
@@ -172,7 +274,10 @@
 
             <!-- Input Tables Section -->
             <section id="tables" class="content-section">
-                <h2>📝 Input Tables Management</h2>
+                <div class="section-header">
+                    <h2>📝 Input Tables Management</h2>
+                    <p>Create form fields for user data collection</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add Input Tables</h3>
@@ -205,7 +310,10 @@
 
             <!-- Menus Section -->
             <section id="menus" class="content-section">
-                <h2>🛒 Products (Menus) Management</h2>
+                <div class="section-header">
+                    <h2>🛒 Products (Menus) Management</h2>
+                    <p>Add and manage your products/services</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add Products/Menus</h3>
@@ -240,7 +348,10 @@
 
             <!-- Payment Methods Section -->
             <section id="payments" class="content-section">
-                <h2>💳 Payment Methods Management</h2>
+                <div class="section-header">
+                    <h2>💳 Payment Methods Management</h2>
+                    <p>Configure payment options for your customers</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add Payment Method</h3>
@@ -262,7 +373,10 @@
 
             <!-- Contacts Section -->
             <section id="contacts" class="content-section">
-                <h2>📞 Contacts Management</h2>
+                <div class="section-header">
+                    <h2>📞 Contacts Management</h2>
+                    <p>Manage contact information and social links</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add Contact</h3>
@@ -285,7 +399,10 @@
 
             <!-- YouTube Videos Section -->
             <section id="videos" class="content-section">
-                <h2>🎥 YouTube Videos Management</h2>
+                <div class="section-header">
+                    <h2>🎥 YouTube Videos Management</h2>
+                    <p>Embed and manage YouTube videos</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Add YouTube Video</h3>
@@ -307,9 +424,12 @@
                 <div class="items-grid" id="videosContainer"></div>
             </section>
 
-            <!-- ✨ NEW: Animations/Stickers Section -->
+            <!-- Animations/Stickers Section -->
             <section id="animations" class="content-section">
-                <h2>✨ Animations & Stickers Management</h2>
+                <div class="section-header">
+                    <h2>✨ Animations & Stickers Management</h2>
+                    <p>Upload and manage animated content for your website</p>
+                </div>
                 
                 <div class="action-card">
                     <h3>Upload Animation/Sticker</h3>
@@ -317,22 +437,23 @@
                     <input type="file" id="animationFile" accept="image/*,video/*,.gif,.webm,.json">
                     <div class="file-info" id="animationFileInfo"></div>
                     <button onclick="uploadAnimation()" class="btn-primary">Upload Animation</button>
-                    <p style="font-size: 12px; color: #94a3b8; margin-top: 10px;">
-                        Supported formats: GIF, Video (MP4, WebM), Images (PNG, JPG), JSON (Lottie)
+                    <p class="file-format-info">
+                        📁 Supported: GIF, Video (MP4, WebM), Images (PNG, JPG), JSON (Lottie)
                     </p>
                 </div>
 
-                <div class="animations-grid" id="animationsContainer">
-                    <!-- Animations will be loaded here -->
-                </div>
+                <div class="animations-grid" id="animationsContainer"></div>
             </section>
 
             <!-- Orders Section -->
             <section id="orders" class="content-section">
-                <h2>📦 Orders Management</h2>
+                <div class="section-header">
+                    <h2>📦 Orders Management</h2>
+                    <p>Review and manage customer orders</p>
+                </div>
                 
                 <div class="orders-filter">
-                    <button class="filter-btn active" onclick="filterOrders('all')">All</button>
+                    <button class="filter-btn active" onclick="filterOrders('all')">All Orders</button>
                     <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
                     <button class="filter-btn" onclick="filterOrders('approved')">Approved</button>
                     <button class="filter-btn" onclick="filterOrders('rejected')">Rejected</button>
@@ -343,16 +464,25 @@
 
             <!-- Users Section -->
             <section id="users" class="content-section">
-                <h2>👥 Users Management</h2>
+                <div class="section-header">
+                    <h2>👥 Users Management</h2>
+                    <p>View and manage registered users</p>
+                </div>
                 
                 <div class="users-stats">
                     <div class="stat-card">
-                        <h3 id="totalUsers">0</h3>
-                        <p>Total Users</p>
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-content">
+                            <h3 id="totalUsers">0</h3>
+                            <p>Total Users</p>
+                        </div>
                     </div>
                     <div class="stat-card">
-                        <h3 id="todayUsers">0</h3>
-                        <p>Today's Registrations</p>
+                        <div class="stat-icon">📈</div>
+                        <div class="stat-content">
+                            <h3 id="todayUsers">0</h3>
+                            <p>Today's Registrations</p>
+                        </div>
                     </div>
                 </div>
 
@@ -364,22 +494,24 @@
     <!-- Emoji Picker Modal -->
     <div id="emojiPickerModal" class="modal">
         <div class="modal-content emoji-picker-content">
-            <span class="close-modal" onclick="closeEmojiPicker()">&times;</span>
-            <h2>Select Animation/Sticker</h2>
+            <div class="modal-header">
+                <h2>Select Animation/Sticker</h2>
+                <span class="close-modal" onclick="closeEmojiPicker()">&times;</span>
+            </div>
             <div class="emoji-search">
                 <input type="text" id="emojiSearch" placeholder="Search animations..." onkeyup="filterEmojis()">
             </div>
-            <div class="emoji-grid" id="emojiGrid">
-                <!-- Animations will be loaded here -->
-            </div>
+            <div class="emoji-grid" id="emojiGrid"></div>
         </div>
     </div>
 
     <!-- Edit Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="closeEditModal()">&times;</span>
-            <h2 id="modalTitle">Edit Item</h2>
+            <div class="modal-header">
+                <h2 id="modalTitle">Edit Item</h2>
+                <span class="close-modal" onclick="closeEditModal()">&times;</span>
+            </div>
             <div id="modalBody"></div>
         </div>
     </div>
@@ -387,8 +519,10 @@
     <!-- Order Details Modal -->
     <div id="orderModal" class="modal">
         <div class="modal-content">
-            <span class="close-modal" onclick="closeOrderModal()">&times;</span>
-            <h2>Order Details</h2>
+            <div class="modal-header">
+                <h2>Order Details</h2>
+                <span class="close-modal" onclick="closeOrderModal()">&times;</span>
+            </div>
             <div id="orderModalBody"></div>
         </div>
     </div>
