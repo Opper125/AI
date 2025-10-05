@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="my">
 <head>
@@ -5,12 +6,64 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <link rel="stylesheet" href="admin.css">
-    <!-- Added security meta tags -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="robots" content="noindex, nofollow">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
+    <script>
+        // Anti-debugging and security measures
+        (function() {
+            'use strict';
+            
+            // Disable right-click context menu
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                return false;
+            });
+            
+            // Disable F12, Ctrl+Shift+I, Ctrl+U, etc.
+            document.addEventListener('keydown', function(e) {
+                // F12
+                if (e.keyCode === 123) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Ctrl+Shift+I (Developer Tools)
+                if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Ctrl+Shift+C (Inspect Element)
+                if (e.ctrlKey && e.shiftKey && e.keyCode === 67) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Ctrl+U (View Source)
+                if (e.ctrlKey && e.keyCode === 85) {
+                    e.preventDefault();
+                    return false;
+                }
+                // Ctrl+S (Save Page)
+                if (e.ctrlKey && e.keyCode === 83) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // Detect developer tools
+            let devtools = false;
+            setInterval(function() {
+                if (window.outerHeight - window.innerHeight > 200 || window.outerWidth - window.innerWidth > 200) {
+                    if (!devtools) {
+                        devtools = true;
+                        alert('Developer tools detected! Access denied for security reasons.');
+                        window.location.href = 'about:blank';
+                    }
+                }
+            }, 500);
+            
+            // Console warning
+            console.clear();
+            console.warn('%cSTOP!', 'color: red; font-size: 50px; font-weight: bold;');
+            console.warn('%cThis is a browser feature intended for developers. Do not paste any code here as it may compromise your security.', 'color: red; font-size: 16px;');
+        })();
+    </script>
 </head>
 <body>
     <!-- Loading Screen -->
@@ -21,29 +74,60 @@
         </div>
     </div>
 
+    <!-- Security Check Screen -->
+    <div id="securityCheck" class="security-check" style="display: none;">
+        <div class="security-box">
+            <div class="security-icon">🔒</div>
+            <h2>Security Verification</h2>
+            <p>Verifying device authorization...</p>
+            <div class="security-progress">
+                <div class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Denied Screen -->
+    <div id="accessDenied" class="access-denied" style="display: none;">
+        <div class="denied-box">
+            <div class="denied-icon">🚫</div>
+            <h2>Access Denied</h2>
+            <p id="deniedMessage">This admin panel is already in use from another device.</p>
+            <div class="denied-details">
+                <p>Only one device can access the admin panel at a time for security reasons.</p>
+                <p>If you are the authorized admin, please contact support.</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Admin Login -->
     <div id="adminLogin" class="admin-login">
         <div class="login-box">
             <div class="login-header">
                 <div class="login-icon">🔐</div>
-                <h1>Admin Dashboard</h1>
+                <h1>Secure Admin Dashboard</h1>
                 <p>Enter your credentials to access the admin panel</p>
+                <div class="security-badge">
+                    <span class="badge-icon">🛡️</span>
+                    <span>Device-Locked Security</span>
+                </div>
             </div>
             <form class="login-form" onsubmit="adminLogin(event)">
                 <div class="form-group">
                     <div class="input-group">
                         <span class="input-icon">🔒</span>
-                        <input type="password" id="adminPassword" placeholder="Enter Admin Password" required autocomplete="off">
+                        <input type="password" id="adminPassword" placeholder="Enter Admin Password" required autocomplete="current-password">
                     </div>
                 </div>
                 <div class="error-message" id="loginError"></div>
-                <button type="submit" class="btn-login">
-                    <span class="btn-text">Login</span>
+                <div class="success-message" id="loginSuccess"></div>
+                <button type="submit" class="btn-login" id="loginButton">
+                    <span class="btn-text">Secure Login</span>
                     <span class="btn-loader"></span>
                 </button>
             </form>
             <div class="login-footer">
-                <p>🔒 Secure device-locked authentication</p>
+                <p>🔐 Secured with device fingerprinting and IP tracking</p>
+                <p>⚡ Password-hashed database authentication</p>
             </div>
         </div>
     </div>
@@ -56,13 +140,17 @@
                 <div class="logo-section">
                     <div class="admin-avatar">👨‍💼</div>
                     <div class="admin-info">
-                        <h2>Admin Panel</h2>
-                        <span class="admin-status">🟢 Online</span>
+                        <h2>Secure Admin Panel</h2>
+                        <span class="admin-status" id="adminStatus">Online - Device Locked</span>
+                        <div class="security-info">
+                            <span class="security-indicator">🔒</span>
+                            <span id="deviceInfo">Authorized Device</span>
+                        </div>
                     </div>
                 </div>
                 <button onclick="adminLogout()" class="btn-logout">
                     <span>🚪</span>
-                    Logout
+                    Secure Logout
                 </button>
             </div>
             <nav class="sidebar-nav">
@@ -73,6 +161,10 @@
                 <button class="nav-btn" data-section="admin-settings" onclick="switchSection('admin-settings')">
                     <span class="nav-icon">⚙️</span>
                     <span class="nav-text">Admin Settings</span>
+                </button>
+                <button class="nav-btn" data-section="security-monitor" onclick="switchSection('security-monitor')">
+                    <span class="nav-icon">🛡️</span>
+                    <span class="nav-text">Security Monitor</span>
                 </button>
                 <button class="nav-btn" data-section="banners" onclick="switchSection('banners')">
                     <span class="nav-icon">🖼️</span>
@@ -188,7 +280,7 @@
             <!-- Admin Settings Section -->
             <section id="admin-settings" class="content-section">
                 <div class="section-header">
-                    <h2>⚙️ Admin Settings</h2>
+                    <h2>⚙️ Secure Admin Settings</h2>
                     <p>Manage admin panel configuration and security</p>
                 </div>
                 
@@ -196,15 +288,15 @@
                     <div class="setting-card security-card">
                         <div class="card-header">
                             <h3>Change Admin Password</h3>
-                            <span class="card-badge security">🔒 Security</span>
+                            <span class="card-badge security">🔐 Secure</span>
                         </div>
                         <div class="security-warning">
                             <span class="warning-icon">⚠️</span>
-                            <p>Changing your password will require you to log in again. This device will remain authorized.</p>
+                            <p>Changing your password will maintain your device lock but enhance security.</p>
                         </div>
                         <div class="form-group">
                             <label>Current Password</label>
-                            <input type="password" id="currentPassword" placeholder="Enter current password" autocomplete="off">
+                            <input type="password" id="currentPassword" placeholder="Enter current password" autocomplete="current-password">
                         </div>
                         <div class="form-group">
                             <label>New Password</label>
@@ -214,11 +306,67 @@
                             <label>Confirm New Password</label>
                             <input type="password" id="confirmPassword" placeholder="Confirm new password" autocomplete="new-password">
                         </div>
-                        <button onclick="changeAdminPassword()" class="btn-security">Change Password</button>
+                        <button onclick="changeAdminPassword()" class="btn-security">🔐 Change Password</button>
+                    </div>
+
+                    <div class="setting-card security-card">
+                        <div class="card-header">
+                            <h3>Device Security Status</h3>
+                            <span class="card-badge success">🛡️ Protected</span>
+                        </div>
+                        <div class="security-status">
+                            <div class="status-item">
+                                <span class="status-label">Device Lock:</span>
+                                <span class="status-value success">🔒 Active</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Session ID:</span>
+                                <span class="status-value" id="sessionDisplay">Loading...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Login Time:</span>
+                                <span class="status-value" id="loginTime">Loading...</span>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">IP Address:</span>
+                                <span class="status-value" id="currentIP">Loading...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
+            <!-- Security Monitor Section -->
+            <section id="security-monitor" class="content-section">
+                <div class="section-header">
+                    <h2>🛡️ Security Monitor</h2>
+                    <p>Monitor admin access attempts and security events</p>
+                </div>
+                
+                <div class="security-grid">
+                    <div class="security-card">
+                        <div class="card-header">
+                            <h3>Recent Access Attempts</h3>
+                            <span class="card-badge info">🔍 Monitor</span>
+                        </div>
+                        <div class="access-logs" id="accessLogs">
+                            <p>Loading access logs...</p>
+                        </div>
+                    </div>
+
+                    <div class="security-card">
+                        <div class="card-header">
+                            <h3>Active Sessions</h3>
+                            <span class="card-badge success">✅ Secure</span>
+                        </div>
+                        <div class="active-sessions" id="activeSessions">
+                            <p>Loading session data...</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- All other sections remain the same as original -->
             <!-- Banners Section -->
             <section id="banners" class="content-section">
                 <div class="section-header">
@@ -532,15 +680,6 @@
         </div>
     </div>
 
-    <script>
-    !function(s,n,i,t,c,h){s.SnitchObject=i;s[i]||(s[i]=function(){
-    (s[i].q=s[i].q||[]).push(arguments)});s[i].l=+new Date;c=n.createElement(t);
-    h=n.getElementsByTagName(t)[0];c.src='//snid.snitcher.com/8435496.js';
-    h.parentNode.insertBefore(c,h)}(window,document,'snid','script');
-        
-    snid('verify', '8435496');
-</script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="admin.js"></script>
 </body>
