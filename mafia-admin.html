@@ -16,18 +16,32 @@
         </div>
     </div>
 
-    <!-- IP Check Screen -->
-    <div id="ipCheckScreen" class="admin-login" style="display: none;">
-        <div class="login-box">
-            <div class="login-header">
-                <div class="login-icon">🔒</div>
-                <h1>IP Verification</h1>
-                <p id="ipCheckMessage">Checking IP authorization...</p>
+    <!-- IP Authorization Check Screen -->
+    <div id="ipCheckScreen" class="ip-check-screen" style="display: none;">
+        <div class="ip-check-box">
+            <div class="ip-check-header">
+                <div class="ip-icon">🔐</div>
+                <h1>IP Authorization Check</h1>
+                <p id="ipCheckMessage">Checking your IP address authorization...</p>
             </div>
-            <div id="ipCheckResult" class="ip-check-result">
-                <div class="ip-info">
-                    <p><strong>Your IP Address:</strong> <span id="clientIpDisplay">Loading...</span></p>
+            <div class="ip-info" id="ipInfo">
+                <p><strong>Your IP Address:</strong> <span id="clientIpDisplay">Detecting...</span></p>
+                <p><strong>Status:</strong> <span id="authStatus">Checking...</span></p>
+            </div>
+            <div class="ip-actions" id="ipActions" style="display: none;">
+                <button id="requestAccessBtn" class="btn-request" onclick="requestAccess()">
+                    Request Access
+                </button>
+                <button id="continueLoginBtn" class="btn-login" onclick="showLoginForm()" style="display: none;">
+                    Continue to Login
+                </button>
+            </div>
+            <div class="waiting-approval" id="waitingApproval" style="display: none;">
+                <div class="waiting-animation">
+                    <div class="pulse"></div>
                 </div>
+                <p>Access request sent. Waiting for admin approval...</p>
+                <button onclick="checkApprovalStatus()" class="btn-secondary">Check Status</button>
             </div>
         </div>
     </div>
@@ -38,10 +52,11 @@
             <div class="login-header">
                 <div class="login-icon">🔐</div>
                 <h1>Admin Dashboard</h1>
-                <p>Your IP is authorized. Enter your password to continue.</p>
-            </div>
-            <div class="ip-display">
-                <p><strong>Authorized IP:</strong> <span id="authorizedIpDisplay">-</span></p>
+                <p>Enter your credentials to access the admin panel</p>
+                <div class="authorized-ip">
+                    <span class="ip-badge">✅ Authorized IP</span>
+                    <span id="authorizedIpDisplay"></span>
+                </div>
             </div>
             <form class="login-form" onsubmit="adminLogin(event)">
                 <div class="form-group">
@@ -62,34 +77,6 @@
         </div>
     </div>
 
-    <!-- IP Access Denied Screen -->
-    <div id="ipDeniedScreen" class="admin-login" style="display: none;">
-        <div class="login-box security-denied">
-            <div class="login-header">
-                <div class="login-icon denied">🚫</div>
-                <h1>Access Denied</h1>
-                <p>Your IP address is not authorized to access this admin panel.</p>
-            </div>
-            <div class="denied-info">
-                <div class="ip-info">
-                    <p><strong>Your IP Address:</strong> <span id="deniedIpDisplay">-</span></p>
-                    <p><strong>Status:</strong> <span class="denied-status">Not Authorized</span></p>
-                </div>
-                <div class="security-notice">
-                    <h3>🔐 Security Notice</h3>
-                    <p>This admin panel is protected by IP-based access control. Only authorized IP addresses can access the admin dashboard.</p>
-                    <p>If you believe this is an error, please contact the system administrator.</p>
-                </div>
-            </div>
-            <div class="retry-section">
-                <button onclick="retryIpCheck()" class="btn-retry">
-                    <span>🔄</span>
-                    Retry IP Check
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Admin Dashboard -->
     <div id="adminDashboard" class="admin-dashboard" style="display: none;">
         <!-- Sidebar -->
@@ -100,8 +87,8 @@
                     <div class="admin-info">
                         <h2>Admin Panel</h2>
                         <span class="admin-status">Online</span>
-                        <div class="ip-status">
-                            <span>🌐 IP: <span id="dashboardIp">-</span></span>
+                        <div class="session-info">
+                            <small>IP: <span id="sessionIp"></span></small>
                         </div>
                     </div>
                 </div>
@@ -118,6 +105,11 @@
                 <button class="nav-btn" data-section="admin-settings" onclick="switchSection('admin-settings')">
                     <span class="nav-icon">⚙️</span>
                     <span class="nav-text">Admin Settings</span>
+                </button>
+                <button class="nav-btn" data-section="ip-management" onclick="switchSection('ip-management')">
+                    <span class="nav-icon">🔒</span>
+                    <span class="nav-text">IP Management</span>
+                    <span class="notification-badge" id="pendingRequestsBadge" style="display: none;"></span>
                 </button>
                 <button class="nav-btn" data-section="banners" onclick="switchSection('banners')">
                     <span class="nav-icon">🖼️</span>
@@ -238,26 +230,6 @@
                 </div>
                 
                 <div class="settings-grid">
-                    <!-- IP Security Status -->
-                    <div class="setting-card security-card">
-                        <div class="card-header">
-                            <h3>IP Security Status</h3>
-                            <span class="card-badge security">Active</span>
-                        </div>
-                        <div class="security-info">
-                            <div class="ip-security-status">
-                                <p><strong>Current IP:</strong> <span id="currentSecurityIp">Loading...</span></p>
-                                <p><strong>Status:</strong> <span class="authorized-status">✅ Authorized</span></p>
-                                <p><strong>Access Level:</strong> <span>Full Admin Access</span></p>
-                            </div>
-                        </div>
-                        <div class="security-notice">
-                            <span class="info-icon">ℹ️</span>
-                            <p>This admin panel is protected by IP-based authentication. Only your current IP address can access this dashboard.</p>
-                        </div>
-                    </div>
-
-                    <!-- Change Password -->
                     <div class="setting-card security-card">
                         <div class="card-header">
                             <h3>Change Admin Password</h3>
@@ -281,34 +253,62 @@
                         </div>
                         <button onclick="changeAdminPassword()" class="btn-security">Change Password</button>
                     </div>
+                </div>
+            </section>
 
-                    <!-- Create New Admin Access -->
-                    <div class="setting-card admin-create-card">
-                        <div class="card-header">
-                            <h3>Create New Admin Access</h3>
-                            <span class="card-badge admin">Management</span>
-                        </div>
-                        <div class="admin-create-info">
-                            <p>Create a new admin password with IP authorization. This will replace the current admin credentials.</p>
-                        </div>
-                        <div class="form-group">
-                            <label>New Admin Password</label>
-                            <input type="password" id="createAdminPassword" placeholder="Enter new admin password">
-                        </div>
-                        <div class="form-group">
-                            <label>Authorized IP Address</label>
-                            <input type="text" id="createAdminIp" placeholder="Enter IP address (e.g., 192.168.1.100)">
-                            <button onclick="useCurrentIp()" class="btn-secondary btn-small">Use Current IP</button>
-                        </div>
-                        <div class="admin-create-warning">
-                            <span class="warning-icon">⚠️</span>
-                            <p><strong>Warning:</strong> This will replace all existing admin credentials. Make sure you have access to the specified IP address.</p>
-                        </div>
-                        <button onclick="createNewAdminAccess()" class="btn-admin">Create New Admin Access</button>
+            <!-- IP Management Section -->
+            <section id="ip-management" class="content-section">
+                <div class="section-header">
+                    <h2>🔒 IP Address Management</h2>
+                    <p>Control access and manage authorized IP addresses</p>
+                </div>
+
+                <!-- Pending Requests -->
+                <div class="ip-card pending-requests-card">
+                    <div class="card-header">
+                        <h3>🔔 Pending Authorization Requests</h3>
+                        <button onclick="refreshPendingRequests()" class="btn-refresh">🔄 Refresh</button>
+                    </div>
+                    <div id="pendingRequestsContainer">
+                        <p class="no-data">No pending requests</p>
+                    </div>
+                </div>
+
+                <!-- Create New Admin -->
+                <div class="ip-card">
+                    <div class="card-header">
+                        <h3>➕ Create New Admin Access</h3>
+                        <span class="card-badge">Manual</span>
+                    </div>
+                    <div class="form-group">
+                        <label>IP Address</label>
+                        <input type="text" id="newAdminIp" placeholder="e.g. 192.168.1.10 or fe80::1234:5678:abcd:ef00">
+                        <small>Enter the exact IP address of the device that should have admin access</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="text" id="newAdminPassword" placeholder="Enter password for this IP">
+                    </div>
+                    <div class="form-group">
+                        <label>Device Info (Optional)</label>
+                        <input type="text" id="newAdminDevice" placeholder="e.g. John's iPhone, Office Computer">
+                    </div>
+                    <button onclick="createNewAdmin()" class="btn-primary">Create Admin Access</button>
+                </div>
+
+                <!-- Active Sessions -->
+                <div class="ip-card">
+                    <div class="card-header">
+                        <h3>👥 Active Admin Sessions</h3>
+                        <button onclick="loadAdminSessions()" class="btn-refresh">🔄 Refresh</button>
+                    </div>
+                    <div id="adminSessionsContainer">
+                        <p class="no-data">Loading sessions...</p>
                     </div>
                 </div>
             </section>
 
+            <!-- All other sections remain the same as original -->
             <!-- Banners Section -->
             <section id="banners" class="content-section">
                 <div class="section-header">
@@ -619,6 +619,17 @@
                 <span class="close-modal" onclick="closeOrderModal()">&times;</span>
             </div>
             <div id="orderModalBody"></div>
+        </div>
+    </div>
+
+    <!-- IP Request Details Modal -->
+    <div id="ipRequestModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Authorization Request Details</h2>
+                <span class="close-modal" onclick="closeIpRequestModal()">&times;</span>
+            </div>
+            <div id="ipRequestModalBody"></div>
         </div>
     </div>
 
