@@ -1,374 +1,216 @@
 
-// =====================================================
-// SECURE ADMIN DASHBOARD WITH DEVICE LOCKING
-// =====================================================
+// Supabase Configuration
+const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
+const SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTA0MjczOCwiZXhwIjoyMDc0NjE4NzM4fQ.RIeMmmXUz4f2R3-3fhyu5neWt6e7ihVWuqXYe4ovhMg';
 
-// Supabase Configuration - Hidden in production
-const SUPABASE_CONFIG = {
-    url: 'https://eynbcpkpwzikwtlrdlza.supabase.co',
-    key: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4'
-};
+// Initialize Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Security obfuscation
-const sc = window.supabase?.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.key);
+// Global State
+let currentFilter = 'all';
+let websiteSettings = null;
+let allAnimations = []; // Store all animations
+let currentEmojiTarget = null; // Current input field for emoji insertion
+let clientIpAddress = null; // Store client IP address
 
-// =====================================================
-// SECURITY & DEVICE FINGERPRINTING
-// =====================================================
-
-class SecurityManager {
-    constructor() {
-        this.deviceFingerprint = null;
-        this.sessionToken = null;
-        this.securityChecks = [];
-        this.isAuthorized = false;
-        this.init();
-    }
-
-    async init() {
-        this.deviceFingerprint = await this.generateDeviceFingerprint();
-        this.startSecurityMonitoring();
-    }
-
-    async generateDeviceFingerprint() {
-        const components = [];
-        
-        // Screen information
-        components.push(screen.width + 'x' + screen.height);
-        components.push(screen.colorDepth);
-        
-        // Browser information
-        components.push(navigator.userAgent);
-        components.push(navigator.language);
-        components.push(navigator.platform);
-        components.push(navigator.cookieEnabled);
-        
-        // Timezone
-        components.push(Intl.DateTimeFormat().resolvedOptions().timeZone);
-        
-        // Hardware concurrency
-        components.push(navigator.hardwareConcurrency || 'unknown');
-        
-        // Canvas fingerprint
-        try {
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            ctx.textBaseline = 'top';
-            ctx.font = '14px Arial';
-            ctx.fillText('Device fingerprint test 🔒', 2, 2);
-            components.push(canvas.toDataURL());
-        } catch (e) {
-            components.push('canvas_blocked');
-        }
-        
-        // WebGL fingerprint
-        try {
-            const gl = document.createElement('canvas').getContext('webgl');
-            const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-            if (debugInfo) {
-                components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL));
-                components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
-            }
-        } catch (e) {
-            components.push('webgl_blocked');
-        }
-        
-        // Create hash
-        const fingerprint = await this.hashString(components.join('|'));
-        console.log('🔒 Device fingerprint generated');
-        return fingerprint;
-    }
-
-    async hashString(str) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(str);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
-    async getClientIP() {
-        try {
-            const response = await fetch('https://api.ipify.org/?format=json');
-            const data = await response.json();
-            return data.ip;
-        } catch (error) {
-            console.warn('Could not get client IP:', error);
-            return 'unknown';
-        }
-    }
-
-    getBrowserInfo() {
-        const ua = navigator.userAgent;
-        let browserName = 'Unknown';
-        
-        if (ua.indexOf('Chrome') > -1) browserName = 'Chrome';
-        else if (ua.indexOf('Firefox') > -1) browserName = 'Firefox';
-        else if (ua.indexOf('Safari') > -1) browserName = 'Safari';
-        else if (ua.indexOf('Edge') > -1) browserName = 'Edge';
-        
-        return {
-            browser: browserName,
-            version: this.getBrowserVersion(ua),
-            mobile: /Mobi|Android/i.test(ua)
-        };
-    }
-
-    getBrowserVersion(ua) {
-        let version = 'Unknown';
-        if (ua.indexOf('Chrome') > -1) {
-            version = ua.match(/Chrome\/([0-9.]+)/)?.[1] || 'Unknown';
-        } else if (ua.indexOf('Firefox') > -1) {
-            version = ua.match(/Firefox\/([0-9.]+)/)?.[1] || 'Unknown';
-        }
-        return version;
-    }
-
-    startSecurityMonitoring() {
-        // Monitor for suspicious activity
-        setInterval(() => {
-            this.performSecurityChecks();
-        }, 30000); // Every 30 seconds
-
-        // Monitor for navigation away
-        window.addEventListener('beforeunload', () => {
-            if (this.sessionToken) {
-                navigator.sendBeacon('/api/admin/heartbeat', JSON.stringify({
-                    token: this.sessionToken,
-                    action: 'page_unload'
-                }));
-            }
-        });
-    }
-
-    performSecurityChecks() {
-        // Check if developer tools are open
-        const devtools = {
-            open: false,
-            orientation: null
-        };
-        
-        setInterval(() => {
-            if (window.outerHeight - window.innerHeight > 200) {
-                devtools.open = true;
-                devtools.orientation = 'vertical';
-            } else if (window.outerWidth - window.innerWidth > 200) {
-                devtools.open = true;
-                devtools.orientation = 'horizontal';
-            } else {
-                devtools.open = false;
-                devtools.orientation = null;
-            }
-            
-            if (devtools.open && this.isAuthorized) {
-                this.handleSecurityThreat('Developer tools detected');
-            }
-        }, 500);
-
-        // Verify session periodically
-        if (this.sessionToken) {
-            this.verifySession();
-        }
-    }
-
-    async verifySession() {
-        try {
-            const ip = await this.getClientIP();
-            const { data, error } = await sc.rpc('verify_admin_session', {
-                session_token: this.sessionToken,
-                device_fingerprint: this.deviceFingerprint,
-                ip_address: ip
-            });
-
-            if (error || !data) {
-                this.handleSessionExpired();
-            }
-        } catch (error) {
-            console.error('Session verification failed:', error);
-        }
-    }
-
-    handleSecurityThreat(threat) {
-        console.warn('🚨 Security threat detected:', threat);
-        alert('Security violation detected! Access will be terminated.');
-        this.forceLogout();
-    }
-
-    handleSessionExpired() {
-        console.warn('🚨 Session expired or invalid');
-        alert('Your session has expired. Please login again.');
-        this.forceLogout();
-    }
-
-    forceLogout() {
-        if (this.sessionToken) {
-            sc.rpc('admin_logout', { session_token: this.sessionToken });
-        }
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.reload();
-    }
-}
-
-// =====================================================
-// GLOBAL STATE
-// =====================================================
-
-const AppState = {
-    security: new SecurityManager(),
-    currentFilter: 'all',
-    websiteSettings: null,
-    allAnimations: [],
-    currentEmojiTarget: null,
-    isAuthenticated: false,
-    sessionData: null
-};
-
-// =====================================================
-// INITIALIZATION
-// =====================================================
-
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    setTimeout(() => {
-        checkAdminAuth();
-        hideLoading();
-    }, 1000);
+    initializeAdminPanel();
 });
 
-// =====================================================
-// LOADING FUNCTIONS
-// =====================================================
+// ==================== IP SECURITY SYSTEM ====================
 
-function showLoading() {
-    document.getElementById('loadingScreen').style.display = 'flex';
-}
-
-function hideLoading() {
-    setTimeout(() => {
-        document.getElementById('loadingScreen').style.display = 'none';
-    }, 800);
-}
-
-function showSecurityCheck() {
-    document.getElementById('securityCheck').style.display = 'flex';
-    
-    // Animate progress bar
-    const progressBar = document.querySelector('.progress-bar');
-    let width = 0;
-    const interval = setInterval(() => {
-        width += 2;
-        progressBar.style.width = width + '%';
-        if (width >= 100) {
-            clearInterval(interval);
-        }
-    }, 50);
-}
-
-function hideSecurityCheck() {
-    document.getElementById('securityCheck').style.display = 'none';
-}
-
-function showAccessDenied(message = 'Access denied for security reasons.') {
-    document.getElementById('accessDenied').style.display = 'flex';
-    document.getElementById('deniedMessage').textContent = message;
-}
-
-function showLogin() {
-    document.getElementById('adminLogin').style.display = 'flex';
-    document.getElementById('adminDashboard').style.display = 'none';
-    document.getElementById('accessDenied').style.display = 'none';
-    document.getElementById('securityCheck').style.display = 'none';
-}
-
-function showDashboard() {
-    document.getElementById('adminLogin').style.display = 'none';
-    document.getElementById('adminDashboard').style.display = 'flex';
-    document.getElementById('accessDenied').style.display = 'none';
-    document.getElementById('securityCheck').style.display = 'none';
-    loadAllData();
-    updateSecurityDisplay();
-}
-
-// =====================================================
-// AUTHENTICATION SYSTEM
-// =====================================================
-
-async function checkAdminAuth() {
-    showSecurityCheck();
-    
-    const storedToken = localStorage.getItem('admin_session_token');
-    const storedFingerprint = localStorage.getItem('device_fingerprint');
-    
-    if (!storedToken || !storedFingerprint) {
-        hideSecurityCheck();
-        showLogin();
-        return;
-    }
-
-    // Wait for security manager to initialize
-    await new Promise(resolve => {
-        const checkInit = () => {
-            if (AppState.security.deviceFingerprint) {
-                resolve();
-            } else {
-                setTimeout(checkInit, 100);
-            }
-        };
-        checkInit();
-    });
-
-    // Verify stored fingerprint matches current device
-    if (storedFingerprint !== AppState.security.deviceFingerprint) {
-        console.warn('🚨 Device fingerprint mismatch');
-        localStorage.clear();
-        hideSecurityCheck();
-        showAccessDenied('Device mismatch detected. Please login from the authorized device.');
-        return;
-    }
-
-    // Verify session with server
+// Initialize admin panel with IP checking
+async function initializeAdminPanel() {
     try {
-        const ip = await AppState.security.getClientIP();
-        const { data, error } = await sc.rpc('verify_admin_session', {
-            session_token: storedToken,
-            device_fingerprint: AppState.security.deviceFingerprint,
-            ip_address: ip
-        });
-
-        if (error || !data) {
-            localStorage.clear();
-            hideSecurityCheck();
-            showLogin();
-            return;
-        }
-
-        // Session valid
-        AppState.security.sessionToken = storedToken;
-        AppState.security.isAuthorized = true;
-        AppState.isAuthenticated = true;
+        showLoading();
         
-        hideSecurityCheck();
-        showDashboard();
+        // First, get client IP address
+        await getClientIP();
+        
+        // Check if IP is authorized
+        await checkIPAuthorization();
         
     } catch (error) {
-        console.error('Auth check failed:', error);
-        localStorage.clear();
-        hideSecurityCheck();
-        showLogin();
+        console.error('Initialization error:', error);
+        hideLoading();
+        showIPDenied('System initialization failed');
     }
 }
 
+// Get client IP address using multiple methods
+async function getClientIP() {
+    try {
+        // Method 1: Try ipify API
+        try {
+            const response = await fetch('https://api.ipify.org?format=json');
+            const data = await response.json();
+            if (data.ip) {
+                clientIpAddress = data.ip;
+                console.log('✅ IP detected via ipify:', clientIpAddress);
+                return;
+            }
+        } catch (e) {
+            console.log('❌ ipify failed:', e.message);
+        }
+
+        // Method 2: Try ip-api.com
+        try {
+            const response = await fetch('http://ip-api.com/json/');
+            const data = await response.json();
+            if (data.query) {
+                clientIpAddress = data.query;
+                console.log('✅ IP detected via ip-api:', clientIpAddress);
+                return;
+            }
+        } catch (e) {
+            console.log('❌ ip-api failed:', e.message);
+        }
+
+        // Method 3: Try httpbin
+        try {
+            const response = await fetch('https://httpbin.org/ip');
+            const data = await response.json();
+            if (data.origin) {
+                clientIpAddress = data.origin;
+                console.log('✅ IP detected via httpbin:', clientIpAddress);
+                return;
+            }
+        } catch (e) {
+            console.log('❌ httpbin failed:', e.message);
+        }
+
+        // Method 4: Fallback - use a default for testing
+        console.warn('⚠️ Could not detect IP, using fallback');
+        clientIpAddress = '127.0.0.1'; // localhost fallback
+        
+    } catch (error) {
+        console.error('❌ IP detection failed completely:', error);
+        clientIpAddress = '127.0.0.1';
+    }
+}
+
+// Check IP authorization from database
+async function checkIPAuthorization() {
+    try {
+        hideLoading();
+        showIPCheckScreen();
+        
+        // Display detected IP
+        updateIPDisplays(clientIpAddress);
+        
+        // Wait a moment for user to see the IP
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        // Check IP permission in database
+        const { data, error } = await supabase
+            .rpc('check_ip_permission', { client_ip: clientIpAddress });
+
+        if (error) {
+            console.error('IP check error:', error);
+            throw error;
+        }
+
+        console.log('🔍 IP authorization result:', data);
+
+        if (data === true) {
+            // IP is authorized
+            console.log('✅ IP authorized, showing login screen');
+            showIPAuthorizedLogin();
+        } else {
+            // IP is not authorized
+            console.log('❌ IP not authorized, showing access denied');
+            showIPDenied('Your IP address is not authorized');
+        }
+
+    } catch (error) {
+        console.error('IP authorization check failed:', error);
+        showIPDenied('Unable to verify IP authorization');
+    }
+}
+
+// Show IP checking screen
+function showIPCheckScreen() {
+    hideAllScreens();
+    document.getElementById('ipCheckScreen').style.display = 'flex';
+    document.getElementById('ipCheckMessage').textContent = 'Verifying IP authorization...';
+}
+
+// Show IP authorized login screen
+function showIPAuthorizedLogin() {
+    hideAllScreens();
+    document.getElementById('adminLogin').style.display = 'flex';
+    updateIPDisplays(clientIpAddress);
+}
+
+// Show IP access denied screen
+function showIPDenied(message) {
+    hideAllScreens();
+    document.getElementById('ipDeniedScreen').style.display = 'flex';
+    document.getElementById('ipCheckMessage').textContent = message;
+    updateIPDisplays(clientIpAddress);
+}
+
+// Hide all screens
+function hideAllScreens() {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('ipCheckScreen').style.display = 'none';
+    document.getElementById('adminLogin').style.display = 'none';
+    document.getElementById('ipDeniedScreen').style.display = 'none';
+    document.getElementById('adminDashboard').style.display = 'none';
+}
+
+// Update IP displays across all screens
+function updateIPDisplays(ip) {
+    const displays = [
+        'clientIpDisplay',
+        'authorizedIpDisplay', 
+        'deniedIpDisplay',
+        'currentSecurityIp',
+        'dashboardIp'
+    ];
+    
+    displays.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = ip || 'Unknown';
+        }
+    });
+}
+
+// Retry IP check
+async function retryIpCheck() {
+    console.log('🔄 Retrying IP check...');
+    await initializeAdminPanel();
+}
+
+// Use current IP for admin creation
+function useCurrentIp() {
+    const ipInput = document.getElementById('createAdminIp');
+    if (ipInput && clientIpAddress) {
+        ipInput.value = clientIpAddress;
+    }
+}
+
+// ==================== ENHANCED ADMIN AUTHENTICATION ==================== 
+
+// Enhanced admin login with IP verification
 async function adminLogin(event) {
     event.preventDefault();
     
     const passwordInput = document.getElementById('adminPassword');
     const password = passwordInput.value.trim();
     const errorEl = document.getElementById('loginError');
-    const successEl = document.getElementById('loginSuccess');
-    const loginBtn = document.getElementById('loginButton');
+    const loginBtn = document.querySelector('.btn-login');
 
     if (!password) {
         showError(errorEl, 'Please enter a password!');
+        return;
+    }
+
+    if (!clientIpAddress) {
+        showError(errorEl, 'IP address not detected. Please refresh and try again.');
         return;
     }
 
@@ -377,95 +219,82 @@ async function adminLogin(event) {
     loginBtn.disabled = true;
 
     try {
-        // Wait for device fingerprint
-        if (!AppState.security.deviceFingerprint) {
-            await new Promise(resolve => {
-                const checkInit = () => {
-                    if (AppState.security.deviceFingerprint) {
-                        resolve();
-                    } else {
-                        setTimeout(checkInit, 100);
-                    }
-                };
-                checkInit();
+        console.log('🔐 Attempting login with IP:', clientIpAddress);
+        
+        // Verify password with IP check
+        const { data, error } = await supabase
+            .rpc('verify_admin_password_with_ip', { 
+                input_password: password,
+                client_ip: clientIpAddress 
             });
-        }
-
-        const ip = await AppState.security.getClientIP();
-        const browserInfo = AppState.security.getBrowserInfo();
-
-        const { data, error } = await sc.rpc('verify_admin_login', {
-            plain_password: password,
-            device_fingerprint: AppState.security.deviceFingerprint,
-            ip_address: ip,
-            user_agent: navigator.userAgent,
-            browser_info: browserInfo
-        });
 
         if (error) {
+            console.error('Login verification error:', error);
             throw error;
         }
 
-        const [result] = data;
-        
-        if (result.success) {
-            // Store session data
-            localStorage.setItem('admin_session_token', result.session_token);
-            localStorage.setItem('device_fingerprint', AppState.security.deviceFingerprint);
-            
-            AppState.security.sessionToken = result.session_token;
-            AppState.security.isAuthorized = true;
-            AppState.isAuthenticated = true;
-            
-            showSuccess(successEl, result.message);
+        console.log('🔍 Login verification result:', data);
+
+        if (data === true) {
+            // Login successful
+            localStorage.setItem('isAdmin', 'true');
+            localStorage.setItem('adminIP', clientIpAddress);
+            showSuccess(errorEl, 'Login successful! Welcome to admin panel...');
             
             setTimeout(() => {
                 showDashboard();
-            }, 1500);
-            
+            }, 1000);
         } else {
-            showError(errorEl, result.message);
-            if (result.message.includes('already logged in')) {
-                setTimeout(() => {
-                    showAccessDenied(result.message);
-                }, 2000);
-            }
+            // Login failed
+            showError(errorEl, 'Invalid password or IP not authorized!');
         }
-        
     } catch (error) {
         console.error('Login error:', error);
         showError(errorEl, 'Login failed. Please try again.');
     } finally {
+        // Remove loading state
         loginBtn.classList.remove('loading');
         loginBtn.disabled = false;
         passwordInput.value = '';
     }
 }
 
-async function adminLogout() {
-    if (confirm('Are you sure you want to logout?')) {
-        try {
-            if (AppState.security.sessionToken) {
-                await sc.rpc('admin_logout', { 
-                    session_token: AppState.security.sessionToken 
-                });
-            }
-        } catch (error) {
-            console.error('Logout error:', error);
-        } finally {
-            localStorage.clear();
-            sessionStorage.clear();
-            AppState.security.isAuthorized = false;
-            AppState.isAuthenticated = false;
-            location.reload();
-        }
+// Check if already authenticated (for page refresh)
+function checkAdminAuth() {
+    const isAdmin = localStorage.getItem('isAdmin');
+    const storedIP = localStorage.getItem('adminIP');
+    
+    if (isAdmin === 'true' && storedIP === clientIpAddress) {
+        console.log('✅ Already authenticated with matching IP');
+        showDashboard();
+    } else {
+        console.log('❌ Not authenticated or IP mismatch');
+        localStorage.removeItem('isAdmin');
+        localStorage.removeItem('adminIP');
+        // Will trigger IP check flow
     }
 }
 
-// =====================================================
-// PASSWORD CHANGE SYSTEM
-// =====================================================
+// Show dashboard
+function showDashboard() {
+    hideAllScreens();
+    document.getElementById('adminDashboard').style.display = 'flex';
+    updateIPDisplays(clientIpAddress);
+    loadAllData();
+}
 
+// Admin logout
+function adminLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        localStorage.removeItem('isAdmin');
+        localStorage.removeItem('adminIP');
+        location.reload();
+    }
+}
+
+// ==================== ADMIN MANAGEMENT FUNCTIONS ====================
+
+// Change admin password
 async function changeAdminPassword() {
     const currentPassword = document.getElementById('currentPassword').value.trim();
     const newPassword = document.getElementById('newPassword').value.trim();
@@ -489,124 +318,155 @@ async function changeAdminPassword() {
     showLoading();
 
     try {
-        const { data, error } = await sc.rpc('change_admin_password', {
-            session_token: AppState.security.sessionToken,
-            current_password: currentPassword,
-            new_password: newPassword
-        });
+        // First verify current password with IP
+        const { data: isValid, error: verifyError } = await supabase
+            .rpc('verify_admin_password_with_ip', { 
+                input_password: currentPassword,
+                client_ip: clientIpAddress 
+            });
+
+        if (verifyError) throw verifyError;
+
+        if (!isValid) {
+            hideLoading();
+            alert('Current password is incorrect or IP not authorized');
+            return;
+        }
+
+        // Update password
+        const { data, error } = await supabase
+            .rpc('update_admin_password', { new_password: newPassword });
 
         if (error) throw error;
 
-        const [result] = data;
+        hideLoading();
+        alert('Password changed successfully! You will be logged out.');
         
-        if (result.success) {
-            alert('Password changed successfully! 🔐');
-            
-            // Clear form
-            document.getElementById('currentPassword').value = '';
-            document.getElementById('newPassword').value = '';
-            document.getElementById('confirmPassword').value = '';
+        // Clear form
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+        
+        // Logout
+        localStorage.removeItem('isAdmin');
+        localStorage.removeItem('adminIP');
+        setTimeout(() => location.reload(), 1000);
+
+    } catch (error) {
+        hideLoading();
+        console.error('Password change error:', error);
+        alert('Error changing password: ' + error.message);
+    }
+}
+
+// Create new admin access with IP authorization
+async function createNewAdminAccess() {
+    const password = document.getElementById('createAdminPassword').value.trim();
+    const ipAddress = document.getElementById('createAdminIp').value.trim();
+
+    if (!password || !ipAddress) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    if (password.length < 6) {
+        alert('Password must be at least 6 characters long');
+        return;
+    }
+
+    // Validate IP format (basic check)
+    const ipRegex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
+    if (!ipRegex.test(ipAddress)) {
+        alert('Please enter a valid IP address (e.g., 192.168.1.100)');
+        return;
+    }
+
+    const confirmMessage = `⚠️ WARNING: This will create new admin credentials and replace existing ones.\n\nNew Password: ${password}\nAuthorized IP: ${ipAddress}\n\nAre you sure you want to continue?`;
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    showLoading();
+
+    try {
+        // Create new admin access
+        const { data, error } = await supabase
+            .rpc('create_admin_password', { 
+                new_password: password,
+                admin_ip: ipAddress 
+            });
+
+        if (error) throw error;
+
+        hideLoading();
+        
+        // Show success with created credentials
+        if (data && data.length > 0) {
+            const result = data[0];
+            alert(`✅ New admin access created successfully!\n\nPassword: ${result.password}\nAuthorized IP: ${result.ip_address}\n\nPlease save these credentials safely.`);
         } else {
-            alert('Error: ' + result.message);
+            alert('✅ New admin access created successfully!');
+        }
+        
+        // Clear form
+        document.getElementById('createAdminPassword').value = '';
+        document.getElementById('createAdminIp').value = '';
+        
+        // If the new IP is different from current IP, logout
+        if (ipAddress !== clientIpAddress) {
+            alert('⚠️ New IP is different from your current IP. You will be logged out.');
+            localStorage.removeItem('isAdmin');
+            localStorage.removeItem('adminIP');
+            setTimeout(() => location.reload(), 2000);
         }
 
     } catch (error) {
-        console.error('Password change error:', error);
-        alert('Error changing password: ' + error.message);
-    } finally {
         hideLoading();
+        console.error('Admin creation error:', error);
+        alert('Error creating new admin access: ' + error.message);
     }
 }
 
-// =====================================================
-// SECURITY DISPLAY FUNCTIONS
-// =====================================================
+// ==================== LOADING & UI HELPERS ====================
 
-function updateSecurityDisplay() {
-    // Update session display
-    if (AppState.security.sessionToken) {
-        const shortToken = AppState.security.sessionToken.substring(0, 12) + '...';
-        document.getElementById('sessionDisplay').textContent = shortToken;
-    }
-    
-    // Update login time
-    document.getElementById('loginTime').textContent = new Date().toLocaleString();
-    
-    // Update IP address
-    AppState.security.getClientIP().then(ip => {
-        document.getElementById('currentIP').textContent = ip;
-    });
-    
-    // Update device info
-    const browserInfo = AppState.security.getBrowserInfo();
-    document.getElementById('deviceInfo').textContent = 
-        `${browserInfo.browser} ${browserInfo.version}${browserInfo.mobile ? ' (Mobile)' : ''}`;
+// Show loading screen
+function showLoading() {
+    document.getElementById('loadingScreen').style.display = 'flex';
 }
 
-async function loadSecurityMonitor() {
-    try {
-        // Load access logs (this would need a custom view/function in production)
-        const accessLogsEl = document.getElementById('accessLogs');
-        accessLogsEl.innerHTML = `
-            <div class="log-entry success">
-                <span class="log-time">${new Date().toLocaleString()}</span>
-                <span class="log-action">LOGIN_SUCCESS</span>
-                <span class="log-ip">${await AppState.security.getClientIP()}</span>
-            </div>
-            <div class="log-info">
-                <p>✅ No suspicious activity detected</p>
-                <p>🔒 Device lock active</p>
-                <p>🛡️ All security checks passed</p>
-            </div>
-        `;
-        
-        // Load active sessions
-        const activeSessionsEl = document.getElementById('activeSessions');
-        activeSessionsEl.innerHTML = `
-            <div class="session-entry current">
-                <div class="session-info">
-                    <span class="session-label">Current Session</span>
-                    <span class="session-device">🔒 This Device</span>
-                </div>
-                <div class="session-details">
-                    <span>IP: ${await AppState.security.getClientIP()}</span>
-                    <span>Active: ${new Date().toLocaleString()}</span>
-                </div>
-            </div>
-            <div class="session-status">
-                ✅ Single device policy enforced
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('Error loading security monitor:', error);
-    }
+// Hide loading screen
+function hideLoading() {
+    document.getElementById('loadingScreen').style.display = 'none';
 }
 
-// =====================================================
-// UTILITY FUNCTIONS
-// =====================================================
-
+// Show error message
 function showError(element, message) {
+    element.className = 'error-message error';
     element.textContent = message;
-    element.className = 'error-message show';
-    setTimeout(() => {
-        element.classList.remove('show');
-    }, 5000);
+    element.style.display = 'block';
 }
 
+// Show success message
 function showSuccess(element, message) {
+    element.className = 'error-message success';
     element.textContent = message;
-    element.className = 'success-message show';
-    setTimeout(() => {
-        element.classList.remove('show');
-    }, 5000);
+    element.style.display = 'block';
 }
 
-// =====================================================
-// SECTION SWITCHING
-// =====================================================
+// ==================== MODAL FUNCTIONS ====================
 
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
+}
+
+function closeOrderModal() {
+    document.getElementById('orderModal').classList.remove('active');
+}
+
+// ==================== SECTION SWITCHING ====================
+
+// Switch Section
 function switchSection(sectionName) {
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
@@ -621,16 +481,30 @@ function switchSection(sectionName) {
     loadSectionData(sectionName);
 }
 
+// Load All Data
+async function loadAllData() {
+    try {
+        await Promise.all([
+            loadWebsiteSettings(),
+            loadCategories(),
+            loadBanners(),
+            loadAnimations() // Load animations globally
+        ]);
+        console.log('✅ All data loaded successfully');
+    } catch (error) {
+        console.error('❌ Error loading data:', error);
+    }
+}
+
+// Load Section Data
 function loadSectionData(section) {
     switch(section) {
         case 'website-settings':
             loadWebsiteSettings();
             break;
         case 'admin-settings':
-            updateSecurityDisplay();
-            break;
-        case 'security-monitor':
-            loadSecurityMonitor();
+            // Admin settings section - no additional data loading needed
+            // IP displays are already updated
             break;
         case 'banners':
             loadBanners();
@@ -672,29 +546,14 @@ function loadSectionData(section) {
     }
 }
 
-// =====================================================
-// DATA LOADING FUNCTIONS
-// =====================================================
-
-async function loadAllData() {
-    await Promise.all([
-        loadWebsiteSettings(),
-        loadCategories(),
-        loadBanners(),
-        loadAnimations()
-    ]);
-}
-
-// =====================================================
-// FILE UPLOAD HELPER
-// =====================================================
+// ==================== FILE UPLOAD HELPER ====================
 
 async function uploadFile(file, folder) {
     try {
         const fileExt = file.name.split('.').pop();
         const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
-        const { data, error } = await sc.storage
+        const { data, error } = await supabase.storage
             .from('website-assets')
             .upload(fileName, file, {
                 cacheControl: '3600',
@@ -703,7 +562,7 @@ async function uploadFile(file, folder) {
 
         if (error) throw error;
 
-        const { data: { publicUrl } } = sc.storage
+        const { data: { publicUrl } } = supabase.storage
             .from('website-assets')
             .getPublicUrl(fileName);
 
@@ -714,30 +573,30 @@ async function uploadFile(file, folder) {
     }
 }
 
-// =====================================================
-// ANIMATIONS/EMOJI SYSTEM
-// =====================================================
+// ==================== ANIMATIONS/EMOJI SYSTEM ====================
 
+// Load All Animations
 async function loadAnimations() {
     try {
-        console.log('🎨 Loading animations...');
-        const { data, error } = await sc
+        console.log('✨ Loading animations...');
+        const { data, error } = await supabase
             .from('animations')
             .select('*')
             .order('created_at', { ascending: false });
 
         if (error) throw error;
 
-        AppState.allAnimations = data || [];
-        console.log(`🎨 Loaded ${AppState.allAnimations.length} animations`);
+        allAnimations = data || [];
+        console.log(`✨ Loaded ${allAnimations.length} animations`);
         
-        displayAnimations(AppState.allAnimations);
+        displayAnimations(allAnimations);
     } catch (error) {
-        console.error('🎨 Error loading animations:', error);
-        AppState.allAnimations = [];
+        console.error('❌ Error loading animations:', error);
+        allAnimations = [];
     }
 }
 
+// Display Animations
 function displayAnimations(animations) {
     const container = document.getElementById('animationsContainer');
     if (!container) return;
@@ -754,9 +613,9 @@ function displayAnimations(animations) {
         item.className = 'animation-item';
         
         let preview = '';
-        if (['gif', 'png', 'jpg', 'jpeg'].includes(anim.file_type)) {
+        if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
             preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
-        } else if (['video', 'webm', 'mp4'].includes(anim.file_type)) {
+        } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
             preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
         } else if (anim.file_type === 'json') {
             preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
@@ -773,6 +632,7 @@ function displayAnimations(animations) {
     });
 }
 
+// Upload Animation
 async function uploadAnimation() {
     const name = document.getElementById('animationName').value.trim();
     const file = document.getElementById('animationFile').files[0];
@@ -785,15 +645,18 @@ async function uploadAnimation() {
     showLoading();
 
     try {
+        // Upload file
         const fileUrl = await uploadFile(file, 'animations');
         
         if (!fileUrl) {
             throw new Error('File upload failed');
         }
 
+        // Get file type
         const fileExt = file.name.split('.').pop().toLowerCase();
         
-        const { data, error } = await sc
+        // Insert into database
+        const { data, error } = await supabase
             .from('animations')
             .insert([{
                 name: name,
@@ -808,47 +671,50 @@ async function uploadAnimation() {
 
         if (error) throw error;
 
-        alert('🎨 Animation uploaded successfully!');
+        hideLoading();
+        alert('✨ Animation uploaded successfully!');
         
+        // Reset form
         document.getElementById('animationName').value = '';
         document.getElementById('animationFile').value = '';
         document.getElementById('animationFileInfo').innerHTML = '';
         
+        // Reload animations
         await loadAnimations();
 
     } catch (error) {
-        console.error('🎨 Upload error:', error);
-        alert('Error uploading animation: ' + error.message);
-    } finally {
         hideLoading();
+        console.error('❌ Upload error:', error);
+        alert('Error uploading animation: ' + error.message);
     }
 }
 
+// Delete Animation
 async function deleteAnimation(id) {
     if (!confirm('Delete this animation?')) return;
 
     showLoading();
 
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('animations')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
-        alert('🎨 Animation deleted!');
+        hideLoading();
+        alert('✨ Animation deleted!');
         await loadAnimations();
 
     } catch (error) {
-        console.error('🎨 Delete error:', error);
-        alert('Error deleting animation');
-    } finally {
         hideLoading();
+        console.error('❌ Delete error:', error);
+        alert('Error deleting animation');
     }
 }
 
-// File info display
+// Show file info when selected
 document.addEventListener('DOMContentLoaded', () => {
     const animFileInput = document.getElementById('animationFile');
     if (animFileInput) {
@@ -870,31 +736,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// =====================================================
-// EMOJI PICKER SYSTEM
-// =====================================================
+// ==================== EMOJI PICKER ====================
 
+// Open Emoji Picker for specific input
 function openEmojiPicker(inputId) {
-    AppState.currentEmojiTarget = document.getElementById(inputId);
-    if (!AppState.currentEmojiTarget) return;
+    currentEmojiTarget = document.getElementById(inputId);
+    if (!currentEmojiTarget) return;
 
     const modal = document.getElementById('emojiPickerModal');
     const grid = document.getElementById('emojiGrid');
     
+    // Load emoji grid
     grid.innerHTML = '';
     
-    if (AppState.allAnimations.length === 0) {
+    if (allAnimations.length === 0) {
         grid.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No animations available. Upload some first!</p>';
     } else {
-        AppState.allAnimations.forEach(anim => {
+        allAnimations.forEach(anim => {
             const item = document.createElement('div');
             item.className = 'emoji-item';
             item.onclick = () => insertEmoji(anim);
             
             let preview = '';
-            if (['gif', 'png', 'jpg', 'jpeg'].includes(anim.file_type)) {
+            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
                 preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
-            } else if (['video', 'webm', 'mp4'].includes(anim.file_type)) {
+            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
                 preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
             } else {
                 preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
@@ -912,33 +778,34 @@ function openEmojiPicker(inputId) {
     modal.classList.add('active');
 }
 
+// Open Emoji Picker for class-based inputs
 function openEmojiPickerForClass(button, className) {
     const inputGroup = button.closest('.table-input-group, .menu-input-group');
     if (inputGroup) {
-        AppState.currentEmojiTarget = inputGroup.querySelector('.' + className);
+        currentEmojiTarget = inputGroup.querySelector('.' + className);
     } else {
-        AppState.currentEmojiTarget = button.previousElementSibling;
+        currentEmojiTarget = button.previousElementSibling;
     }
     
-    if (!AppState.currentEmojiTarget) return;
+    if (!currentEmojiTarget) return;
 
     const modal = document.getElementById('emojiPickerModal');
     const grid = document.getElementById('emojiGrid');
     
     grid.innerHTML = '';
     
-    if (AppState.allAnimations.length === 0) {
+    if (allAnimations.length === 0) {
         grid.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No animations available</p>';
     } else {
-        AppState.allAnimations.forEach(anim => {
+        allAnimations.forEach(anim => {
             const item = document.createElement('div');
             item.className = 'emoji-item';
             item.onclick = () => insertEmoji(anim);
             
             let preview = '';
-            if (['gif', 'png', 'jpg', 'jpeg'].includes(anim.file_type)) {
+            if (anim.file_type === 'gif' || anim.file_type === 'png' || anim.file_type === 'jpg' || anim.file_type === 'jpeg') {
                 preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
-            } else if (['video', 'webm', 'mp4'].includes(anim.file_type)) {
+            } else if (anim.file_type === 'video' || anim.file_type === 'webm' || anim.file_type === 'mp4') {
                 preview = `<video autoplay loop muted><source src="${anim.file_url}" type="video/${anim.file_type}"></video>`;
             } else {
                 preview = `<img src="${anim.file_url}" alt="${anim.name}">`;
@@ -956,29 +823,34 @@ function openEmojiPickerForClass(button, className) {
     modal.classList.add('active');
 }
 
+// Insert Emoji into target input
 function insertEmoji(animation) {
-    if (!AppState.currentEmojiTarget) return;
+    if (!currentEmojiTarget) return;
 
-    const cursorPos = AppState.currentEmojiTarget.selectionStart || AppState.currentEmojiTarget.value.length;
-    const textBefore = AppState.currentEmojiTarget.value.substring(0, cursorPos);
-    const textAfter = AppState.currentEmojiTarget.value.substring(cursorPos);
+    const cursorPos = currentEmojiTarget.selectionStart || currentEmojiTarget.value.length;
+    const textBefore = currentEmojiTarget.value.substring(0, cursorPos);
+    const textAfter = currentEmojiTarget.value.substring(cursorPos);
     
+    // Insert emoji marker: {anim:ID:URL:TYPE}
     const emojiCode = `{anim:${animation.id}:${animation.file_url}:${animation.file_type}}`;
     
-    AppState.currentEmojiTarget.value = textBefore + emojiCode + textAfter;
+    currentEmojiTarget.value = textBefore + emojiCode + textAfter;
     
+    // Set cursor position after emoji
     const newPos = cursorPos + emojiCode.length;
-    AppState.currentEmojiTarget.setSelectionRange(newPos, newPos);
-    AppState.currentEmojiTarget.focus();
+    currentEmojiTarget.setSelectionRange(newPos, newPos);
+    currentEmojiTarget.focus();
     
     closeEmojiPicker();
 }
 
+// Close Emoji Picker
 function closeEmojiPicker() {
     document.getElementById('emojiPickerModal').classList.remove('active');
-    AppState.currentEmojiTarget = null;
+    currentEmojiTarget = null;
 }
 
+// Filter Emojis
 function filterEmojis() {
     const searchTerm = document.getElementById('emojiSearch').value.toLowerCase();
     const items = document.querySelectorAll('.emoji-item');
@@ -993,13 +865,15 @@ function filterEmojis() {
     });
 }
 
+// Render Animated Emojis in HTML
 function renderAnimatedText(text) {
     if (!text) return text;
     
+    // Replace {anim:ID:URL:TYPE} with actual HTML
     return text.replace(/\{anim:(\d+):([^:]+):([^}]+)\}/g, (match, id, url, type) => {
-        if (['gif', 'png', 'jpg', 'jpeg'].includes(type)) {
+        if (type === 'gif' || type === 'png' || type === 'jpg' || type === 'jpeg') {
             return `<span class="animated-emoji"><img src="${url}" alt="emoji"></span>`;
-        } else if (['video', 'webm', 'mp4'].includes(type)) {
+        } else if (type === 'video' || type === 'webm' || type === 'mp4') {
             return `<span class="animated-emoji"><video autoplay loop muted><source src="${url}" type="video/${type}"></video></span>`;
         } else {
             return `<span class="animated-emoji"><img src="${url}" alt="emoji"></span>`;
@@ -1007,21 +881,17 @@ function renderAnimatedText(text) {
     });
 }
 
-// =====================================================
-// ALL OTHER FUNCTIONS FROM ORIGINAL admin.js
-// (Website Settings, Banners, Categories, etc.)
-// =====================================================
+// ==================== WEBSITE SETTINGS ====================
 
-// Website Settings
 async function loadWebsiteSettings() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('website_settings')
             .select('*')
             .single();
 
         if (data) {
-            AppState.websiteSettings = data;
+            websiteSettings = data;
             document.getElementById('websiteName').value = data.website_name || '';
             
             if (data.logo_url) {
@@ -1037,7 +907,7 @@ async function loadWebsiteSettings() {
                 document.getElementById('buttonPreview').innerHTML = `<img src="${data.button_style_url}">`;
             }
         } else {
-            await sc.from('website_settings').insert([{
+            await supabase.from('website_settings').insert([{
                 website_name: 'Gaming Store'
             }]);
             loadWebsiteSettings();
@@ -1052,20 +922,20 @@ async function updateWebsiteName() {
     showLoading();
 
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('website_settings')
             .update({ website_name: name })
-            .eq('id', AppState.websiteSettings.id);
+            .eq('id', websiteSettings.id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Website name updated!');
         loadWebsiteSettings();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
@@ -1092,11 +962,12 @@ async function uploadLogo() {
     
     if (url) {
         await updateSettings({ logo_url: url });
+        hideLoading();
         alert('Logo uploaded!');
     } else {
+        hideLoading();
         alert('Error uploading');
     }
-    hideLoading();
 }
 
 function previewBackground() {
@@ -1122,11 +993,12 @@ async function uploadBackground() {
     
     if (url) {
         await updateSettings({ background_url: url });
+        hideLoading();
         alert('Background uploaded!');
     } else {
+        hideLoading();
         alert('Error uploading');
     }
-    hideLoading();
 }
 
 async function uploadLoadingAnimation() {
@@ -1141,11 +1013,12 @@ async function uploadLoadingAnimation() {
     
     if (url) {
         await updateSettings({ loading_animation_url: url });
+        hideLoading();
         alert('Loading animation uploaded!');
     } else {
+        hideLoading();
         alert('Error uploading');
     }
-    hideLoading();
 }
 
 async function uploadButtonStyle() {
@@ -1160,19 +1033,20 @@ async function uploadButtonStyle() {
     
     if (url) {
         await updateSettings({ button_style_url: url });
+        hideLoading();
         alert('Button style uploaded!');
     } else {
+        hideLoading();
         alert('Error uploading');
     }
-    hideLoading();
 }
 
 async function updateSettings(updates) {
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('website_settings')
             .update(updates)
-            .eq('id', AppState.websiteSettings.id);
+            .eq('id', websiteSettings.id);
 
         if (error) throw error;
         loadWebsiteSettings();
@@ -1181,10 +1055,11 @@ async function updateSettings(updates) {
     }
 }
 
-// Banners
+// ==================== BANNERS ====================
+
 async function loadBanners() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('banners')
             .select('*')
             .order('created_at', { ascending: false });
@@ -1223,23 +1098,25 @@ async function addBanner() {
     
     if (url) {
         try {
-            const { error } = await sc
+            const { error } = await supabase
                 .from('banners')
                 .insert([{ image_url: url }]);
 
             if (error) throw error;
 
+            hideLoading();
             alert('Banner added!');
             document.getElementById('bannerFile').value = '';
             loadBanners();
         } catch (error) {
+            hideLoading();
             alert('Error adding banner');
             console.error(error);
         }
     } else {
+        hideLoading();
         alert('Error uploading');
     }
-    hideLoading();
 }
 
 async function deleteBanner(id) {
@@ -1247,27 +1124,28 @@ async function deleteBanner(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('banners')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Banner deleted!');
         loadBanners();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Categories
+// ==================== CATEGORIES ====================
+
 async function loadCategories() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('categories')
             .select('*')
             .order('created_at', { ascending: true });
@@ -1306,21 +1184,21 @@ async function addCategory() {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('categories')
             .insert([{ title: title }]);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Category added!');
         document.getElementById('categoryTitle').value = '';
         loadCategories();
         loadCategoriesForSelect();
     } catch (error) {
+        hideLoading();
         alert('Error adding category');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
@@ -1330,20 +1208,20 @@ async function editCategory(id, currentTitle) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('categories')
             .update({ title: newTitle })
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Category updated!');
         loadCategories();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
@@ -1352,27 +1230,28 @@ async function deleteCategory(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('categories')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Category deleted!');
         loadCategories();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Load categories for select elements
+// ==================== CATEGORY BUTTONS ====================
+
 async function loadCategoriesForSelect() {
     try {
-        const { data } = await sc
+        const { data } = await supabase
             .from('categories')
             .select('*')
             .order('created_at', { ascending: true });
@@ -1390,7 +1269,7 @@ async function loadCategoriesForSelect() {
                 select.innerHTML = '<option value="">Select Category</option>';
                 if (data) {
                     data.forEach(cat => {
-                        const titleText = cat.title.replace(/\{anim:[^}]+\}/g, '');
+                        const titleText = cat.title.replace(/\{anim:[^}]+\}/g, ''); // Remove emoji codes for select
                         select.innerHTML += `<option value="${cat.id}">${titleText}</option>`;
                     });
                 }
@@ -1401,10 +1280,9 @@ async function loadCategoriesForSelect() {
     }
 }
 
-// Category Buttons
 async function loadCategoryButtons() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('category_buttons')
             .select(`
                 *,
@@ -1454,7 +1332,7 @@ async function addCategoryButton() {
     
     if (url) {
         try {
-            const { error } = await sc
+            const { error } = await supabase
                 .from('category_buttons')
                 .insert([{
                     category_id: categoryId,
@@ -1464,22 +1342,24 @@ async function addCategoryButton() {
 
             if (error) throw error;
 
+            hideLoading();
             alert('Button added!');
             document.getElementById('buttonName').value = '';
             document.getElementById('buttonIconFile').value = '';
             loadCategoryButtons();
         } catch (error) {
+            hideLoading();
             alert('Error adding button');
             console.error(error);
         }
     } else {
+        hideLoading();
         alert('Error uploading icon');
     }
-    hideLoading();
 }
 
 async function editButton(id) {
-    const { data: button } = await sc
+    const { data: button } = await supabase
         .from('category_buttons')
         .select('*')
         .eq('id', id)
@@ -1510,21 +1390,21 @@ async function updateButton(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('category_buttons')
             .update({ name: name })
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         closeEditModal();
         alert('Button updated!');
         loadCategoryButtons();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
@@ -1533,24 +1413,25 @@ async function deleteButton(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('category_buttons')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Button deleted!');
         loadCategoryButtons();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Input Tables
+// ==================== INPUT TABLES ====================
+
 async function loadButtonsForTables() {
     const categoryId = document.getElementById('tableCategorySelect').value;
     if (!categoryId) {
@@ -1559,7 +1440,7 @@ async function loadButtonsForTables() {
     }
 
     try {
-        const { data } = await sc
+        const { data } = await supabase
             .from('category_buttons')
             .select('*')
             .eq('category_id', categoryId);
@@ -1583,7 +1464,7 @@ function addTableInput() {
     const newInput = document.createElement('div');
     newInput.className = 'table-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()">×</button>
+        <button class="remove-input" onclick="this.parentElement.remove()">❌</button>
         <div class="input-with-emoji">
             <input type="text" class="table-name" placeholder="Table Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
@@ -1623,12 +1504,13 @@ async function saveTables() {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('input_tables')
             .insert(tables);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Tables saved!');
         document.getElementById('tablesInputContainer').innerHTML = `
             <div class="table-input-group">
@@ -1644,16 +1526,15 @@ async function saveTables() {
         `;
         loadInputTables();
     } catch (error) {
+        hideLoading();
         alert('Error saving tables');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
 async function loadInputTables() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('input_tables')
             .select(`
                 *,
@@ -1696,24 +1577,25 @@ async function deleteTable(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('input_tables')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Table deleted!');
         loadInputTables();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Menus/Products
+// ==================== MENUS/PRODUCTS ====================
+
 async function loadButtonsForMenus() {
     const categoryId = document.getElementById('menuCategorySelect').value;
     if (!categoryId) {
@@ -1722,7 +1604,7 @@ async function loadButtonsForMenus() {
     }
 
     try {
-        const { data } = await sc
+        const { data } = await supabase
             .from('category_buttons')
             .select('*')
             .eq('category_id', categoryId);
@@ -1746,7 +1628,7 @@ function addMenuInput() {
     const newInput = document.createElement('div');
     newInput.className = 'menu-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()">×</button>
+        <button class="remove-input" onclick="this.parentElement.remove()">❌</button>
         <div class="input-with-emoji">
             <input type="text" class="menu-name" placeholder="Product Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
@@ -1801,12 +1683,13 @@ async function saveMenus() {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('menus')
             .insert(menus);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Products saved!');
         document.getElementById('menusInputContainer').innerHTML = `
             <div class="menu-input-group">
@@ -1824,16 +1707,15 @@ async function saveMenus() {
         `;
         loadMenus();
     } catch (error) {
+        hideLoading();
         alert('Error saving products');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
 async function loadMenus() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('menus')
             .select(`
                 *,
@@ -1873,7 +1755,7 @@ async function loadMenus() {
 }
 
 async function editMenu(id) {
-    const { data: menu } = await sc
+    const { data: menu } = await supabase
         .from('menus')
         .select('*')
         .eq('id', id)
@@ -1917,7 +1799,7 @@ async function updateMenu(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('menus')
             .update({
                 name: name,
@@ -1928,43 +1810,44 @@ async function updateMenu(id) {
 
         if (error) throw error;
 
+        hideLoading();
         closeEditModal();
         alert('Menu updated!');
         loadMenus();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
 async function deleteMenu(id) {
-    if (!confirm('Delete?')) return;
+    if (!confirm('Delete this product?')) return;
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('menus')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
-        alert('Menu deleted!');
+        hideLoading();
+        alert('Product deleted!');
         loadMenus();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Payment Methods
+// ==================== PAYMENT METHODS ====================
+
 async function loadPaymentMethods() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('payment_methods')
             .select('*')
             .order('created_at', { ascending: true });
@@ -1975,7 +1858,7 @@ async function loadPaymentMethods() {
         if (data && data.length > 0) {
             data.forEach(payment => {
                 const nameHtml = renderAnimatedText(payment.name);
-                const instructionsHtml = renderAnimatedText(payment.instructions || '');
+                const instructionsHtml = renderAnimatedText(payment.instructions);
                 
                 container.innerHTML += `
                     <div class="item-card">
@@ -2014,7 +1897,7 @@ async function addPaymentMethod() {
     
     if (url) {
         try {
-            const { error } = await sc
+            const { error } = await supabase
                 .from('payment_methods')
                 .insert([{
                     name: name,
@@ -2025,6 +1908,7 @@ async function addPaymentMethod() {
 
             if (error) throw error;
 
+            hideLoading();
             alert('Payment method added!');
             document.getElementById('paymentName').value = '';
             document.getElementById('paymentAddress').value = '';
@@ -2032,17 +1916,18 @@ async function addPaymentMethod() {
             document.getElementById('paymentIconFile').value = '';
             loadPaymentMethods();
         } catch (error) {
+            hideLoading();
             alert('Error adding payment method');
             console.error(error);
         }
     } else {
+        hideLoading();
         alert('Error uploading icon');
     }
-    hideLoading();
 }
 
 async function editPayment(id) {
-    const { data: payment } = await sc
+    const { data: payment } = await supabase
         .from('payment_methods')
         .select('*')
         .eq('id', id)
@@ -2086,7 +1971,7 @@ async function updatePayment(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('payment_methods')
             .update({
                 name: name,
@@ -2097,43 +1982,44 @@ async function updatePayment(id) {
 
         if (error) throw error;
 
+        hideLoading();
         closeEditModal();
         alert('Payment method updated!');
         loadPaymentMethods();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
 async function deletePayment(id) {
-    if (!confirm('Delete?')) return;
+    if (!confirm('Delete this payment method?')) return;
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('payment_methods')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Payment method deleted!');
         loadPaymentMethods();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Contacts
+// ==================== CONTACTS ====================
+
 async function loadContacts() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('contacts')
             .select('*')
             .order('created_at', { ascending: true });
@@ -2144,7 +2030,7 @@ async function loadContacts() {
         if (data && data.length > 0) {
             data.forEach(contact => {
                 const nameHtml = renderAnimatedText(contact.name);
-                const descriptionHtml = renderAnimatedText(contact.description || '');
+                const descriptionHtml = renderAnimatedText(contact.description);
                 
                 container.innerHTML += `
                     <div class="item-card">
@@ -2185,7 +2071,7 @@ async function addContact() {
     
     if (url) {
         try {
-            const { error } = await sc
+            const { error } = await supabase
                 .from('contacts')
                 .insert([{
                     name: name,
@@ -2197,6 +2083,7 @@ async function addContact() {
 
             if (error) throw error;
 
+            hideLoading();
             alert('Contact added!');
             document.getElementById('contactName').value = '';
             document.getElementById('contactDescription').value = '';
@@ -2205,17 +2092,18 @@ async function addContact() {
             document.getElementById('contactIconFile').value = '';
             loadContacts();
         } catch (error) {
+            hideLoading();
             alert('Error adding contact');
             console.error(error);
         }
     } else {
+        hideLoading();
         alert('Error uploading icon');
     }
-    hideLoading();
 }
 
 async function editContact(id) {
-    const { data: contact } = await sc
+    const { data: contact } = await supabase
         .from('contacts')
         .select('*')
         .eq('id', id)
@@ -2264,7 +2152,7 @@ async function updateContact(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('contacts')
             .update({
                 name: name,
@@ -2276,40 +2164,41 @@ async function updateContact(id) {
 
         if (error) throw error;
 
+        hideLoading();
         closeEditModal();
         alert('Contact updated!');
         loadContacts();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
 async function deleteContact(id) {
-    if (!confirm('Delete?')) return;
+    if (!confirm('Delete this contact?')) return;
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('contacts')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Contact deleted!');
         loadContacts();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Videos
+// ==================== YOUTUBE VIDEOS ====================
+
 async function loadButtonsForVideos() {
     const categoryId = document.getElementById('videoCategorySelect').value;
     if (!categoryId) {
@@ -2318,7 +2207,7 @@ async function loadButtonsForVideos() {
     }
 
     try {
-        const { data } = await sc
+        const { data } = await supabase
             .from('category_buttons')
             .select('*')
             .eq('category_id', categoryId);
@@ -2334,6 +2223,46 @@ async function loadButtonsForVideos() {
         }
     } catch (error) {
         console.error('Error loading buttons:', error);
+    }
+}
+
+async function loadVideos() {
+    try {
+        const { data, error } = await supabase
+            .from('youtube_videos')
+            .select(`
+                *,
+                category_buttons (name, categories (title))
+            `)
+            .order('created_at', { ascending: true });
+
+        const container = document.getElementById('videosContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(video => {
+                const descriptionHtml = renderAnimatedText(video.description);
+                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
+                
+                container.innerHTML += `
+                    <div class="item-card">
+                        <img src="${video.banner_url}" alt="Video Banner">
+                        <h4>YouTube Video</h4>
+                        <p>${descriptionHtml}</p>
+                        <p><strong>Button:</strong> ${buttonNameHtml}</p>
+                        <p><strong>URL:</strong> <a href="${video.video_url}" target="_blank">Watch Video</a></p>
+                        <div class="item-actions">
+                            <button class="btn-secondary" onclick="editVideo(${video.id})">Edit</button>
+                            <button class="btn-danger" onclick="deleteVideo(${video.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No videos yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading videos:', error);
     }
 }
 
@@ -2353,7 +2282,7 @@ async function addVideo() {
     
     if (bannerUrl) {
         try {
-            const { error } = await sc
+            const { error } = await supabase
                 .from('youtube_videos')
                 .insert([{
                     button_id: buttonId,
@@ -2364,62 +2293,25 @@ async function addVideo() {
 
             if (error) throw error;
 
+            hideLoading();
             alert('Video added!');
             document.getElementById('videoUrl').value = '';
             document.getElementById('videoDescription').value = '';
             document.getElementById('videoBannerFile').value = '';
             loadVideos();
         } catch (error) {
+            hideLoading();
             alert('Error adding video');
             console.error(error);
         }
     } else {
+        hideLoading();
         alert('Error uploading banner');
-    }
-    hideLoading();
-}
-
-async function loadVideos() {
-    try {
-        const { data, error } = await sc
-            .from('youtube_videos')
-            .select(`
-                *,
-                category_buttons (name, categories (title))
-            `)
-            .order('created_at', { ascending: true });
-
-        const container = document.getElementById('videosContainer');
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            data.forEach(video => {
-                const descriptionHtml = renderAnimatedText(video.description);
-                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
-                
-                container.innerHTML += `
-                    <div class="item-card">
-                        <img src="${video.banner_url}" alt="Video Banner">
-                        <h4>${descriptionHtml}</h4>
-                        <p><strong>URL:</strong> ${video.video_url}</p>
-                        <p><strong>Button:</strong> ${buttonNameHtml}</p>
-                        <div class="item-actions">
-                            <button class="btn-secondary" onclick="editVideo(${video.id})">Edit</button>
-                            <button class="btn-danger" onclick="deleteVideo(${video.id})">Delete</button>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML = '<p>No videos yet</p>';
-        }
-    } catch (error) {
-        console.error('Error loading videos:', error);
     }
 }
 
 async function editVideo(id) {
-    const { data: video } = await sc
+    const { data: video } = await supabase
         .from('youtube_videos')
         .select('*')
         .eq('id', id)
@@ -2455,7 +2347,7 @@ async function updateVideo(id) {
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('youtube_videos')
             .update({
                 video_url: videoUrl,
@@ -2465,43 +2357,44 @@ async function updateVideo(id) {
 
         if (error) throw error;
 
+        hideLoading();
         closeEditModal();
         alert('Video updated!');
         loadVideos();
     } catch (error) {
+        hideLoading();
         alert('Error updating');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
 async function deleteVideo(id) {
-    if (!confirm('Delete?')) return;
+    if (!confirm('Delete this video?')) return;
 
     showLoading();
     try {
-        const { error } = await sc
+        const { error } = await supabase
             .from('youtube_videos')
             .delete()
             .eq('id', id);
 
         if (error) throw error;
 
+        hideLoading();
         alert('Video deleted!');
         loadVideos();
     } catch (error) {
+        hideLoading();
         alert('Error deleting');
         console.error(error);
-    } finally {
-        hideLoading();
     }
 }
 
-// Orders
+// ==================== ORDERS ====================
+
 async function loadOrders() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('orders')
             .select(`
                 *,
@@ -2516,25 +2409,24 @@ async function loadOrders() {
 
         if (data && data.length > 0) {
             data.forEach(order => {
-                const statusClass = order.status === 'approved' ? 'success' : 
-                                   order.status === 'rejected' ? 'danger' : 'warning';
+                const statusClass = order.status === 'approved' ? 'success' : order.status === 'rejected' ? 'danger' : 'warning';
                 
                 container.innerHTML += `
-                    <div class="order-card ${statusClass}">
+                    <div class="order-card" data-status="${order.status}">
                         <div class="order-header">
                             <h4>Order #${order.id}</h4>
-                            <span class="order-status ${order.status}">${order.status.toUpperCase()}</span>
+                            <span class="status-${statusClass}">${order.status.toUpperCase()}</span>
                         </div>
                         <div class="order-details">
                             <p><strong>Customer:</strong> ${order.users.name} (${order.users.email})</p>
                             <p><strong>Product:</strong> ${order.menus.name}</p>
                             <p><strong>Price:</strong> ${order.menus.price} MMK</p>
                             <p><strong>Payment:</strong> ${order.payment_methods.name}</p>
-                            <p><strong>Transaction:</strong> ${order.transaction_code}</p>
-                            <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+                            <p><strong>Transaction Code:</strong> ${order.transaction_code}</p>
+                            <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleDateString()}</p>
                         </div>
                         <div class="order-actions">
-                            <button class="btn-info" onclick="viewOrderDetails(${order.id})">Details</button>
+                            <button class="btn-secondary" onclick="viewOrderDetails(${order.id})">View Details</button>
                             ${order.status === 'pending' ? `
                                 <button class="btn-success" onclick="approveOrder(${order.id})">Approve</button>
                                 <button class="btn-danger" onclick="rejectOrder(${order.id})">Reject</button>
@@ -2551,86 +2443,31 @@ async function loadOrders() {
     }
 }
 
-async function approveOrder(id) {
-    const message = prompt('Enter approval message (optional):');
-    
-    showLoading();
-    try {
-        const { error } = await sc
-            .from('orders')
-            .update({
-                status: 'approved',
-                admin_message: message || 'Order approved'
-            })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        alert('Order approved!');
-        loadOrders();
-    } catch (error) {
-        alert('Error approving order');
-        console.error(error);
-    } finally {
-        hideLoading();
-    }
-}
-
-async function rejectOrder(id) {
-    const message = prompt('Enter rejection reason:');
-    if (!message) return;
-    
-    showLoading();
-    try {
-        const { error } = await sc
-            .from('orders')
-            .update({
-                status: 'rejected',
-                admin_message: message
-            })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        alert('Order rejected!');
-        loadOrders();
-    } catch (error) {
-        alert('Error rejecting order');
-        console.error(error);
-    } finally {
-        hideLoading();
-    }
-}
-
 function filterOrders(status) {
-    // Update active filter button
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
+    const orders = document.querySelectorAll('.order-card');
+    const buttons = document.querySelectorAll('.filter-btn');
     
-    // Filter order cards
-    const orderCards = document.querySelectorAll('.order-card');
-    orderCards.forEach(card => {
-        if (status === 'all') {
-            card.style.display = 'block';
+    buttons.forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`[onclick="filterOrders('${status}')"]`).classList.add('active');
+    
+    orders.forEach(order => {
+        if (status === 'all' || order.dataset.status === status) {
+            order.style.display = 'block';
         } else {
-            const orderStatus = card.querySelector('.order-status').textContent.toLowerCase();
-            card.style.display = orderStatus === status ? 'block' : 'none';
+            order.style.display = 'none';
         }
     });
 }
 
 async function viewOrderDetails(id) {
     try {
-        const { data: order, error } = await sc
+        const { data: order, error } = await supabase
             .from('orders')
             .select(`
                 *,
-                users (name, email, username),
-                menus (name, amount, price),
-                payment_methods (name, address, instructions),
-                category_buttons (name)
+                users (name, email),
+                menus (name, price, amount),
+                payment_methods (name, address, instructions)
             `)
             .eq('id', id)
             .single();
@@ -2639,43 +2476,39 @@ async function viewOrderDetails(id) {
 
         const modalBody = document.getElementById('orderModalBody');
         modalBody.innerHTML = `
-            <div class="order-detail-grid">
-                <div class="detail-section">
-                    <h3>Customer Information</h3>
-                    <p><strong>Name:</strong> ${order.users.name}</p>
-                    <p><strong>Email:</strong> ${order.users.email}</p>
-                    <p><strong>Username:</strong> ${order.users.username}</p>
+            <div class="order-details-full">
+                <h3>Order #${order.id}</h3>
+                <div class="details-grid">
+                    <div class="detail-section">
+                        <h4>Customer Information</h4>
+                        <p><strong>Name:</strong> ${order.users.name}</p>
+                        <p><strong>Email:</strong> ${order.users.email}</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Product Information</h4>
+                        <p><strong>Product:</strong> ${order.menus.name}</p>
+                        <p><strong>Amount:</strong> ${order.menus.amount}</p>
+                        <p><strong>Price:</strong> ${order.menus.price} MMK</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Payment Information</h4>
+                        <p><strong>Method:</strong> ${order.payment_methods.name}</p>
+                        <p><strong>Address:</strong> ${order.payment_methods.address}</p>
+                        <p><strong>Transaction Code:</strong> ${order.transaction_code}</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Order Status</h4>
+                        <p><strong>Status:</strong> ${order.status.toUpperCase()}</p>
+                        <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+                        ${order.admin_message ? `<p><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
+                    </div>
                 </div>
-                
-                <div class="detail-section">
-                    <h3>Order Information</h3>
-                    <p><strong>Product:</strong> ${order.menus.name}</p>
-                    <p><strong>Amount:</strong> ${order.menus.amount}</p>
-                    <p><strong>Price:</strong> ${order.menus.price} MMK</p>
-                    <p><strong>Button:</strong> ${order.category_buttons.name}</p>
-                </div>
-                
-                <div class="detail-section">
-                    <h3>Payment Information</h3>
-                    <p><strong>Method:</strong> ${order.payment_methods.name}</p>
-                    <p><strong>Address:</strong> ${order.payment_methods.address}</p>
-                    <p><strong>Transaction Code:</strong> ${order.transaction_code}</p>
-                </div>
-                
                 ${order.table_data ? `
-                <div class="detail-section">
-                    <h3>Additional Data</h3>
-                    <pre>${JSON.stringify(order.table_data, null, 2)}</pre>
-                </div>
+                    <div class="detail-section">
+                        <h4>Additional Information</h4>
+                        <pre>${JSON.stringify(order.table_data, null, 2)}</pre>
+                    </div>
                 ` : ''}
-                
-                <div class="detail-section">
-                    <h3>Status & Messages</h3>
-                    <p><strong>Status:</strong> <span class="status-badge ${order.status}">${order.status.toUpperCase()}</span></p>
-                    ${order.admin_message ? `<p><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
-                    <p><strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-                    <p><strong>Updated:</strong> ${new Date(order.updated_at).toLocaleString()}</p>
-                </div>
             </div>
         `;
 
@@ -2686,14 +2519,62 @@ async function viewOrderDetails(id) {
     }
 }
 
-function closeOrderModal() {
-    document.getElementById('orderModal').classList.remove('active');
+async function approveOrder(id) {
+    const message = prompt('Enter approval message (optional):');
+    
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({
+                status: 'approved',
+                admin_message: message || 'Order approved'
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Order approved!');
+        loadOrders();
+    } catch (error) {
+        hideLoading();
+        alert('Error approving order');
+        console.error(error);
+    }
 }
 
-// Users
+async function rejectOrder(id) {
+    const message = prompt('Enter rejection reason:');
+    if (!message) return;
+    
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({
+                status: 'rejected',
+                admin_message: message
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Order rejected!');
+        loadOrders();
+    } catch (error) {
+        hideLoading();
+        alert('Error rejecting order');
+        console.error(error);
+    }
+}
+
+// ==================== USERS ====================
+
 async function loadUsers() {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .from('users')
             .select('*')
             .order('created_at', { ascending: false });
@@ -2701,11 +2582,8 @@ async function loadUsers() {
         const container = document.getElementById('usersContainer');
         const totalUsersEl = document.getElementById('totalUsers');
         const todayUsersEl = document.getElementById('todayUsers');
-        
-        container.innerHTML = '';
 
-        if (data && data.length > 0) {
-            // Update stats
+        if (data) {
             totalUsersEl.textContent = data.length;
             
             const today = new Date().toDateString();
@@ -2714,27 +2592,27 @@ async function loadUsers() {
             ).length;
             todayUsersEl.textContent = todayUsers;
 
-            // Display users
-            data.forEach(user => {
-                container.innerHTML += `
-                    <div class="user-card">
-                        <div class="user-avatar">👤</div>
-                        <div class="user-info">
-                            <h4>${user.name}</h4>
-                            <p><strong>Username:</strong> ${user.username}</p>
-                            <p><strong>Email:</strong> ${user.email}</p>
-                            <p><strong>Joined:</strong> ${new Date(user.created_at).toLocaleDateString()}</p>
+            container.innerHTML = '';
+            
+            if (data.length > 0) {
+                data.forEach(user => {
+                    container.innerHTML += `
+                        <div class="user-card">
+                            <div class="user-info">
+                                <h4>${user.name}</h4>
+                                <p><strong>Username:</strong> ${user.username}</p>
+                                <p><strong>Email:</strong> ${user.email}</p>
+                                <p><strong>Joined:</strong> ${new Date(user.created_at).toLocaleDateString()}</p>
+                            </div>
+                            <div class="user-actions">
+                                <button class="btn-secondary" onclick="viewUserOrders('${user.email}')">View Orders</button>
+                            </div>
                         </div>
-                        <div class="user-actions">
-                            <button class="btn-info" onclick="viewUserOrders('${user.email}')">View Orders</button>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML = '<p>No users yet</p>';
-            totalUsersEl.textContent = '0';
-            todayUsersEl.textContent = '0';
+                    `;
+                });
+            } else {
+                container.innerHTML = '<p>No users yet</p>';
+            }
         }
     } catch (error) {
         console.error('Error loading users:', error);
@@ -2743,63 +2621,36 @@ async function loadUsers() {
 
 async function viewUserOrders(email) {
     try {
-        const { data, error } = await sc
+        const { data, error } = await supabase
             .rpc('get_user_orders', { user_email: email });
 
         if (error) throw error;
 
-        const modalBody = document.getElementById('modalBody');
+        const modalBody = document.getElementById('orderModalBody');
         modalBody.innerHTML = `
-            <h3>Orders for ${email}</h3>
-            <div class="user-orders-list">
-                ${data.length > 0 ? data.map(order => `
-                    <div class="user-order-item">
-                        <h4>${order.product_name}</h4>
-                        <p><strong>Price:</strong> ${order.product_price} MMK</p>
-                        <p><strong>Status:</strong> <span class="status-badge ${order.order_status}">${order.order_status.toUpperCase()}</span></p>
-                        <p><strong>Date:</strong> ${new Date(order.created_date).toLocaleString()}</p>
+            <div class="user-orders">
+                <h3>Orders for ${email}</h3>
+                ${data && data.length > 0 ? `
+                    <div class="orders-list">
+                        ${data.map(order => `
+                            <div class="order-summary">
+                                <h4>Order #${order.order_id}</h4>
+                                <p><strong>Product:</strong> ${order.product_name}</p>
+                                <p><strong>Price:</strong> ${order.product_price} MMK</p>
+                                <p><strong>Status:</strong> ${order.order_status.toUpperCase()}</p>
+                                <p><strong>Date:</strong> ${new Date(order.created_date).toLocaleDateString()}</p>
+                            </div>
+                        `).join('')}
                     </div>
-                `).join('') : '<p>No orders found for this user.</p>'}
+                ` : '<p>No orders found for this user.</p>'}
             </div>
         `;
 
-        document.getElementById('editModal').classList.add('active');
+        document.getElementById('orderModal').classList.add('active');
     } catch (error) {
         console.error('Error loading user orders:', error);
         alert('Error loading user orders');
     }
 }
 
-// Modal functions  
-function closeEditModal() {
-    document.getElementById('editModal').classList.remove('active');
-}
-
-// =====================================================
-// CONSOLE PROTECTION & FINAL SECURITY
-// =====================================================
-
-// Override console methods in production
-if (window.location.hostname !== 'localhost') {
-    console.log = () => {};
-    console.warn = () => {};
-    console.error = () => {};
-    console.info = () => {};
-    console.debug = () => {};
-    console.clear = () => {};
-}
-
-// Disable text selection for sensitive elements
-document.addEventListener('DOMContentLoaded', () => {
-    const sensitiveElements = document.querySelectorAll('.admin-login, .security-check, .access-denied');
-    sensitiveElements.forEach(el => {
-        el.style.userSelect = 'none';
-        el.style.webkitUserSelect = 'none';
-        el.style.mozUserSelect = 'none';
-        el.style.msUserSelect = 'none';
-    });
-});
-
-// =====================================================
-// END OF SECURE ADMIN DASHBOARD
-// =====================================================
+// ==================== END OF FILE ====================
