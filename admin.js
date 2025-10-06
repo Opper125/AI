@@ -836,9 +836,6 @@ function loadSectionData(section) {
         case 'website-settings':
             loadWebsiteSettings();
             break;
-        case 'admin-settings':
-            // Admin settings section - no data loading needed
-            break;
         case 'banners':
             loadBanners();
             break;
@@ -911,7 +908,7 @@ async function uploadFile(file, folder) {
 // Load All Animations
 async function loadAnimations() {
     try {
-        console.log(' Loading animations...');
+        console.log('✨ Loading animations...');
         const { data, error } = await supabase
             .from('animations')
             .select('*')
@@ -920,11 +917,11 @@ async function loadAnimations() {
         if (error) throw error;
 
         allAnimations = data || [];
-        console.log(` Loaded ${allAnimations.length} animations`);
+        console.log(`✅ Loaded ${allAnimations.length} animations`);
         
         displayAnimations(allAnimations);
     } catch (error) {
-        console.error(' Error loading animations:', error);
+        console.error('❌ Error loading animations:', error);
         allAnimations = [];
     }
 }
@@ -958,7 +955,7 @@ function displayAnimations(animations) {
             <div class="animation-preview">${preview}</div>
             <div class="animation-name">${anim.name}</div>
             <div class="animation-type">${anim.file_type.toUpperCase()}</div>
-            <button class="animation-delete" onclick="deleteAnimation(${anim.id})"></button>
+            <button class="animation-delete" onclick="deleteAnimation(${anim.id})">×</button>
         `;
 
         container.appendChild(item);
@@ -1005,7 +1002,7 @@ async function uploadAnimation() {
         if (error) throw error;
 
         hideLoading();
-        alert(' Animation uploaded successfully!');
+        alert('✅ Animation uploaded successfully!');
         
         // Reset form
         document.getElementById('animationName').value = '';
@@ -1017,7 +1014,7 @@ async function uploadAnimation() {
 
     } catch (error) {
         hideLoading();
-        console.error(' Upload error:', error);
+        console.error('❌ Upload error:', error);
         alert('Error uploading animation: ' + error.message);
     }
 }
@@ -1037,12 +1034,12 @@ async function deleteAnimation(id) {
         if (error) throw error;
 
         hideLoading();
-        alert(' Animation deleted!');
+        alert('✅ Animation deleted!');
         await loadAnimations();
 
     } catch (error) {
         hideLoading();
-        console.error(' Delete error:', error);
+        console.error('❌ Delete error:', error);
         alert('Error deleting animation');
     }
 }
@@ -1797,7 +1794,7 @@ function addTableInput() {
     const newInput = document.createElement('div');
     newInput.className = 'table-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()"></button>
+        <button class="remove-input" onclick="this.parentElement.remove()">×</button>
         <div class="input-with-emoji">
             <input type="text" class="table-name" placeholder="Table Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
@@ -1961,7 +1958,7 @@ function addMenuInput() {
     const newInput = document.createElement('div');
     newInput.className = 'menu-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()"></button>
+        <button class="remove-input" onclick="this.parentElement.remove()">×</button>
         <div class="input-with-emoji">
             <input type="text" class="menu-name" placeholder="Product Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
@@ -1971,7 +1968,6 @@ function addMenuInput() {
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
         </div>
         <input type="number" class="menu-price" placeholder="Price">
-        <input type="file" class="menu-icon" accept="image/*">
     `;
     container.appendChild(newInput);
 }
@@ -2282,7 +2278,7 @@ async function editPayment(id) {
         <div class="form-group">
             <label>Instructions</label>
             <div class="textarea-with-emoji">
-                <textarea id="editPaymentInstructions" rows="3">${payment.instructions || ''}</textarea>
+                <textarea id="editPaymentInstructions">${payment.instructions || ''}</textarea>
                 <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentInstructions')">😀</button>
             </div>
         </div>
@@ -2298,7 +2294,7 @@ async function updatePayment(id) {
     const instructions = document.getElementById('editPaymentInstructions').value.trim();
 
     if (!name || !address) {
-        alert('Please fill required fields');
+        alert('Please fill all required fields');
         return;
     }
 
@@ -2363,15 +2359,14 @@ async function loadContacts() {
         if (data && data.length > 0) {
             data.forEach(contact => {
                 const nameHtml = renderAnimatedText(contact.name);
-                const descriptionHtml = renderAnimatedText(contact.description || '');
+                const descHtml = renderAnimatedText(contact.description || '');
                 
                 container.innerHTML += `
                     <div class="item-card">
                         <img src="${contact.icon_url}" alt="${contact.name}">
                         <h4>${nameHtml}</h4>
-                        <p>${descriptionHtml}</p>
-                        ${contact.link ? `<p>Link: ${contact.link}</p>` : ''}
-                        ${contact.address ? `<p>Address: ${contact.address}</p>` : ''}
+                        <p>${descHtml}</p>
+                        <p>${contact.link || contact.address || ''}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editContact(${contact.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteContact(${contact.id})">Delete</button>
@@ -2394,7 +2389,7 @@ async function addContact() {
     const address = document.getElementById('contactAddress').value.trim();
     const file = document.getElementById('contactIconFile').files[0];
 
-    if (!name || !description || !file) {
+    if (!name || !file) {
         alert('Please fill required fields');
         return;
     }
@@ -2454,7 +2449,7 @@ async function editContact(id) {
         <div class="form-group">
             <label>Description</label>
             <div class="textarea-with-emoji">
-                <textarea id="editContactDescription" rows="3">${contact.description || ''}</textarea>
+                <textarea id="editContactDescription">${contact.description || ''}</textarea>
                 <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactDescription')">😀</button>
             </div>
         </div>
@@ -2478,8 +2473,8 @@ async function updateContact(id) {
     const link = document.getElementById('editContactLink').value.trim();
     const address = document.getElementById('editContactAddress').value.trim();
 
-    if (!name || !description) {
-        alert('Please fill required fields');
+    if (!name) {
+        alert('Please enter a name');
         return;
     }
 
@@ -2559,14 +2554,52 @@ async function loadButtonsForVideos() {
     }
 }
 
-async function addVideo() {
-    const categoryId = document.getElementById('videoCategorySelect').value;
-    const buttonId = document.getElementById('videoButtonSelect').value;
-    const url = document.getElementById('videoUrl').value.trim();
-    const description = document.getElementById('videoDescription').value.trim();
-    const file = document.getElementById('videoBannerFile').files[0];
+async function loadVideos() {
+    try {
+        const { data, error } = await supabase
+            .from('youtube_videos')
+            .select(`
+                *,
+                category_buttons (name, categories (title))
+            `)
+            .order('created_at', { ascending: true });
 
-    if (!categoryId || !buttonId || !url || !description || !file) {
+        const container = document.getElementById('videosContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(video => {
+                const descHtml = renderAnimatedText(video.description);
+                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
+                
+                container.innerHTML += `
+                    <div class="item-card">
+                        <img src="${video.banner_url}" alt="Video">
+                        <h4>${descHtml}</h4>
+                        <p>Button: ${buttonNameHtml}</p>
+                        <p><a href="${video.video_url}" target="_blank">View Video</a></p>
+                        <div class="item-actions">
+                            <button class="btn-secondary" onclick="editVideo(${video.id})">Edit</button>
+                            <button class="btn-danger" onclick="deleteVideo(${video.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No videos yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading videos:', error);
+    }
+}
+
+async function addVideo() {
+    const buttonId = document.getElementById('videoButtonSelect').value;
+    const file = document.getElementById('videoBannerFile').files[0];
+    const videoUrl = document.getElementById('videoUrl').value.trim();
+    const description = document.getElementById('videoDescription').value.trim();
+
+    if (!buttonId || !file || !videoUrl || !description) {
         alert('Please fill all fields');
         return;
     }
@@ -2579,10 +2612,9 @@ async function addVideo() {
             const { error } = await supabase
                 .from('youtube_videos')
                 .insert([{
-                    category_id: categoryId,
                     button_id: buttonId,
                     banner_url: bannerUrl,
-                    video_url: url,
+                    video_url: videoUrl,
                     description: description
                 }]);
 
@@ -2590,9 +2622,9 @@ async function addVideo() {
 
             hideLoading();
             alert('Video added!');
+            document.getElementById('videoBannerFile').value = '';
             document.getElementById('videoUrl').value = '';
             document.getElementById('videoDescription').value = '';
-            document.getElementById('videoBannerFile').value = '';
             loadVideos();
         } catch (error) {
             hideLoading();
@@ -2605,44 +2637,61 @@ async function addVideo() {
     }
 }
 
-async function loadVideos() {
+async function editVideo(id) {
+    const { data: video } = await supabase
+        .from('youtube_videos')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Video URL</label>
+            <input type="text" id="editVideoUrl" value="${video.video_url}">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <div class="textarea-with-emoji">
+                <textarea id="editVideoDescription">${video.description}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editVideoDescription')">😀</button>
+            </div>
+        </div>
+        <button class="btn-primary" onclick="updateVideo(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function updateVideo(id) {
+    const videoUrl = document.getElementById('editVideoUrl').value.trim();
+    const description = document.getElementById('editVideoDescription').value.trim();
+
+    if (!videoUrl || !description) {
+        alert('Please fill all fields');
+        return;
+    }
+
+    showLoading();
     try {
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('youtube_videos')
-            .select(`
-                *,
-                categories (title),
-                category_buttons (name)
-            `)
-            .order('created_at', { ascending: true });
+            .update({
+                video_url: videoUrl,
+                description: description
+            })
+            .eq('id', id);
 
-        const container = document.getElementById('videosContainer');
-        container.innerHTML = '';
+        if (error) throw error;
 
-        if (data && data.length > 0) {
-            data.forEach(video => {
-                const descriptionHtml = renderAnimatedText(video.description);
-                const categoryHtml = renderAnimatedText(video.categories.title);
-                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
-                
-                container.innerHTML += `
-                    <div class="item-card">
-                        <img src="${video.banner_url}" alt="Video Banner">
-                        <h4>${descriptionHtml}</h4>
-                        <p>Category: ${categoryHtml}</p>
-                        <p>Button: ${buttonNameHtml}</p>
-                        <p><a href="${video.video_url}" target="_blank">Watch Video</a></p>
-                        <div class="item-actions">
-                            <button class="btn-danger" onclick="deleteVideo(${video.id})">Delete</button>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML = '<p>No videos yet</p>';
-        }
+        hideLoading();
+        closeEditModal();
+        alert('Video updated!');
+        loadVideos();
     } catch (error) {
-        console.error('Error loading videos:', error);
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
     }
 }
 
@@ -2670,29 +2719,56 @@ async function deleteVideo(id) {
 
 // ==================== ORDERS ====================
 
+function filterOrders(status) {
+    currentFilter = status;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    loadOrders();
+}
+
 async function loadOrders() {
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('orders')
             .select(`
                 *,
-                users (name, username),
-                menus (name, price),
-                category_buttons (name),
+                users (name, username, email),
+                menus (name, amount, price),
                 payment_methods (name)
             `)
             .order('created_at', { ascending: false });
+
+        if (currentFilter !== 'all') {
+            query = query.eq('status', currentFilter);
+        }
+
+        const { data, error } = await query;
 
         const container = document.getElementById('ordersContainer');
         container.innerHTML = '';
 
         if (data && data.length > 0) {
             data.forEach(order => {
+                let statusClass = 'pending';
+                if (order.status === 'approved') statusClass = 'approved';
+                if (order.status === 'rejected') statusClass = 'rejected';
+
+                const menuNameHtml = renderAnimatedText(order.menus?.name || 'Unknown');
+                const menuAmountHtml = renderAnimatedText(order.menus?.amount || '');
+                const paymentNameHtml = renderAnimatedText(order.payment_methods?.name || 'N/A');
+
                 container.innerHTML += `
                     <div class="order-card">
                         <div class="order-header">
-                            <h4>Order #${order.id}</h4>
-                            <span class="order-status ${order.status}">${order.status.toUpperCase()}</span>
+                            <div>
+                                <h3>Order #${order.id}</h3>
+                                <p>${new Date(order.created_at).toLocaleString()}</p>
+                            </div>
+                            <span class="order-status ${statusClass}">${order.status.toUpperCase()}</span>
                         </div>
                         <div class="order-info">
                             <div class="info-item">
@@ -2700,34 +2776,42 @@ async function loadOrders() {
                                 <span class="info-value">${order.users.name} (@${order.users.username})</span>
                             </div>
                             <div class="info-item">
+                                <span class="info-label">Email</span>
+                                <span class="info-value">${order.users.email}</span>
+                            </div>
+                            <div class="info-item">
                                 <span class="info-label">Product</span>
-                                <span class="info-value">${order.menus.name}</span>
+                                <span class="info-value">${menuNameHtml}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Amount</span>
+                                <span class="info-value">${menuAmountHtml}</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Price</span>
-                                <span class="info-value">${order.menus.price} MMK</span>
+                                <span class="info-value">${order.menus?.price || 0} MMK</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Payment</span>
-                                <span class="info-value">${order.payment_methods.name}</span>
+                                <span class="info-value">${paymentNameHtml}</span>
                             </div>
                             <div class="info-item">
-                                <span class="info-label">Date</span>
-                                <span class="info-value">${new Date(order.created_at).toLocaleDateString()}</span>
+                                <span class="info-label">Transaction Code</span>
+                                <span class="info-value">${order.transaction_code}</span>
                             </div>
                         </div>
-                        ${order.user_data ? `<p><strong>User Data:</strong> ${order.user_data}</p>` : ''}
-                        ${order.admin_message ? `<p><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
-                        <div class="order-actions">
-                            <button class="btn-success" onclick="approveOrder(${order.id})">Approve</button>
-                            <button class="btn-danger" onclick="rejectOrder(${order.id})">Reject</button>
-                            <button class="btn-secondary" onclick="addAdminMessage(${order.id})">Add Message</button>
-                        </div>
+                        ${order.status === 'pending' ? `
+                            <div class="order-actions">
+                                <button class="btn-success" onclick="approveOrder(${order.id})">Approve</button>
+                                <button class="btn-danger" onclick="rejectOrder(${order.id})">Reject</button>
+                            </div>
+                        ` : ''}
+                        ${order.admin_message ? `<p style="margin-top: 15px; color: #fbbf24;"><strong>Message:</strong> ${order.admin_message}</p>` : ''}
                     </div>
                 `;
             });
         } else {
-            container.innerHTML = '<p>No orders yet</p>';
+            container.innerHTML = '<p>No orders found</p>';
         }
     } catch (error) {
         console.error('Error loading orders:', error);
@@ -2735,13 +2819,16 @@ async function loadOrders() {
 }
 
 async function approveOrder(id) {
-    if (!confirm('Approve this order?')) return;
-
+    const message = prompt('Enter message (optional):');
+    
     showLoading();
     try {
         const { error } = await supabase
             .from('orders')
-            .update({ status: 'approved' })
+            .update({
+                status: 'approved',
+                admin_message: message || 'Your order has been approved!'
+            })
             .eq('id', id);
 
         if (error) throw error;
@@ -2751,19 +2838,23 @@ async function approveOrder(id) {
         loadOrders();
     } catch (error) {
         hideLoading();
-        alert('Error approving order');
+        alert('Error approving');
         console.error(error);
     }
 }
 
 async function rejectOrder(id) {
-    if (!confirm('Reject this order?')) return;
-
+    const message = prompt('Enter rejection reason:');
+    if (!message) return;
+    
     showLoading();
     try {
         const { error } = await supabase
             .from('orders')
-            .update({ status: 'rejected' })
+            .update({
+                status: 'rejected',
+                admin_message: message
+            })
             .eq('id', id);
 
         if (error) throw error;
@@ -2773,50 +2864,9 @@ async function rejectOrder(id) {
         loadOrders();
     } catch (error) {
         hideLoading();
-        alert('Error rejecting order');
+        alert('Error rejecting');
         console.error(error);
     }
-}
-
-async function addAdminMessage(id) {
-    const message = prompt('Enter admin message:');
-    if (!message) return;
-
-    showLoading();
-    try {
-        const { error } = await supabase
-            .from('orders')
-            .update({ admin_message: message })
-            .eq('id', id);
-
-        if (error) throw error;
-
-        hideLoading();
-        alert('Message added!');
-        loadOrders();
-    } catch (error) {
-        hideLoading();
-        alert('Error adding message');
-        console.error(error);
-    }
-}
-
-function filterOrders(status) {
-    currentFilter = status;
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-
-    const orders = document.querySelectorAll('.order-card');
-    orders.forEach(order => {
-        const orderStatus = order.querySelector('.order-status').textContent.toLowerCase();
-        if (status === 'all' || orderStatus === status) {
-            order.style.display = 'block';
-        } else {
-            order.style.display = 'none';
-        }
-    });
 }
 
 // ==================== USERS ====================
@@ -2829,27 +2879,24 @@ async function loadUsers() {
             .order('created_at', { ascending: false });
 
         const container = document.getElementById('usersContainer');
-        const totalUsersEl = document.getElementById('totalUsers');
-        const todayUsersEl = document.getElementById('todayUsers');
-
         container.innerHTML = '';
 
         if (data && data.length > 0) {
-            totalUsersEl.textContent = data.length;
+            document.getElementById('totalUsers').textContent = data.length;
             
             const today = new Date().toDateString();
-            const todayUsers = data.filter(user => 
-                new Date(user.created_at).toDateString() === today
-            ).length;
-            todayUsersEl.textContent = todayUsers;
+            const todayUsers = data.filter(user => {
+                return new Date(user.created_at).toDateString() === today;
+            });
+            document.getElementById('todayUsers').textContent = todayUsers.length;
 
             data.forEach(user => {
                 container.innerHTML += `
                     <div class="user-card">
                         <div class="user-info">
                             <h4>${user.name}</h4>
-                            <p>@${user.username} • ${user.email}</p>
-                            <p>Joined: ${new Date(user.created_at).toLocaleDateString()}</p>
+                            <p>@${user.username} | ${user.email}</p>
+                            <p style="font-size: 12px; color: #94a3b8;">Joined: ${new Date(user.created_at).toLocaleDateString()}</p>
                         </div>
                         <div class="user-badge">Active</div>
                     </div>
@@ -2857,15 +2904,15 @@ async function loadUsers() {
             });
         } else {
             container.innerHTML = '<p>No users yet</p>';
-            totalUsersEl.textContent = '0';
-            todayUsersEl.textContent = '0';
+            document.getElementById('totalUsers').textContent = '0';
+            document.getElementById('todayUsers').textContent = '0';
         }
     } catch (error) {
         console.error('Error loading users:', error);
     }
 }
 
-// ==================== MODAL FUNCTIONS ====================
+// ==================== MODALS ====================
 
 function closeEditModal() {
     document.getElementById('editModal').classList.remove('active');
@@ -2879,16 +2926,14 @@ function closeOrderModal() {
 
 function showError(element, message) {
     element.textContent = message;
-    element.className = 'error-message show';
-    setTimeout(() => {
-        element.classList.remove('show');
-    }, 5000);
+    element.classList.add('show');
+    setTimeout(() => element.classList.remove('show'), 5000);
 }
 
 function showSuccess(element, message) {
     element.textContent = message;
-    element.className = 'success-message show';
-    setTimeout(() => {
-        element.classList.remove('show');
-    }, 5000);
+    element.classList.add('show');
+    setTimeout(() => element.classList.remove('show'), 5000);
 }
+
+console.log('✅ Admin panel initialized with animations support!');
