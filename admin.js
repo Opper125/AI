@@ -821,14 +821,12 @@ function switchSection(sectionName) {
     loadSectionData(sectionName);
 }
 
-// Load All Data
 async function loadAllData() {
     await Promise.all([
         loadWebsiteSettings(),
         loadCategories(),
         loadBanners(),
-        loadAnimations(),
-        loadAdminSessions() // Load admin sessions
+        loadAnimations() // Load animations globally
     ]);
 }
 
@@ -840,10 +838,6 @@ function loadSectionData(section) {
             break;
         case 'admin-settings':
             // Admin settings section - no data loading needed
-            break;
-        case 'ip-management':
-            loadPendingRequests();
-            loadAdminSessions();
             break;
         case 'banners':
             loadBanners();
@@ -917,7 +911,7 @@ async function uploadFile(file, folder) {
 // Load All Animations
 async function loadAnimations() {
     try {
-        console.log('✨ Loading animations...');
+        console.log(' Loading animations...');
         const { data, error } = await supabase
             .from('animations')
             .select('*')
@@ -926,11 +920,11 @@ async function loadAnimations() {
         if (error) throw error;
 
         allAnimations = data || [];
-        console.log(`✨ Loaded ${allAnimations.length} animations`);
+        console.log(` Loaded ${allAnimations.length} animations`);
         
         displayAnimations(allAnimations);
     } catch (error) {
-        console.error('❌ Error loading animations:', error);
+        console.error(' Error loading animations:', error);
         allAnimations = [];
     }
 }
@@ -964,7 +958,7 @@ function displayAnimations(animations) {
             <div class="animation-preview">${preview}</div>
             <div class="animation-name">${anim.name}</div>
             <div class="animation-type">${anim.file_type.toUpperCase()}</div>
-            <button class="animation-delete" onclick="deleteAnimation(${anim.id})">🗑️</button>
+            <button class="animation-delete" onclick="deleteAnimation(${anim.id})"></button>
         `;
 
         container.appendChild(item);
@@ -1011,7 +1005,7 @@ async function uploadAnimation() {
         if (error) throw error;
 
         hideLoading();
-        alert('✨ Animation uploaded successfully!');
+        alert(' Animation uploaded successfully!');
         
         // Reset form
         document.getElementById('animationName').value = '';
@@ -1023,7 +1017,7 @@ async function uploadAnimation() {
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Upload error:', error);
+        console.error(' Upload error:', error);
         alert('Error uploading animation: ' + error.message);
     }
 }
@@ -1043,12 +1037,12 @@ async function deleteAnimation(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('✨ Animation deleted!');
+        alert(' Animation deleted!');
         await loadAnimations();
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Delete error:', error);
+        console.error(' Delete error:', error);
         alert('Error deleting animation');
     }
 }
@@ -1219,9 +1213,6 @@ function renderAnimatedText(text) {
         }
     });
 }
-
-// ==================== ALL OTHER EXISTING FUNCTIONS REMAIN THE SAME ====================
-// Website Settings, Banners, Categories, etc. functions remain exactly as in the original file
 
 // ==================== WEBSITE SETTINGS ====================
 
@@ -1493,8 +1484,6 @@ async function loadCategories() {
             .order('created_at', { ascending: true });
 
         const container = document.getElementById('categoriesContainer');
-        if (!container) return;
-
         container.innerHTML = '';
 
         if (data && data.length > 0) {
@@ -1635,8 +1624,6 @@ async function loadCategoryButtons() {
             .order('created_at', { ascending: true });
 
         const container = document.getElementById('buttonsContainer');
-        if (!container) return;
-
         container.innerHTML = '';
 
         if (data && data.length > 0) {
@@ -1810,7 +1797,7 @@ function addTableInput() {
     const newInput = document.createElement('div');
     newInput.className = 'table-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()">❌</button>
+        <button class="remove-input" onclick="this.parentElement.remove()"></button>
         <div class="input-with-emoji">
             <input type="text" class="table-name" placeholder="Table Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
@@ -1889,8 +1876,6 @@ async function loadInputTables() {
             .order('created_at', { ascending: true });
 
         const container = document.getElementById('tablesContainer');
-        if (!container) return;
-
         container.innerHTML = '';
 
         if (data && data.length > 0) {
@@ -1976,7 +1961,7 @@ function addMenuInput() {
     const newInput = document.createElement('div');
     newInput.className = 'menu-input-group';
     newInput.innerHTML = `
-        <button class="remove-input" onclick="this.parentElement.remove()">❌</button>
+        <button class="remove-input" onclick="this.parentElement.remove()"></button>
         <div class="input-with-emoji">
             <input type="text" class="menu-name" placeholder="Product Name">
             <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
@@ -2072,8 +2057,6 @@ async function loadMenus() {
             .order('created_at', { ascending: true });
 
         const container = document.getElementById('menusContainer');
-        if (!container) return;
-
         container.innerHTML = '';
 
         if (data && data.length > 0) {
@@ -2193,6 +2176,695 @@ async function deleteMenu(id) {
     }
 }
 
+// ==================== PAYMENT METHODS ====================
+
+async function loadPaymentMethods() {
+    try {
+        const { data, error } = await supabase
+            .from('payment_methods')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        const container = document.getElementById('paymentsContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(payment => {
+                const nameHtml = renderAnimatedText(payment.name);
+                const instructionsHtml = renderAnimatedText(payment.instructions || '');
+                
+                container.innerHTML += `
+                    <div class="item-card">
+                        <img src="${payment.icon_url}" alt="${payment.name}">
+                        <h4>${nameHtml}</h4>
+                        <p>${payment.address}</p>
+                        <p>${instructionsHtml}</p>
+                        <div class="item-actions">
+                            <button class="btn-secondary" onclick="editPayment(${payment.id})">Edit</button>
+                            <button class="btn-danger" onclick="deletePayment(${payment.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No payment methods yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading payments:', error);
+    }
+}
+
+async function addPaymentMethod() {
+    const name = document.getElementById('paymentName').value.trim();
+    const address = document.getElementById('paymentAddress').value.trim();
+    const instructions = document.getElementById('paymentInstructions').value.trim();
+    const file = document.getElementById('paymentIconFile').files[0];
+
+    if (!name || !address || !file) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    showLoading();
+    const url = await uploadFile(file, 'payment-icons');
+    
+    if (url) {
+        try {
+            const { error } = await supabase
+                .from('payment_methods')
+                .insert([{
+                    name: name,
+                    address: address,
+                    instructions: instructions,
+                    icon_url: url
+                }]);
+
+            if (error) throw error;
+
+            hideLoading();
+            alert('Payment method added!');
+            document.getElementById('paymentName').value = '';
+            document.getElementById('paymentAddress').value = '';
+            document.getElementById('paymentInstructions').value = '';
+            document.getElementById('paymentIconFile').value = '';
+            loadPaymentMethods();
+        } catch (error) {
+            hideLoading();
+            alert('Error adding payment method');
+            console.error(error);
+        }
+    } else {
+        hideLoading();
+        alert('Error uploading icon');
+    }
+}
+
+async function editPayment(id) {
+    const { data: payment } = await supabase
+        .from('payment_methods')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Name</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editPaymentName" value="${payment.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentName')">😀</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="editPaymentAddress" value="${payment.address}">
+        </div>
+        <div class="form-group">
+            <label>Instructions</label>
+            <div class="textarea-with-emoji">
+                <textarea id="editPaymentInstructions" rows="3">${payment.instructions || ''}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentInstructions')">😀</button>
+            </div>
+        </div>
+        <button class="btn-primary" onclick="updatePayment(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function updatePayment(id) {
+    const name = document.getElementById('editPaymentName').value.trim();
+    const address = document.getElementById('editPaymentAddress').value.trim();
+    const instructions = document.getElementById('editPaymentInstructions').value.trim();
+
+    if (!name || !address) {
+        alert('Please fill required fields');
+        return;
+    }
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('payment_methods')
+            .update({
+                name: name,
+                address: address,
+                instructions: instructions
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        closeEditModal();
+        alert('Payment method updated!');
+        loadPaymentMethods();
+    } catch (error) {
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
+    }
+}
+
+async function deletePayment(id) {
+    if (!confirm('Delete?')) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('payment_methods')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Payment method deleted!');
+        loadPaymentMethods();
+    } catch (error) {
+        hideLoading();
+        alert('Error deleting');
+        console.error(error);
+    }
+}
+
+// ==================== CONTACTS ====================
+
+async function loadContacts() {
+    try {
+        const { data, error } = await supabase
+            .from('contacts')
+            .select('*')
+            .order('created_at', { ascending: true });
+
+        const container = document.getElementById('contactsContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(contact => {
+                const nameHtml = renderAnimatedText(contact.name);
+                const descriptionHtml = renderAnimatedText(contact.description || '');
+                
+                container.innerHTML += `
+                    <div class="item-card">
+                        <img src="${contact.icon_url}" alt="${contact.name}">
+                        <h4>${nameHtml}</h4>
+                        <p>${descriptionHtml}</p>
+                        ${contact.link ? `<p>Link: ${contact.link}</p>` : ''}
+                        ${contact.address ? `<p>Address: ${contact.address}</p>` : ''}
+                        <div class="item-actions">
+                            <button class="btn-secondary" onclick="editContact(${contact.id})">Edit</button>
+                            <button class="btn-danger" onclick="deleteContact(${contact.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No contacts yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading contacts:', error);
+    }
+}
+
+async function addContact() {
+    const name = document.getElementById('contactName').value.trim();
+    const description = document.getElementById('contactDescription').value.trim();
+    const link = document.getElementById('contactLink').value.trim();
+    const address = document.getElementById('contactAddress').value.trim();
+    const file = document.getElementById('contactIconFile').files[0];
+
+    if (!name || !description || !file) {
+        alert('Please fill required fields');
+        return;
+    }
+
+    showLoading();
+    const url = await uploadFile(file, 'contact-icons');
+    
+    if (url) {
+        try {
+            const { error } = await supabase
+                .from('contacts')
+                .insert([{
+                    name: name,
+                    description: description,
+                    link: link,
+                    address: address,
+                    icon_url: url
+                }]);
+
+            if (error) throw error;
+
+            hideLoading();
+            alert('Contact added!');
+            document.getElementById('contactName').value = '';
+            document.getElementById('contactDescription').value = '';
+            document.getElementById('contactLink').value = '';
+            document.getElementById('contactAddress').value = '';
+            document.getElementById('contactIconFile').value = '';
+            loadContacts();
+        } catch (error) {
+            hideLoading();
+            alert('Error adding contact');
+            console.error(error);
+        }
+    } else {
+        hideLoading();
+        alert('Error uploading icon');
+    }
+}
+
+async function editContact(id) {
+    const { data: contact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Name</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editContactName" value="${contact.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactName')">😀</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <div class="textarea-with-emoji">
+                <textarea id="editContactDescription" rows="3">${contact.description || ''}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactDescription')">😀</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Link</label>
+            <input type="text" id="editContactLink" value="${contact.link || ''}">
+        </div>
+        <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="editContactAddress" value="${contact.address || ''}">
+        </div>
+        <button class="btn-primary" onclick="updateContact(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function updateContact(id) {
+    const name = document.getElementById('editContactName').value.trim();
+    const description = document.getElementById('editContactDescription').value.trim();
+    const link = document.getElementById('editContactLink').value.trim();
+    const address = document.getElementById('editContactAddress').value.trim();
+
+    if (!name || !description) {
+        alert('Please fill required fields');
+        return;
+    }
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('contacts')
+            .update({
+                name: name,
+                description: description,
+                link: link,
+                address: address
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        closeEditModal();
+        alert('Contact updated!');
+        loadContacts();
+    } catch (error) {
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
+    }
+}
+
+async function deleteContact(id) {
+    if (!confirm('Delete?')) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('contacts')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Contact deleted!');
+        loadContacts();
+    } catch (error) {
+        hideLoading();
+        alert('Error deleting');
+        console.error(error);
+    }
+}
+
+// ==================== YOUTUBE VIDEOS ====================
+
+async function loadButtonsForVideos() {
+    const categoryId = document.getElementById('videoCategorySelect').value;
+    if (!categoryId) {
+        document.getElementById('videoButtonSelect').innerHTML = '<option value="">Select Button</option>';
+        return;
+    }
+
+    try {
+        const { data } = await supabase
+            .from('category_buttons')
+            .select('*')
+            .eq('category_id', categoryId);
+
+        const select = document.getElementById('videoButtonSelect');
+        select.innerHTML = '<option value="">Select Button</option>';
+        
+        if (data) {
+            data.forEach(btn => {
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading buttons:', error);
+    }
+}
+
+async function addVideo() {
+    const categoryId = document.getElementById('videoCategorySelect').value;
+    const buttonId = document.getElementById('videoButtonSelect').value;
+    const url = document.getElementById('videoUrl').value.trim();
+    const description = document.getElementById('videoDescription').value.trim();
+    const file = document.getElementById('videoBannerFile').files[0];
+
+    if (!categoryId || !buttonId || !url || !description || !file) {
+        alert('Please fill all fields');
+        return;
+    }
+
+    showLoading();
+    const bannerUrl = await uploadFile(file, 'video-banners');
+    
+    if (bannerUrl) {
+        try {
+            const { error } = await supabase
+                .from('youtube_videos')
+                .insert([{
+                    category_id: categoryId,
+                    button_id: buttonId,
+                    banner_url: bannerUrl,
+                    video_url: url,
+                    description: description
+                }]);
+
+            if (error) throw error;
+
+            hideLoading();
+            alert('Video added!');
+            document.getElementById('videoUrl').value = '';
+            document.getElementById('videoDescription').value = '';
+            document.getElementById('videoBannerFile').value = '';
+            loadVideos();
+        } catch (error) {
+            hideLoading();
+            alert('Error adding video');
+            console.error(error);
+        }
+    } else {
+        hideLoading();
+        alert('Error uploading banner');
+    }
+}
+
+async function loadVideos() {
+    try {
+        const { data, error } = await supabase
+            .from('youtube_videos')
+            .select(`
+                *,
+                categories (title),
+                category_buttons (name)
+            `)
+            .order('created_at', { ascending: true });
+
+        const container = document.getElementById('videosContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(video => {
+                const descriptionHtml = renderAnimatedText(video.description);
+                const categoryHtml = renderAnimatedText(video.categories.title);
+                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
+                
+                container.innerHTML += `
+                    <div class="item-card">
+                        <img src="${video.banner_url}" alt="Video Banner">
+                        <h4>${descriptionHtml}</h4>
+                        <p>Category: ${categoryHtml}</p>
+                        <p>Button: ${buttonNameHtml}</p>
+                        <p><a href="${video.video_url}" target="_blank">Watch Video</a></p>
+                        <div class="item-actions">
+                            <button class="btn-danger" onclick="deleteVideo(${video.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No videos yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading videos:', error);
+    }
+}
+
+async function deleteVideo(id) {
+    if (!confirm('Delete?')) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('youtube_videos')
+            .delete()
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Video deleted!');
+        loadVideos();
+    } catch (error) {
+        hideLoading();
+        alert('Error deleting');
+        console.error(error);
+    }
+}
+
+// ==================== ORDERS ====================
+
+async function loadOrders() {
+    try {
+        const { data, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                users (name, username),
+                menus (name, price),
+                category_buttons (name),
+                payment_methods (name)
+            `)
+            .order('created_at', { ascending: false });
+
+        const container = document.getElementById('ordersContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(order => {
+                container.innerHTML += `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <h4>Order #${order.id}</h4>
+                            <span class="order-status ${order.status}">${order.status.toUpperCase()}</span>
+                        </div>
+                        <div class="order-info">
+                            <div class="info-item">
+                                <span class="info-label">Customer</span>
+                                <span class="info-value">${order.users.name} (@${order.users.username})</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Product</span>
+                                <span class="info-value">${order.menus.name}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Price</span>
+                                <span class="info-value">${order.menus.price} MMK</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Payment</span>
+                                <span class="info-value">${order.payment_methods.name}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Date</span>
+                                <span class="info-value">${new Date(order.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        ${order.user_data ? `<p><strong>User Data:</strong> ${order.user_data}</p>` : ''}
+                        ${order.admin_message ? `<p><strong>Admin Message:</strong> ${order.admin_message}</p>` : ''}
+                        <div class="order-actions">
+                            <button class="btn-success" onclick="approveOrder(${order.id})">Approve</button>
+                            <button class="btn-danger" onclick="rejectOrder(${order.id})">Reject</button>
+                            <button class="btn-secondary" onclick="addAdminMessage(${order.id})">Add Message</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No orders yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading orders:', error);
+    }
+}
+
+async function approveOrder(id) {
+    if (!confirm('Approve this order?')) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'approved' })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Order approved!');
+        loadOrders();
+    } catch (error) {
+        hideLoading();
+        alert('Error approving order');
+        console.error(error);
+    }
+}
+
+async function rejectOrder(id) {
+    if (!confirm('Reject this order?')) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'rejected' })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Order rejected!');
+        loadOrders();
+    } catch (error) {
+        hideLoading();
+        alert('Error rejecting order');
+        console.error(error);
+    }
+}
+
+async function addAdminMessage(id) {
+    const message = prompt('Enter admin message:');
+    if (!message) return;
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('orders')
+            .update({ admin_message: message })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Message added!');
+        loadOrders();
+    } catch (error) {
+        hideLoading();
+        alert('Error adding message');
+        console.error(error);
+    }
+}
+
+function filterOrders(status) {
+    currentFilter = status;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    const orders = document.querySelectorAll('.order-card');
+    orders.forEach(order => {
+        const orderStatus = order.querySelector('.order-status').textContent.toLowerCase();
+        if (status === 'all' || orderStatus === status) {
+            order.style.display = 'block';
+        } else {
+            order.style.display = 'none';
+        }
+    });
+}
+
+// ==================== USERS ====================
+
+async function loadUsers() {
+    try {
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        const container = document.getElementById('usersContainer');
+        const totalUsersEl = document.getElementById('totalUsers');
+        const todayUsersEl = document.getElementById('todayUsers');
+
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            totalUsersEl.textContent = data.length;
+            
+            const today = new Date().toDateString();
+            const todayUsers = data.filter(user => 
+                new Date(user.created_at).toDateString() === today
+            ).length;
+            todayUsersEl.textContent = todayUsers;
+
+            data.forEach(user => {
+                container.innerHTML += `
+                    <div class="user-card">
+                        <div class="user-info">
+                            <h4>${user.name}</h4>
+                            <p>@${user.username} • ${user.email}</p>
+                            <p>Joined: ${new Date(user.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <div class="user-badge">Active</div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No users yet</p>';
+            totalUsersEl.textContent = '0';
+            todayUsersEl.textContent = '0';
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
 // ==================== MODAL FUNCTIONS ====================
 
 function closeEditModal() {
@@ -2203,35 +2875,20 @@ function closeOrderModal() {
     document.getElementById('orderModal').classList.remove('active');
 }
 
-// ==================== PLACEHOLDER FUNCTIONS FOR OTHER SECTIONS ====================
-// These would contain the original implementations from the complete file
+// ==================== UTILITY FUNCTIONS ====================
 
-async function loadPaymentMethods() {
-    // Implementation would be here
+function showError(element, message) {
+    element.textContent = message;
+    element.className = 'error-message show';
+    setTimeout(() => {
+        element.classList.remove('show');
+    }, 5000);
 }
 
-async function loadContacts() {
-    // Implementation would be here
+function showSuccess(element, message) {
+    element.textContent = message;
+    element.className = 'success-message show';
+    setTimeout(() => {
+        element.classList.remove('show');
+    }, 5000);
 }
-
-async function loadVideos() {
-    // Implementation would be here
-}
-
-async function loadOrders() {
-    // Implementation would be here
-}
-
-async function loadUsers() {
-    // Implementation would be here
-}
-
-async function loadButtonsForVideos() {
-    // Implementation would be here
-}
-
-// Additional placeholder functions...
-async function addPaymentMethod() { /* Implementation */ }
-async function addContact() { /* Implementation */ }
-async function addVideo() { /* Implementation */ }
-async function filterOrders() { /* Implementation */ }
