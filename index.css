@@ -205,8 +205,8 @@ button, input, textarea, select, a {
 
 .loading-animation img,
 .loading-animation video {
-    max-width: 200px;
-    max-height: 200px;
+    max-width: 80px;
+    max-height: 80px;
     object-fit: contain;
     pointer-events: none;
 }
@@ -771,8 +771,8 @@ button, input, textarea, select, a {
 }
 
 .category-button img {
-    width: 80px;
-    height: 80px;
+    width: 150px;
+    height: 150px;
     object-fit: contain;
     margin-bottom: 12px;
     border-radius: var(--border-radius);
