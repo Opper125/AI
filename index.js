@@ -1,3 +1,4 @@
+
 // Supabase Configuration
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
@@ -24,11 +25,101 @@ window.appState = {
     currentButtonId: null,
     currentTableData: {},
     allMenus: [],
-    currentTables: []
+    currentTables: [],
+    currentBannerIndex: 0,
+    bannerInterval: null
 };
 
-// ========== ANIMATION STICKER SUPPORT ==========
+// ========== DISABLE RIGHT CLICK & CONTEXT MENU ==========
+document.addEventListener('contextmenu', function(e) {
+    e.preventDefault();
+    return false;
+});
 
+document.addEventListener('dragstart', function(e) {
+    e.preventDefault();
+    return false;
+});
+
+document.addEventListener('selectstart', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return true;
+    }
+    e.preventDefault();
+    return false;
+});
+
+// Prevent F12, Ctrl+Shift+I, Ctrl+U, Ctrl+S
+document.addEventListener('keydown', function(e) {
+    // F12
+    if (e.keyCode === 123) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Ctrl+Shift+I (Developer Tools)
+    if (e.ctrlKey && e.shiftKey && e.keyCode === 73) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Ctrl+U (View Source)
+    if (e.ctrlKey && e.keyCode === 85) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Ctrl+S (Save)
+    if (e.ctrlKey && e.keyCode === 83) {
+        e.preventDefault();
+        return false;
+    }
+    
+    // Ctrl+Shift+C (Inspect Element)
+    if (e.ctrlKey && e.shiftKey && e.keyCode === 67) {
+        e.preventDefault();
+        return false;
+    }
+});
+
+// ========== TOAST NOTIFICATION SYSTEM ==========
+function showToast(message, type = 'success', duration = 5000) {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️'
+    };
+    
+    toast.innerHTML = `
+        <span class="toast-icon">${icons[type] || '📢'}</span>
+        <span class="toast-message">${message}</span>
+        <button class="toast-close" onclick="removeToast(this.parentElement)">×</button>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Auto remove
+    setTimeout(() => {
+        removeToast(toast);
+    }, duration);
+}
+
+function removeToast(toast) {
+    if (toast && toast.parentElement) {
+        toast.style.animation = 'toastSlideOut 0.3s ease forwards';
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
+    }
+}
+
+// ========== ANIMATION STICKER SUPPORT ==========
 function renderAnimatedContent(text) {
     if (!text) return '';
     
@@ -59,43 +150,47 @@ function addAnimationStyles() {
     style.textContent = `
         .inline-animation {
             display: inline-block;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             object-fit: contain;
             vertical-align: middle;
             margin: 0 2px;
             border-radius: 4px;
+            pointer-events: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
         }
         
         .menu-item-name .inline-animation,
         .menu-item-amount .inline-animation {
-            width: 20px;
-            height: 20px;
-        }
-        
-        .history-item .inline-animation,
-        .contact-info .inline-animation {
             width: 18px;
             height: 18px;
         }
         
+        .history-item .inline-animation,
+        .contact-info .inline-animation {
+            width: 16px;
+            height: 16px;
+        }
+        
         .payment-info .inline-animation {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
         }
 
         .order-summary .inline-animation {
-            width: 22px;
-            height: 22px;
+            width: 20px;
+            height: 20px;
         }
     `;
     document.head.appendChild(style);
 }
 
 // ========== INITIALIZATION ==========
-
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🚀 App initializing...');
+    console.log('🚀 Gaming Store App initializing...');
     addAnimationStyles();
     await testDatabaseConnection();
     await loadWebsiteSettings();
@@ -104,7 +199,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ========== DATABASE CONNECTION ==========
-
 async function testDatabaseConnection() {
     const statusEl = document.getElementById('connectionStatus');
     const statusText = statusEl.querySelector('.status-text');
@@ -141,7 +235,6 @@ async function testDatabaseConnection() {
 }
 
 // ========== LOADING & AUTH ==========
-
 function showLoading() {
     document.getElementById('loadingScreen').style.display = 'flex';
 }
@@ -184,27 +277,25 @@ function showSignup() {
 }
 
 // ========== SIGNUP & LOGIN ==========
-
 async function handleSignup() {
     const name = document.getElementById('signupName').value.trim();
     const username = document.getElementById('signupUsername').value.trim();
     const email = document.getElementById('signupEmail').value.trim();
     const password = document.getElementById('signupPassword').value;
     const terms = document.getElementById('termsCheckbox').checked;
-    const errorEl = document.getElementById('signupError');
 
     if (!name || !username || !email || !password) {
-        showError(errorEl, 'Please fill in all fields');
+        showToast('Please fill in all fields', 'error');
         return;
     }
 
     if (!terms) {
-        showError(errorEl, 'Please agree to the terms and conditions');
+        showToast('Please agree to the terms and conditions', 'error');
         return;
     }
 
     if (!validateEmail(email)) {
-        showError(errorEl, 'Please enter a valid email address');
+        showToast('Please enter a valid email address', 'error');
         return;
     }
 
@@ -219,7 +310,7 @@ async function handleSignup() {
 
         if (usernameCheck) {
             hideLoading();
-            showError(errorEl, 'Username already exists');
+            showToast('Username already exists', 'error');
             return;
         }
 
@@ -231,7 +322,7 @@ async function handleSignup() {
 
         if (emailCheck) {
             hideLoading();
-            showError(errorEl, 'Email already exists');
+            showToast('Email already exists', 'error');
             return;
         }
 
@@ -252,11 +343,12 @@ async function handleSignup() {
         hideLoading();
         window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
+        showToast(`Welcome ${name}! Account created successfully.`, 'success');
         showApp();
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'An error occurred during signup');
+        showToast('An error occurred during signup', 'error');
         console.error('❌ Signup error:', error);
     }
 }
@@ -264,10 +356,9 @@ async function handleSignup() {
 async function handleLogin() {
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
-    const errorEl = document.getElementById('loginError');
 
     if (!email || !password) {
-        showError(errorEl, 'Please fill in all fields');
+        showToast('Please fill in all fields', 'error');
         return;
     }
 
@@ -282,24 +373,25 @@ async function handleLogin() {
 
         if (error || !data) {
             hideLoading();
-            showError(errorEl, 'No account found with this email');
+            showToast('No account found with this email', 'error');
             return;
         }
 
         if (data.password !== password) {
             hideLoading();
-            showError(errorEl, 'Incorrect password');
+            showToast('Incorrect password', 'error');
             return;
         }
 
         hideLoading();
         window.appState.currentUser = data;
         localStorage.setItem('currentUser', JSON.stringify(data));
+        showToast(`Welcome back, ${data.name}!`, 'success');
         showApp();
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'An error occurred during login');
+        showToast('An error occurred during login', 'error');
         console.error('❌ Login error:', error);
     }
 }
@@ -307,11 +399,13 @@ async function handleLogin() {
 function handleLogout() {
     localStorage.removeItem('currentUser');
     window.appState.currentUser = null;
-    location.reload();
+    showToast('Successfully logged out', 'success');
+    setTimeout(() => {
+        location.reload();
+    }, 1500);
 }
 
 // ========== WEBSITE SETTINGS ==========
-
 async function loadWebsiteSettings() {
     try {
         const { data, error } = await supabase
@@ -369,12 +463,12 @@ function applyLoadingAnimation(animationUrl) {
 
     if (['gif', 'png', 'jpg', 'jpeg', 'json'].includes(fileExt)) {
         loadingContainer.innerHTML = `
-            <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px;">
+            <img src="${animationUrl}" alt="Loading" style="max-width: 200px; max-height: 200px; pointer-events: none;">
             <p style="margin-top: 15px; color: white;">Loading...</p>
         `;
     } else if (['webm', 'mp4'].includes(fileExt)) {
         loadingContainer.innerHTML = `
-            <video autoplay loop muted style="max-width: 200px; max-height: 200px;">
+            <video autoplay loop muted style="max-width: 200px; max-height: 200px; pointer-events: none;">
                 <source src="${animationUrl}" type="video/${fileExt}">
             </video>
             <p style="margin-top: 15px; color: white;">Loading...</p>
@@ -383,7 +477,6 @@ function applyLoadingAnimation(animationUrl) {
 }
 
 // ========== LOAD APP DATA ==========
-
 async function loadAppData() {
     await Promise.all([
         loadBanners(),
@@ -395,8 +488,7 @@ async function loadAppData() {
     ]);
 }
 
-// ========== BANNERS ==========
-
+// ========== IMPROVED BANNERS WITH PAGINATION ==========
 async function loadBanners() {
     try {
         const { data, error } = await supabase
@@ -408,38 +500,73 @@ async function loadBanners() {
 
         if (data && data.length > 0) {
             displayBanners(data);
+        } else {
+            document.getElementById('bannerSection').style.display = 'none';
         }
     } catch (error) {
         console.error('❌ Error loading banners:', error);
+        document.getElementById('bannerSection').style.display = 'none';
     }
 }
 
 function displayBanners(banners) {
     const container = document.getElementById('bannerContainer');
+    const pagination = document.getElementById('bannerPagination');
+    
+    if (!container || !pagination) return;
+    
     container.innerHTML = '';
+    pagination.innerHTML = '';
+    
     const wrapper = document.createElement('div');
     wrapper.className = 'banner-wrapper';
 
-    banners.forEach(banner => {
+    banners.forEach((banner, index) => {
         const item = document.createElement('div');
         item.className = 'banner-item';
-        item.innerHTML = `<img src="${banner.image_url}" alt="Banner">`;
+        item.innerHTML = `<img src="${banner.image_url}" alt="Banner ${index + 1}">`;
         wrapper.appendChild(item);
     });
 
     container.appendChild(wrapper);
 
+    // Create pagination dots
     if (banners.length > 1) {
-        let currentIndex = 0;
-        setInterval(() => {
-            currentIndex = (currentIndex + 1) % banners.length;
-            wrapper.style.transform = `translateX(-${currentIndex * 100}%)`;
-        }, 5000);
+        banners.forEach((_, index) => {
+            const dot = document.createElement('div');
+            dot.className = `banner-dot ${index === 0 ? 'active' : ''}`;
+            dot.addEventListener('click', () => goToBanner(index, wrapper, banners.length));
+            pagination.appendChild(dot);
+        });
+
+        // Auto-scroll every 5 seconds
+        startBannerAutoScroll(wrapper, banners.length);
     }
 }
 
-// ========== CATEGORIES ==========
+function goToBanner(index, wrapper, totalBanners) {
+    window.appState.currentBannerIndex = index;
+    wrapper.style.transform = `translateX(-${index * 100}%)`;
+    
+    // Update pagination dots
+    document.querySelectorAll('.banner-dot').forEach((dot, dotIndex) => {
+        dot.classList.toggle('active', dotIndex === index);
+    });
+}
 
+function startBannerAutoScroll(wrapper, totalBanners) {
+    // Clear existing interval
+    if (window.appState.bannerInterval) {
+        clearInterval(window.appState.bannerInterval);
+    }
+    
+    window.appState.bannerInterval = setInterval(() => {
+        window.appState.currentBannerIndex = (window.appState.currentBannerIndex + 1) % totalBanners;
+        goToBanner(window.appState.currentBannerIndex, wrapper, totalBanners);
+    }, 5000);
+}
+
+// ========== IMPROVED CATEGORIES WITH HORIZONTAL SCROLL ==========
 async function loadCategories() {
     try {
         const { data, error } = await supabase
@@ -480,15 +607,19 @@ function displayCategories(categories) {
             const titleDiv = document.createElement('h3');
             titleDiv.className = 'category-title';
             applyAnimationRendering(titleDiv, category.title);
-
             section.appendChild(titleDiv);
             
-            const buttonsDiv = document.createElement('div');
-            buttonsDiv.className = 'category-buttons';
-            buttonsDiv.id = `category-${category.id}`;
-            section.appendChild(buttonsDiv);
-
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.className = 'category-buttons';
+            
+            const buttonsWrapper = document.createElement('div');
+            buttonsWrapper.className = 'category-buttons-wrapper';
+            buttonsWrapper.id = `category-${category.id}`;
+            
+            buttonsContainer.appendChild(buttonsWrapper);
+            section.appendChild(buttonsContainer);
             container.appendChild(section);
+            
             displayCategoryButtons(category.id, category.category_buttons);
         }
     });
@@ -514,8 +645,7 @@ function displayCategoryButtons(categoryId, buttons) {
     });
 }
 
-// ========== PURCHASE MODAL (FIXED) ==========
-
+// ========== IMPROVED PURCHASE MODAL ==========
 async function openCategoryPage(categoryId, buttonId) {
     console.log('\n🎮 ========== OPENING CATEGORY PAGE ==========');
     console.log('Category ID:', categoryId);
@@ -555,12 +685,11 @@ async function openCategoryPage(categoryId, buttonId) {
         console.log('  - Tables:', tables.length);
         console.log('  - Menus:', menus.length);
         console.log('  - Videos:', videos.length);
-        console.log('  - Menus data:', menus);
 
         hideLoading();
 
         if (menus.length === 0) {
-            alert('No products available for this category');
+            showToast('No products available for this category', 'warning');
             return;
         }
 
@@ -569,7 +698,7 @@ async function openCategoryPage(categoryId, buttonId) {
     } catch (error) {
         hideLoading();
         console.error('❌ Error loading category data:', error);
-        alert('Error loading products. Please try again.');
+        showToast('Error loading products. Please try again.', 'error');
     }
 }
 
@@ -586,11 +715,11 @@ function showPurchaseModal(tables, menus, videos) {
 
     // Input Tables
     if (tables && tables.length > 0) {
-        html += '<div class="input-tables">';
+        html += '<div class="input-tables" style="margin-bottom: 24px;">';
         tables.forEach(table => {
             html += `
                 <div class="form-group">
-                    <label data-table-label="${table.id}"></label>
+                    <label data-table-label="${table.id}" style="font-weight: 600; color: var(--text-primary);"></label>
                     <input type="text" 
                            id="table-${table.id}" 
                            data-table-id="${table.id}"
@@ -602,14 +731,14 @@ function showPurchaseModal(tables, menus, videos) {
         html += '</div>';
     }
 
-    // Menu Items
+    // Menu Items - Grid Layout
     if (menus && menus.length > 0) {
-        html += '<h3 style="margin: 20px 0 15px 0;">Select Product</h3>';
+        html += '<h3 style="margin: 20px 0 16px 0; font-size: 20px; font-weight: 700; color: var(--text-primary);">Select Product</h3>';
         html += '<div class="menu-items">';
         menus.forEach(menu => {
             html += `
                 <div class="menu-item" data-menu-id="${menu.id}">
-                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" alt="Product">` : '<div class="menu-item-icon" style="background: rgba(255,255,255,0.1);"></div>'}
+                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" alt="Product">` : '<div class="menu-item-icon" style="background: var(--bg-glass);"></div>'}
                     <div class="menu-item-info">
                         <div class="menu-item-name" data-menu-name="${menu.id}"></div>
                         <div class="menu-item-amount" data-menu-amount="${menu.id}"></div>
@@ -620,16 +749,16 @@ function showPurchaseModal(tables, menus, videos) {
         });
         html += '</div>';
     } else {
-        html += '<p style="text-align:center;padding:20px;color:#94a3b8;">No products available</p>';
+        html += '<p style="text-align:center;padding:40px;color:var(--text-muted);">No products available</p>';
     }
 
     // Video Tutorials
     if (videos && videos.length > 0) {
-        html += '<div class="video-section"><h3>Tutorials</h3>';
+        html += '<div class="video-section"><h3>Tutorials & Guides</h3>';
         videos.forEach(video => {
             html += `
                 <div class="video-item" style="cursor:pointer;">
-                    <img src="${video.banner_url}" alt="Video" onclick="window.open('${video.video_url}', '_blank')">
+                    <img src="${video.banner_url}" alt="Tutorial Video">
                     <p data-video-desc="${video.id}"></p>
                 </div>
             `;
@@ -637,7 +766,7 @@ function showPurchaseModal(tables, menus, videos) {
         html += '</div>';
     }
 
-    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 20px;">Buy Now</button>`;
+    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 24px; width: 100%;">Continue to Purchase</button>`;
     html += '</div>';
 
     content.innerHTML = html;
@@ -665,6 +794,14 @@ function showPurchaseModal(tables, menus, videos) {
         videos.forEach(video => {
             const descEl = document.querySelector(`[data-video-desc="${video.id}"]`);
             if (descEl) applyAnimationRendering(descEl, video.description);
+            
+            // Add click event for video
+            const videoItem = descEl.closest('.video-item');
+            if (videoItem) {
+                videoItem.addEventListener('click', () => {
+                    window.open(video.video_url, '_blank');
+                });
+            }
         });
 
         // Attach menu item click events
@@ -703,7 +840,7 @@ function selectMenuItem(menuId) {
     
     if (!menuId || isNaN(menuId)) {
         console.error('❌ Invalid menu ID');
-        alert('Invalid product selection');
+        showToast('Invalid product selection', 'error');
         return;
     }
 
@@ -723,7 +860,7 @@ function selectMenuItem(menuId) {
     } else {
         console.error('❌ Menu not found in stored menus');
         console.log('Available menu IDs:', window.appState.allMenus.map(m => m.id));
-        alert('Product data not found. Please try again.');
+        showToast('Product data not found. Please try again.', 'error');
         return;
     }
 
@@ -755,7 +892,7 @@ async function proceedToPurchase() {
     // Validation
     if (!window.appState.selectedMenuItem) {
         console.error('❌ No menu selected');
-        alert('Please select a product first');
+        showToast('Please select a product first', 'warning');
         return;
     }
 
@@ -770,7 +907,7 @@ async function proceedToPurchase() {
             console.log('✅ Menu data recovered:', menu);
         } else {
             console.error('❌ Could not recover menu data');
-            alert('Product data not found. Please select the product again.');
+            showToast('Product data not found. Please select the product again.', 'error');
             return;
         }
     }
@@ -797,7 +934,7 @@ async function proceedToPurchase() {
 
     if (window.appState.currentTables.length > 0 && !allFilled) {
         console.error('❌ Not all required fields filled');
-        alert('Please fill in all required fields');
+        showToast('Please fill in all required fields', 'warning');
         return;
     }
 
@@ -810,8 +947,7 @@ async function proceedToPurchase() {
     await showPaymentModal();
 }
 
-// ========== PAYMENT MODAL (FIXED) ==========
-
+// ========== IMPROVED PAYMENT MODAL ==========
 async function loadPayments() {
     try {
         const { data, error } = await supabase
@@ -843,7 +979,7 @@ async function showPaymentModal() {
             currentMenu: window.appState.currentMenu,
             allMenus: window.appState.allMenus.length
         });
-        alert('Error: Product data not found. Please try again.');
+        showToast('Error: Product data not found. Please try again.', 'error');
         return;
     }
 
@@ -872,16 +1008,16 @@ async function showPaymentModal() {
     
     // Order Summary
     html += `<div class="order-summary">
-        <h3 data-order-summary-name></h3>
-        <p data-order-summary-amount></p>
+        <h3 data-order-summary-name style="font-size: 18px; font-weight: 700; margin-bottom: 8px;"></h3>
+        <p data-order-summary-amount style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;"></p>
         <p class="price">${menu.price} MMK</p>
     </div>`;
 
-    html += '<h3 style="margin: 20px 0 15px 0;">Select Payment Method</h3>';
+    html += '<h3 style="margin: 24px 0 16px 0; font-size: 20px; font-weight: 700; color: var(--text-primary);">Select Payment Method</h3>';
     
     // Payment Methods
     if (payments.length === 0) {
-        html += '<p style="text-align: center; color: #f59e0b; padding: 20px; background: rgba(245, 158, 11, 0.1); border-radius: 12px;">⚠️ No payment methods available</p>';
+        html += '<div style="text-align: center; color: var(--warning-color); padding: 40px; background: rgba(245, 158, 11, 0.1); border-radius: var(--border-radius); margin: 20px 0;"><p>⚠️ No payment methods available</p><p style="font-size: 14px; margin-top: 8px; color: var(--text-muted);">Please contact admin to set up payment methods</p></div>';
     } else {
         html += '<div class="payment-methods">';
         payments.forEach(payment => {
@@ -896,7 +1032,7 @@ async function showPaymentModal() {
     }
 
     html += '<div id="paymentDetails" style="display:none;"></div>';
-    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 20px;">Submit Order</button>`;
+    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 24px; width: 100%;" ${payments.length === 0 ? 'disabled' : ''}>Submit Order</button>`;
     html += '</div>';
 
     content.innerHTML = html;
@@ -934,7 +1070,7 @@ async function showPaymentModal() {
 
         // Attach submit button event
         const submitBtn = document.getElementById('submitOrderBtn');
-        if (submitBtn) {
+        if (submitBtn && !submitBtn.disabled) {
             submitBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -981,12 +1117,12 @@ async function selectPayment(paymentId) {
             detailsDiv.style.display = 'block';
             detailsDiv.innerHTML = `
                 <div class="payment-info">
-                    <h4 data-payment-detail-name></h4>
-                    <p data-payment-detail-instruction></p>
-                    <p><strong>Address:</strong> <span data-payment-detail-address></span></p>
-                    <div class="form-group" style="margin-top: 15px;">
-                        <label>Last 6 digits of transaction ID</label>
-                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits" required>
+                    <h4 data-payment-detail-name style="font-size: 18px; font-weight: 600; margin-bottom: 12px;"></h4>
+                    <p data-payment-detail-instruction style="margin-bottom: 12px; line-height: 1.5;"></p>
+                    <p style="margin-bottom: 16px;"><strong>Payment Address:</strong> <span data-payment-detail-address style="color: var(--accent-color); font-weight: 600;"></span></p>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: block;">Transaction ID (Last 6 digits)</label>
+                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits" required style="font-family: monospace; letter-spacing: 1px;">
                     </div>
                 </div>
             `;
@@ -998,13 +1134,13 @@ async function selectPayment(paymentId) {
                 const addressEl = document.querySelector('[data-payment-detail-address]');
                 
                 if (nameEl) applyAnimationRendering(nameEl, payment.name);
-                if (instructionEl) applyAnimationRendering(instructionEl, payment.instructions || 'Please complete payment and enter transaction details.');
+                if (instructionEl) applyAnimationRendering(instructionEl, payment.instructions || 'Please complete payment and enter transaction details below.');
                 if (addressEl) applyAnimationRendering(addressEl, payment.address);
             }, 50);
         }
     } catch (error) {
         console.error('❌ Error loading payment details:', error);
-        alert('Error loading payment details');
+        showToast('Error loading payment details', 'error');
     }
 }
 
@@ -1025,20 +1161,20 @@ async function submitOrder() {
     // Validation
     if (!window.appState.selectedPayment) {
         console.error('❌ No payment method selected');
-        alert('Please select a payment method');
+        showToast('Please select a payment method', 'warning');
         return;
     }
 
     const transactionCode = document.getElementById('transactionCode')?.value;
     if (!transactionCode || transactionCode.trim().length !== 6) {
         console.error('❌ Invalid transaction code');
-        alert('Please enter last 6 digits of transaction ID');
+        showToast('Please enter last 6 digits of transaction ID', 'warning');
         return;
     }
 
     if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
         console.error('❌ Missing order information');
-        alert('Error: Missing order information. Please try again.');
+        showToast('Error: Missing order information. Please try again.', 'error');
         return;
     }
 
@@ -1072,7 +1208,7 @@ async function submitOrder() {
         closePaymentModal();
         
         const menu = window.appState.currentMenu;
-        alert(`✅ Order Placed Successfully!\n\nOrder ID: #${data.id}\nProduct: ${menu.name}\nPrice: ${menu.price} MMK\n\nYour order will be processed within 30 minutes.\nPlease check your order history.`);
+        showToast(`🎉 Order Placed Successfully! Order ID: #${data.id}`, 'success', 8000);
 
         // Reset state
         window.appState.selectedMenuItem = null;
@@ -1089,12 +1225,11 @@ async function submitOrder() {
     } catch (error) {
         hideLoading();
         console.error('❌ Order submission failed:', error);
-        alert('Error submitting order: ' + error.message);
+        showToast('Error submitting order: ' + error.message, 'error');
     }
 }
 
 // ========== ORDER HISTORY ==========
-
 async function loadOrderHistory() {
     try {
         const { data, error } = await supabase
@@ -1119,7 +1254,7 @@ function displayOrderHistory(orders) {
     const container = document.getElementById('historyContainer');
     
     if (orders.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No orders yet</p>';
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px;"><h3 style="margin-bottom:12px;">No Orders Yet</h3><p>Your order history will appear here once you make your first purchase.</p></div>';
         return;
     }
 
@@ -1130,18 +1265,27 @@ function displayOrderHistory(orders) {
         item.className = 'history-item';
 
         let statusClass = 'pending';
-        if (order.status === 'approved') statusClass = 'approved';
-        if (order.status === 'rejected') statusClass = 'rejected';
+        let statusIcon = '⏳';
+        if (order.status === 'approved') {
+            statusClass = 'approved';
+            statusIcon = '✅';
+        }
+        if (order.status === 'rejected') {
+            statusClass = 'rejected';
+            statusIcon = '❌';
+        }
 
         item.innerHTML = `
-            <div class="history-status ${statusClass}">${order.status.toUpperCase()}</div>
-            <h3 data-order-name="${order.id}"></h3>
-            <p data-order-amount="${order.id}"></p>
-            <p><strong>Price:</strong> ${order.menus?.price || 0} MMK</p>
-            <p><strong>Payment:</strong> <span data-order-payment="${order.id}"></span></p>
-            <p><strong>Order ID:</strong> #${order.id}</p>
-            <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
-            ${order.admin_message ? `<p style="margin-top:10px;padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid #fbbf24;" data-order-message="${order.id}"></p>` : ''}
+            <div class="history-status ${statusClass}">${statusIcon} ${order.status.toUpperCase()}</div>
+            <h3 data-order-name="${order.id}" style="font-size: 18px; font-weight: 600; margin-bottom: 8px;"></h3>
+            <p data-order-amount="${order.id}" style="color: var(--text-secondary); margin-bottom: 12px;"></p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+                <p><strong>Price:</strong> <span style="color: var(--success-color); font-weight: 600;">${order.menus?.price || 0} MMK</span></p>
+                <p><strong>Order ID:</strong> #${order.id}</p>
+            </div>
+            <p style="margin-bottom: 8px;"><strong>Payment:</strong> <span data-order-payment="${order.id}"></span></p>
+            <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 14px;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+            ${order.admin_message ? `<div style="margin-top:16px;padding:16px;background:rgba(245,158,11,0.1);border-radius:var(--border-radius);border:1px solid var(--warning-color);" data-order-message="${order.id}"></div>` : ''}
         `;
 
         container.appendChild(item);
@@ -1152,16 +1296,15 @@ function displayOrderHistory(orders) {
             const paymentEl = document.querySelector(`[data-order-payment="${order.id}"]`);
             const messageEl = document.querySelector(`[data-order-message="${order.id}"]`);
 
-            if (nameEl) applyAnimationRendering(nameEl, order.menus?.name || 'Unknown');
+            if (nameEl) applyAnimationRendering(nameEl, order.menus?.name || 'Unknown Product');
             if (amountEl) applyAnimationRendering(amountEl, order.menus?.amount || '');
             if (paymentEl) applyAnimationRendering(paymentEl, order.payment_methods?.name || 'N/A');
-            if (messageEl) applyAnimationRendering(messageEl, `<strong>Message:</strong> ${order.admin_message}`);
+            if (messageEl) applyAnimationRendering(messageEl, `<strong style="color: var(--warning-color);">📢 Admin Message:</strong><br>${order.admin_message}`);
         }, 50);
     });
 }
 
 // ========== CONTACTS ==========
-
 async function loadContacts() {
     try {
         const { data, error } = await supabase
@@ -1181,7 +1324,7 @@ function displayContacts(contacts) {
     const container = document.getElementById('contactsContainer');
     
     if (contacts.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:40px;">No contacts</p>';
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px;"><h3 style="margin-bottom:12px;">No Contacts Available</h3><p>Contact information will be displayed here.</p></div>';
         return;
     }
 
@@ -1193,15 +1336,19 @@ function displayContacts(contacts) {
 
         if (contact.link) {
             item.style.cursor = 'pointer';
-            item.addEventListener('click', () => window.open(contact.link, '_blank'));
+            item.addEventListener('click', () => {
+                window.open(contact.link, '_blank');
+                showToast(`Opening ${contact.name}...`, 'success', 2000);
+            });
         }
 
         item.innerHTML = `
             <img src="${contact.icon_url}" class="contact-icon" alt="${contact.name}">
             <div class="contact-info">
-                <h3 data-contact-name="${contact.id}"></h3>
-                <p data-contact-desc="${contact.id}"></p>
-                ${!contact.link && contact.address ? `<p data-contact-address="${contact.id}"></p>` : ''}
+                <h3 data-contact-name="${contact.id}" style="font-size: 18px; font-weight: 600; margin-bottom: 6px;"></h3>
+                <p data-contact-desc="${contact.id}" style="color: var(--text-secondary); margin-bottom: 4px;"></p>
+                ${!contact.link && contact.address ? `<p data-contact-address="${contact.id}" style="font-size: 14px; color: var(--text-muted);"></p>` : ''}
+                ${contact.link ? '<p style="font-size: 12px; color: var(--accent-color); margin-top: 8px;">👆 Click to open</p>' : ''}
             </div>
         `;
 
@@ -1220,7 +1367,6 @@ function displayContacts(contacts) {
 }
 
 // ========== PROFILE ==========
-
 function loadProfile() {
     const user = window.appState.currentUser;
     document.getElementById('profileName').value = user.name;
@@ -1238,16 +1384,14 @@ function loadProfile() {
 async function updateProfile() {
     const currentPassword = document.getElementById('currentPassword').value;
     const newPassword = document.getElementById('newPassword').value;
-    const errorEl = document.getElementById('profileError');
-    const successEl = document.getElementById('profileSuccess');
 
     if (!newPassword) {
-        showError(errorEl, 'Please enter a new password');
+        showToast('Please enter a new password', 'error');
         return;
     }
 
     if (currentPassword !== window.appState.currentUser.password) {
-        showError(errorEl, 'Current password is incorrect');
+        showToast('Current password is incorrect', 'error');
         return;
     }
 
@@ -1270,17 +1414,16 @@ async function updateProfile() {
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
         
-        showSuccess(successEl, 'Password updated successfully!');
+        showToast('Password updated successfully! 🔒', 'success');
 
     } catch (error) {
         hideLoading();
-        showError(errorEl, 'Error updating password');
+        showToast('Error updating password', 'error');
         console.error('❌ Update error:', error);
     }
 }
 
 // ========== NAVIGATION ==========
-
 function switchPage(pageName) {
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
@@ -1294,24 +1437,42 @@ function switchPage(pageName) {
     
     const activeNav = document.querySelector(`[data-page="${pageName}"]`);
     if (activeNav) activeNav.classList.add('active');
+
+    // Load data when switching to specific pages
+    if (pageName === 'history') {
+        loadOrderHistory();
+    } else if (pageName === 'contacts') {
+        loadContacts();
+    }
 }
 
 // ========== UTILITY FUNCTIONS ==========
-
 function validateEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
 function showError(element, message) {
-    element.textContent = message;
-    element.classList.add('show');
-    setTimeout(() => element.classList.remove('show'), 5000);
+    if (element) {
+        element.textContent = message;
+        element.classList.add('show');
+        setTimeout(() => element.classList.remove('show'), 5000);
+    }
 }
 
 function showSuccess(element, message) {
-    element.textContent = message;
-    element.classList.add('show');
-    setTimeout(() => element.classList.remove('show'), 5000);
+    if (element) {
+        element.textContent = message;
+        element.classList.add('show');
+        setTimeout(() => element.classList.remove('show'), 5000);
+    }
 }
 
-console.log('✅ Gaming Store App initialized with full debugging support!');
+// ========== CLEANUP ==========
+window.addEventListener('beforeunload', () => {
+    // Clear banner interval
+    if (window.appState.bannerInterval) {
+        clearInterval(window.appState.bannerInterval);
+    }
+});
+
+console.log('✅ Enhanced Gaming Store App initialized with improved UI/UX!');
