@@ -1,4 +1,3 @@
-
 // Supabase Configuration
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
@@ -439,7 +438,7 @@ async function loadPendingRequests() {
         container.innerHTML = requests.map(request => `
             <div class="request-card">
                 <div class="request-header">
-                    <h4>🔐 Access Request</h4>
+                    <h4>🔓 Access Request</h4>
                     <span class="request-time">${new Date(request.requested_at).toLocaleString()}</span>
                 </div>
                 <div class="request-details">
@@ -680,7 +679,7 @@ async function loadAdminSessions() {
             <div class="session-card ${session.id === currentSessionId ? 'current-session' : ''}">
                 <div class="session-header">
                     <h4>
-                        ${session.id === currentSessionId ? '👨‍💼 Current Session' : '🔐 Admin Session'}
+                        ${session.id === currentSessionId ? '🔵 Current Session' : '👨‍💼 Admin Session'}
                         ${!session.is_active ? ' (Inactive)' : ''}
                     </h4>
                     <span class="session-time">Created: ${new Date(session.created_at).toLocaleString()}</span>
@@ -894,10 +893,6 @@ function loadSectionData(section) {
         case 'enhanced-orders':
             loadEnhancedOrders();
             break;
-        case 'ip-management':
-            loadPendingRequests();
-            loadAdminSessions();
-            break;
     }
 }
 
@@ -980,7 +975,7 @@ function displayAnimations(animations) {
             <div class="animation-preview">${preview}</div>
             <div class="animation-name">${anim.name}</div>
             <div class="animation-type">${anim.file_type.toUpperCase()}</div>
-            <button class="animation-delete" onclick="deleteAnimation(${anim.id})">🗑️</button>
+            <button class="animation-delete" onclick="deleteAnimation(${anim.id})">×</button>
         `;
 
         container.appendChild(item);
@@ -1027,7 +1022,7 @@ async function uploadAnimation() {
         if (error) throw error;
 
         hideLoading();
-        alert('✨ Animation uploaded successfully!');
+        alert('✅ Animation uploaded successfully!');
         
         // Reset form
         document.getElementById('animationName').value = '';
@@ -1059,7 +1054,7 @@ async function deleteAnimation(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('🗑️ Animation deleted!');
+        alert('✅ Animation deleted!');
         await loadAnimations();
 
     } catch (error) {
@@ -1516,7 +1511,7 @@ async function loadCategories() {
                         <h4>${titleHtml}</h4>
                         <p>Created: ${new Date(category.created_at).toLocaleDateString()}</p>
                         <div class="item-actions">
-                            <button class="btn-secondary" onclick="editCategory(${category.id})">Edit</button>
+                            <button class="btn-secondary" onclick="editCategory(${category.id}, '${category.title.replace(/'/g, "\\'")}')">Edit</button>
                             <button class="btn-danger" onclick="deleteCategory(${category.id})">Delete</button>
                         </div>
                     </div>
@@ -1533,7 +1528,7 @@ async function loadCategories() {
 async function addCategory() {
     const title = document.getElementById('categoryTitle').value.trim();
     if (!title) {
-        alert('Please enter category title');
+        alert('Please enter a category title');
         return;
     }
 
@@ -1549,7 +1544,7 @@ async function addCategory() {
         alert('Category added!');
         document.getElementById('categoryTitle').value = '';
         loadCategories();
-        loadCategoriesForSelect(); // Refresh select options
+        loadCategoriesForSelect();
     } catch (error) {
         hideLoading();
         alert('Error adding category');
@@ -1557,9 +1552,9 @@ async function addCategory() {
     }
 }
 
-async function editCategory(id) {
-    const newTitle = prompt('Enter new category title:');
-    if (!newTitle) return;
+async function editCategory(id, currentTitle) {
+    const newTitle = prompt('Enter new category title:', currentTitle);
+    if (!newTitle || newTitle === currentTitle) return;
 
     showLoading();
     try {
@@ -1573,16 +1568,15 @@ async function editCategory(id) {
         hideLoading();
         alert('Category updated!');
         loadCategories();
-        loadCategoriesForSelect();
     } catch (error) {
         hideLoading();
-        alert('Error updating category');
+        alert('Error updating');
         console.error(error);
     }
 }
 
 async function deleteCategory(id) {
-    if (!confirm('Delete this category? This will also delete all its buttons and related data.')) return;
+    if (!confirm('Delete this category? All related data will be deleted!')) return;
 
     showLoading();
     try {
@@ -1596,29 +1590,27 @@ async function deleteCategory(id) {
         hideLoading();
         alert('Category deleted!');
         loadCategories();
-        loadCategoriesForSelect();
     } catch (error) {
         hideLoading();
-        alert('Error deleting category');
+        alert('Error deleting');
         console.error(error);
     }
 }
 
-// Load categories for select dropdowns
+// ==================== CATEGORY BUTTONS ====================
+
 async function loadCategoriesForSelect() {
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('categories')
             .select('*')
             .order('created_at', { ascending: true });
 
-        if (error) throw error;
-
-        // Update all category selects
         const selects = [
-            'buttonCategorySelect', 'tableCategorySelect', 'menuCategorySelect', 
-            'videoCategorySelect', 'enhancedProductCategorySelect', 'bannerCategorySelect', 
-            'contentCategorySelect'
+            'buttonCategorySelect',
+            'tableCategorySelect',
+            'menuCategorySelect',
+            'videoCategorySelect'
         ];
 
         selects.forEach(selectId => {
@@ -1626,22 +1618,17 @@ async function loadCategoriesForSelect() {
             if (select) {
                 select.innerHTML = '<option value="">Select Category</option>';
                 if (data) {
-                    data.forEach(category => {
-                        const option = document.createElement('option');
-                        option.value = category.id;
-                        option.textContent = category.title;
-                        select.appendChild(option);
+                    data.forEach(cat => {
+                        const titleText = cat.title.replace(/\{anim:[^}]+\}/g, ''); // Remove emoji codes for select
+                        select.innerHTML += `<option value="${cat.id}">${titleText}</option>`;
                     });
                 }
             }
         });
-
     } catch (error) {
-        console.error('Error loading categories for select:', error);
+        console.error('Error loading categories:', error);
     }
 }
-
-// ==================== CATEGORY BUTTONS ====================
 
 async function loadCategoryButtons() {
     try {
@@ -1651,7 +1638,7 @@ async function loadCategoryButtons() {
                 *,
                 categories (title)
             `)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: true });
 
         const container = document.getElementById('buttonsContainer');
         container.innerHTML = '';
@@ -1659,14 +1646,15 @@ async function loadCategoryButtons() {
         if (data && data.length > 0) {
             data.forEach(button => {
                 const nameHtml = renderAnimatedText(button.name);
+                const categoryHtml = renderAnimatedText(button.categories.title);
                 container.innerHTML += `
                     <div class="item-card">
-                        <img src="${button.icon_url}" alt="Button Icon">
+                        <img src="${button.icon_url}" alt="${button.name}">
                         <h4>${nameHtml}</h4>
-                        <p><strong>Category:</strong> ${button.categories?.title || 'Unknown'}</p>
+                        <p>Category: ${categoryHtml}</p>
                         <div class="item-actions">
-                            <button class="btn-secondary" onclick="editCategoryButton(${button.id})">Edit</button>
-                            <button class="btn-danger" onclick="deleteCategoryButton(${button.id})">Delete</button>
+                            <button class="btn-secondary" onclick="editButton(${button.id})">Edit</button>
+                            <button class="btn-danger" onclick="deleteButton(${button.id})">Delete</button>
                         </div>
                     </div>
                 `;
@@ -1690,23 +1678,22 @@ async function addCategoryButton() {
     }
 
     showLoading();
-    const iconUrl = await uploadFile(file, 'buttons');
+    const url = await uploadFile(file, 'category-icons');
     
-    if (iconUrl) {
+    if (url) {
         try {
             const { error } = await supabase
                 .from('category_buttons')
                 .insert([{
-                    category_id: parseInt(categoryId),
+                    category_id: categoryId,
                     name: name,
-                    icon_url: iconUrl
+                    icon_url: url
                 }]);
 
             if (error) throw error;
 
             hideLoading();
             alert('Button added!');
-            document.getElementById('buttonCategorySelect').value = '';
             document.getElementById('buttonName').value = '';
             document.getElementById('buttonIconFile').value = '';
             loadCategoryButtons();
@@ -1721,12 +1708,58 @@ async function addCategoryButton() {
     }
 }
 
-async function editCategoryButton(id) {
-    alert('Edit functionality will be implemented in the next update');
+async function editButton(id) {
+    const { data: button } = await supabase
+        .from('category_buttons')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Name</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editButtonName" value="${button.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editButtonName')">😀</button>
+            </div>
+        </div>
+        <button class="btn-primary" onclick="updateButton(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
 }
 
-async function deleteCategoryButton(id) {
-    if (!confirm('Delete this button? This will also delete all related data.')) return;
+async function updateButton(id) {
+    const name = document.getElementById('editButtonName').value.trim();
+
+    if (!name) {
+        alert('Please enter a name');
+        return;
+    }
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('category_buttons')
+            .update({ name: name })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        closeEditModal();
+        alert('Button updated!');
+        loadCategoryButtons();
+    } catch (error) {
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
+    }
+}
+
+async function deleteButton(id) {
+    if (!confirm('Delete this button? All related data will be deleted!')) return;
 
     showLoading();
     try {
@@ -1742,35 +1775,33 @@ async function deleteCategoryButton(id) {
         loadCategoryButtons();
     } catch (error) {
         hideLoading();
-        alert('Error deleting button');
+        alert('Error deleting');
         console.error(error);
     }
 }
 
-// Load buttons for specific category
+// ==================== INPUT TABLES ====================
+
 async function loadButtonsForTables() {
     const categoryId = document.getElementById('tableCategorySelect').value;
-    const buttonSelect = document.getElementById('tableButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
+    if (!categoryId) {
+        document.getElementById('tableButtonSelect').innerHTML = '<option value="">Select Button</option>';
+        return;
+    }
 
     try {
-        const { data, error } = await supabase
+        const { data } = await supabase
             .from('category_buttons')
             .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
+            .eq('category_id', categoryId);
 
-        if (error) throw error;
-
+        const select = document.getElementById('tableButtonSelect');
+        select.innerHTML = '<option value="">Select Button</option>';
+        
         if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
+            data.forEach(btn => {
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
             });
         }
     } catch (error) {
@@ -1778,323 +1809,51 @@ async function loadButtonsForTables() {
     }
 }
 
-async function loadButtonsForMenus() {
-    const categoryId = document.getElementById('menuCategorySelect').value;
-    const buttonSelect = document.getElementById('menuButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for menus:', error);
-    }
-}
-
-async function loadButtonsForVideos() {
-    const categoryId = document.getElementById('videoCategorySelect').value;
-    const buttonSelect = document.getElementById('videoButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for videos:', error);
-    }
-}
-
-// Enhanced Product Functions - LOAD BUTTONS FOR CATEGORIES
-async function loadButtonsForEnhancedProducts() {
-    const categoryId = document.getElementById('enhancedProductCategorySelect').value;
-    const buttonSelect = document.getElementById('enhancedProductButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')  
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for enhanced products:', error);
-    }
-}
-
-// Load buttons for banners
-async function loadButtonsForBanners() {
-    const categoryId = document.getElementById('bannerCategorySelect').value;
-    const buttonSelect = document.getElementById('bannerButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for banners:', error);
-    }
-}
-
-// Load buttons for content
-async function loadButtonsForContent() {
-    const categoryId = document.getElementById('contentCategorySelect').value;
-    const buttonSelect = document.getElementById('contentButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) {
-        document.getElementById('contentProductSelect').innerHTML = '<option value="">General Page Content</option>';
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for content:', error);
-    }
-}
-
-// Load products for content
-async function loadProductsForContent() {
-    const buttonId = document.getElementById('contentButtonSelect').value;
-    const productSelect = document.getElementById('contentProductSelect');
-    
-    productSelect.innerHTML = '<option value="">General Page Content</option>';
-    
-    if (!buttonId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('enhanced_products')
-            .select('*')
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(product => {
-                const option = document.createElement('option');
-                option.value = product.id;
-                option.textContent = product.name;
-                productSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading products for content:', error);
-    }
-}
-
-
-// ==================== CONTINUATION OF ADMIN.JS ====================
-// This file contains the remaining admin functions
-
-// ==================== INPUT TABLES ====================
-
-async function loadInputTables() {
-    try {
-        const { data, error } = await supabase
-            .from('input_tables')
-            .select(`
-                *,
-                categories (title),
-                category_buttons (name)
-            `)
-            .order('created_at', { ascending: false });
-
-        const container = document.getElementById('tablesContainer');
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            // Group by button_id
-            const groupedTables = {};
-            data.forEach(table => {
-                if (!groupedTables[table.button_id]) {
-                    groupedTables[table.button_id] = [];
-                }
-                groupedTables[table.button_id].push(table);
-            });
-
-            Object.keys(groupedTables).forEach(buttonId => {
-                const tables = groupedTables[buttonId];
-                const firstTable = tables[0];
-                
-                const nameHtml = tables.map(t => renderAnimatedText(t.name)).join(', ');
-                
-                container.innerHTML += `
-                    <div class="item-card">
-                        <h4>Input Tables Group</h4>
-                        <p><strong>Category:</strong> ${firstTable.categories?.title || 'Unknown'}</p>
-                        <p><strong>Button:</strong> ${firstTable.category_buttons?.name || 'Unknown'}</p>
-                        <p><strong>Tables:</strong> ${nameHtml}</p>
-                        <p><strong>Count:</strong> ${tables.length} table(s)</p>
-                        <div class="item-actions">
-                            <button class="btn-secondary" onclick="viewTables(${buttonId})">View Details</button>
-                            <button class="btn-danger" onclick="deleteTables(${buttonId})">Delete All</button>
-                        </div>
-                    </div>
-                `;
-            });
-        } else {
-            container.innerHTML = '<p>No input tables yet</p>';
-        }
-    } catch (error) {
-        console.error('Error loading tables:', error);
-    }
-}
-
 function addTableInput() {
     const container = document.getElementById('tablesInputContainer');
-    const inputGroup = document.createElement('div');
-    inputGroup.className = 'table-input-group';
-    inputGroup.innerHTML = `
+    const newInput = document.createElement('div');
+    newInput.className = 'table-input-group';
+    newInput.innerHTML = `
+        <button class="remove-input" onclick="this.parentElement.remove()">×</button>
         <div class="input-with-emoji">
             <input type="text" class="table-name" placeholder="Table Name">
-            <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
         </div>
         <div class="input-with-emoji">
             <input type="text" class="table-instruction" placeholder="Instruction">
-            <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
         </div>
-        <button type="button" onclick="removeTableInput(this)" class="btn-danger" style="margin-top: 8px;">Remove</button>
     `;
-    container.appendChild(inputGroup);
-}
-
-function removeTableInput(button) {
-    button.parentElement.remove();
+    container.appendChild(newInput);
 }
 
 async function saveTables() {
-    const categoryId = document.getElementById('tableCategorySelect').value;
     const buttonId = document.getElementById('tableButtonSelect').value;
-    const tableGroups = document.querySelectorAll('.table-input-group');
-
-    if (!categoryId || !buttonId) {
-        alert('Please select category and button');
-        return;
-    }
-
-    if (tableGroups.length === 0) {
-        alert('Please add at least one table');
+    if (!buttonId) {
+        alert('Please select a button');
         return;
     }
 
     const tables = [];
-    let hasEmptyFields = false;
-
-    tableGroups.forEach(group => {
+    document.querySelectorAll('.table-input-group').forEach(group => {
         const name = group.querySelector('.table-name').value.trim();
         const instruction = group.querySelector('.table-instruction').value.trim();
-        
-        if (!name || !instruction) {
-            hasEmptyFields = true;
-            return;
+        if (name && instruction) {
+            tables.push({
+                button_id: buttonId,
+                name: name,
+                instruction: instruction
+            });
         }
-        
-        tables.push({
-            category_id: parseInt(categoryId),
-            button_id: parseInt(buttonId),
-            name: name,
-            instruction: instruction
-        });
     });
 
-    if (hasEmptyFields) {
-        alert('Please fill in all table names and instructions');
+    if (tables.length === 0) {
+        alert('Please add at least one table');
         return;
     }
 
     showLoading();
-
     try {
-        // Delete existing tables for this button
-        await supabase
-            .from('input_tables')
-            .delete()
-            .eq('button_id', buttonId);
-
-        // Insert new tables
         const { error } = await supabase
             .from('input_tables')
             .insert(tables);
@@ -2103,23 +1862,18 @@ async function saveTables() {
 
         hideLoading();
         alert('Tables saved!');
-        
-        // Reset form
-        document.getElementById('tableCategorySelect').value = '';
-        document.getElementById('tableButtonSelect').value = '';
         document.getElementById('tablesInputContainer').innerHTML = `
             <div class="table-input-group">
                 <div class="input-with-emoji">
                     <input type="text" class="table-name" placeholder="Table Name">
-                    <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
                 </div>
                 <div class="input-with-emoji">
                     <input type="text" class="table-instruction" placeholder="Instruction">
-                    <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
                 </div>
             </div>
         `;
-        
         loadInputTables();
     } catch (error) {
         hideLoading();
@@ -2128,33 +1882,185 @@ async function saveTables() {
     }
 }
 
-async function viewTables(buttonId) {
-    alert('View functionality will be implemented in the next update');
+async function loadInputTables() {
+    try {
+        const { data, error } = await supabase
+            .from('input_tables')
+            .select(`
+                *,
+                category_buttons (name, categories (title))
+            `)
+            .order('created_at', { ascending: true });
+
+        const container = document.getElementById('tablesContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(table => {
+                const nameHtml = renderAnimatedText(table.name);
+                const instructionHtml = renderAnimatedText(table.instruction);
+                const buttonNameHtml = renderAnimatedText(table.category_buttons.name);
+                const categoryHtml = renderAnimatedText(table.category_buttons.categories.title);
+                
+                container.innerHTML += `
+                    <div class="item-card">
+                        <h4>${nameHtml}</h4>
+                        <p>Button: ${buttonNameHtml}</p>
+                        <p>Category: ${categoryHtml}</p>
+                        <p>Instruction: ${instructionHtml}</p>
+                        <div class="item-actions">
+                            <button class="btn-danger" onclick="deleteTable(${table.id})">Delete</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No tables yet</p>';
+        }
+    } catch (error) {
+        console.error('Error loading tables:', error);
+    }
 }
 
-async function deleteTables(buttonId) {
-    if (!confirm('Delete all tables for this button?')) return;
+async function deleteTable(id) {
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
         const { error } = await supabase
             .from('input_tables')
             .delete()
-            .eq('button_id', buttonId);
+            .eq('id', id);
 
         if (error) throw error;
 
         hideLoading();
-        alert('Tables deleted!');
+        alert('Table deleted!');
         loadInputTables();
     } catch (error) {
         hideLoading();
-        alert('Error deleting tables');
+        alert('Error deleting');
         console.error(error);
     }
 }
 
-// ==================== MENUS (Original Products) ====================
+// ==================== MENUS/PRODUCTS ====================
+
+async function loadButtonsForMenus() {
+    const categoryId = document.getElementById('menuCategorySelect').value;
+    if (!categoryId) {
+        document.getElementById('menuButtonSelect').innerHTML = '<option value="">Select Button</option>';
+        return;
+    }
+
+    try {
+        const { data } = await supabase
+            .from('category_buttons')
+            .select('*')
+            .eq('category_id', categoryId);
+
+        const select = document.getElementById('menuButtonSelect');
+        select.innerHTML = '<option value="">Select Button</option>';
+        
+        if (data) {
+            data.forEach(btn => {
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading buttons:', error);
+    }
+}
+
+function addMenuInput() {
+    const container = document.getElementById('menusInputContainer');
+    const newInput = document.createElement('div');
+    newInput.className = 'menu-input-group';
+    newInput.innerHTML = `
+        <button class="remove-input" onclick="this.parentElement.remove()">×</button>
+        <div class="input-with-emoji">
+            <input type="text" class="menu-name" placeholder="Product Name">
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+        </div>
+        <div class="input-with-emoji">
+            <input type="text" class="menu-amount" placeholder="Amount/Details">
+            <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+        </div>
+        <input type="number" class="menu-price" placeholder="Price">
+    `;
+    container.appendChild(newInput);
+}
+
+async function saveMenus() {
+    const buttonId = document.getElementById('menuButtonSelect').value;
+    if (!buttonId) {
+        alert('Please select a button');
+        return;
+    }
+
+    const firstIcon = document.querySelector('.menu-icon').files[0];
+    let iconUrl = null;
+
+    if (firstIcon) {
+        showLoading();
+        iconUrl = await uploadFile(firstIcon, 'menu-icons');
+        hideLoading();
+    }
+
+    const menus = [];
+    document.querySelectorAll('.menu-input-group').forEach((group, index) => {
+        const name = group.querySelector('.menu-name').value.trim();
+        const amount = group.querySelector('.menu-amount').value.trim();
+        const price = group.querySelector('.menu-price').value;
+        
+        if (name && amount && price) {
+            menus.push({
+                button_id: buttonId,
+                name: name,
+                amount: amount,
+                price: parseInt(price),
+                icon_url: index === 0 ? iconUrl : null
+            });
+        }
+    });
+
+    if (menus.length === 0) {
+        alert('Please add at least one product');
+        return;
+    }
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('menus')
+            .insert(menus);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('Products saved!');
+        document.getElementById('menusInputContainer').innerHTML = `
+            <div class="menu-input-group">
+                <div class="input-with-emoji">
+                    <input type="text" class="menu-name" placeholder="Product Name">
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+                </div>
+                <div class="input-with-emoji">
+                    <input type="text" class="menu-amount" placeholder="Amount/Details">
+                    <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+                </div>
+                <input type="number" class="menu-price" placeholder="Price">
+                <input type="file" class="menu-icon" accept="image/*">
+            </div>
+        `;
+        loadMenus();
+    } catch (error) {
+        hideLoading();
+        alert('Error saving products');
+        console.error(error);
+    }
+}
 
 async function loadMenus() {
     try {
@@ -2162,10 +2068,9 @@ async function loadMenus() {
             .from('menus')
             .select(`
                 *,
-                categories (title),
-                category_buttons (name)
+                category_buttons (name, categories (title))
             `)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: true });
 
         const container = document.getElementById('menusContainer');
         container.innerHTML = '';
@@ -2174,17 +2079,15 @@ async function loadMenus() {
             data.forEach(menu => {
                 const nameHtml = renderAnimatedText(menu.name);
                 const amountHtml = renderAnimatedText(menu.amount);
+                const buttonNameHtml = renderAnimatedText(menu.category_buttons.name);
                 
                 container.innerHTML += `
                     <div class="item-card">
-                        <img src="${menu.icon_url}" alt="Product Icon">
-                        <div>
-                            <h4>${nameHtml}</h4>
-                            <p><strong>Amount:</strong> ${amountHtml}</p>
-                            <p><strong>Price:</strong> ${menu.price} MMK</p>
-                            <p><strong>Category:</strong> ${menu.categories?.title || 'Unknown'}</p>
-                            <p><strong>Button:</strong> ${menu.category_buttons?.name || 'Unknown'}</p>
-                        </div>
+                        ${menu.icon_url ? `<img src="${menu.icon_url}" alt="${menu.name}">` : ''}
+                        <h4>${nameHtml}</h4>
+                        <p>${amountHtml}</p>
+                        <p><strong>${menu.price} MMK</strong></p>
+                        <p>Button: ${buttonNameHtml}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editMenu(${menu.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteMenu(${menu.id})">Delete</button>
@@ -2200,122 +2103,75 @@ async function loadMenus() {
     }
 }
 
-function addMenuInput() {
-    const container = document.getElementById('menusInputContainer');
-    const inputGroup = document.createElement('div');
-    inputGroup.className = 'menu-input-group';
-    inputGroup.innerHTML = `
-        <div class="input-with-emoji">
-            <input type="text" class="menu-name" placeholder="Product Name">
-            <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+async function editMenu(id) {
+    const { data: menu } = await supabase
+        .from('menus')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Name</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editMenuName" value="${menu.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editMenuName')">😀</button>
+            </div>
         </div>
-        <div class="input-with-emoji">
-            <input type="text" class="menu-amount" placeholder="Amount/Details">
-            <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+        <div class="form-group">
+            <label>Amount</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editMenuAmount" value="${menu.amount}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editMenuAmount')">😀</button>
+            </div>
         </div>
-        <input type="number" class="menu-price" placeholder="Price">
-        <input type="file" class="menu-icon" accept="image/*">
-        <button type="button" onclick="removeMenuInput(this)" class="btn-danger" style="margin-top: 8px;">Remove</button>
+        <div class="form-group">
+            <label>Price</label>
+            <input type="number" id="editMenuPrice" value="${menu.price}">
+        </div>
+        <button class="btn-primary" onclick="updateMenu(${id})">Save Changes</button>
     `;
-    container.appendChild(inputGroup);
+
+    document.getElementById('editModal').classList.add('active');
 }
 
-function removeMenuInput(button) {
-    button.parentElement.remove();
-}
+async function updateMenu(id) {
+    const name = document.getElementById('editMenuName').value.trim();
+    const amount = document.getElementById('editMenuAmount').value.trim();
+    const price = document.getElementById('editMenuPrice').value;
 
-async function saveMenus() {
-    const categoryId = document.getElementById('menuCategorySelect').value;
-    const buttonId = document.getElementById('menuButtonSelect').value;
-    const menuGroups = document.querySelectorAll('.menu-input-group');
-
-    if (!categoryId || !buttonId) {
-        alert('Please select category and button');
-        return;
-    }
-
-    if (menuGroups.length === 0) {
-        alert('Please add at least one product');
+    if (!name || !amount || !price) {
+        alert('Please fill all fields');
         return;
     }
 
     showLoading();
-
     try {
-        const menus = [];
-        
-        for (const group of menuGroups) {
-            const name = group.querySelector('.menu-name').value.trim();
-            const amount = group.querySelector('.menu-amount').value.trim();
-            const price = group.querySelector('.menu-price').value;
-            const iconFile = group.querySelector('.menu-icon').files[0];
-            
-            if (!name || !amount || !price || !iconFile) {
-                hideLoading();
-                alert('Please fill in all fields and select icons for all products');
-                return;
-            }
-            
-            // Upload icon
-            const iconUrl = await uploadFile(iconFile, 'menus');
-            if (!iconUrl) {
-                hideLoading();
-                alert('Error uploading product icon');
-                return;
-            }
-            
-            menus.push({
-                category_id: parseInt(categoryId),
-                button_id: parseInt(buttonId),
-                name: name,
-                amount: amount,
-                price: parseInt(price),
-                icon_url: iconUrl
-            });
-        }
-
-        // Insert menus
         const { error } = await supabase
             .from('menus')
-            .insert(menus);
+            .update({
+                name: name,
+                amount: amount,
+                price: parseInt(price)
+            })
+            .eq('id', id);
 
         if (error) throw error;
 
         hideLoading();
-        alert('Products saved!');
-        
-        // Reset form
-        document.getElementById('menuCategorySelect').value = '';
-        document.getElementById('menuButtonSelect').value = '';
-        document.getElementById('menusInputContainer').innerHTML = `
-            <div class="menu-input-group">
-                <div class="input-with-emoji">
-                    <input type="text" class="menu-name" placeholder="Product Name">
-                    <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
-                </div>
-                <div class="input-with-emoji">
-                    <input type="text" class="menu-amount" placeholder="Amount/Details">
-                    <button type="button" class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
-                </div>
-                <input type="number" class="menu-price" placeholder="Price">
-                <input type="file" class="menu-icon" accept="image/*">
-            </div>
-        `;
-        
+        closeEditModal();
+        alert('Menu updated!');
         loadMenus();
     } catch (error) {
         hideLoading();
-        alert('Error saving products');
+        alert('Error updating');
         console.error(error);
     }
 }
 
-async function editMenu(id) {
-    alert('Edit functionality will be implemented in the next update');
-}
-
 async function deleteMenu(id) {
-    if (!confirm('Delete this product?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -2327,11 +2183,11 @@ async function deleteMenu(id) {
         if (error) throw error;
 
         hideLoading();
-        alert('Product deleted!');
+        alert('Menu deleted!');
         loadMenus();
     } catch (error) {
         hideLoading();
-        alert('Error deleting product');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -2343,7 +2199,7 @@ async function loadPaymentMethods() {
         const { data, error } = await supabase
             .from('payment_methods')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: true });
 
         const container = document.getElementById('paymentsContainer');
         container.innerHTML = '';
@@ -2351,20 +2207,17 @@ async function loadPaymentMethods() {
         if (data && data.length > 0) {
             data.forEach(payment => {
                 const nameHtml = renderAnimatedText(payment.name);
-                const instructionsHtml = renderAnimatedText(payment.instructions);
+                const instructionsHtml = renderAnimatedText(payment.instructions || '');
                 
                 container.innerHTML += `
                     <div class="item-card">
-                        <img src="${payment.icon_url}" alt="Payment Icon">
-                        <div>
-                            <h4>${nameHtml}</h4>
-                            <p><strong>Address:</strong> ${payment.address}</p>
-                            <p><strong>Instructions:</strong></p>
-                            <div class="instructions-text">${instructionsHtml}</div>
-                        </div>
+                        <img src="${payment.icon_url}" alt="${payment.name}">
+                        <h4>${nameHtml}</h4>
+                        <p>${payment.address}</p>
+                        <p>${instructionsHtml}</p>
                         <div class="item-actions">
-                            <button class="btn-secondary" onclick="editPaymentMethod(${payment.id})">Edit</button>
-                            <button class="btn-danger" onclick="deletePaymentMethod(${payment.id})">Delete</button>
+                            <button class="btn-secondary" onclick="editPayment(${payment.id})">Edit</button>
+                            <button class="btn-danger" onclick="deletePayment(${payment.id})">Delete</button>
                         </div>
                     </div>
                 `;
@@ -2373,7 +2226,7 @@ async function loadPaymentMethods() {
             container.innerHTML = '<p>No payment methods yet</p>';
         }
     } catch (error) {
-        console.error('Error loading payment methods:', error);
+        console.error('Error loading payments:', error);
     }
 }
 
@@ -2384,14 +2237,14 @@ async function addPaymentMethod() {
     const file = document.getElementById('paymentIconFile').files[0];
 
     if (!name || !address || !file) {
-        alert('Please fill in name, address and select an icon');
+        alert('Please fill all required fields');
         return;
     }
 
     showLoading();
-    const iconUrl = await uploadFile(file, 'payments');
+    const url = await uploadFile(file, 'payment-icons');
     
-    if (iconUrl) {
+    if (url) {
         try {
             const { error } = await supabase
                 .from('payment_methods')
@@ -2399,20 +2252,17 @@ async function addPaymentMethod() {
                     name: name,
                     address: address,
                     instructions: instructions,
-                    icon_url: iconUrl
+                    icon_url: url
                 }]);
 
             if (error) throw error;
 
             hideLoading();
             alert('Payment method added!');
-            
-            // Reset form
             document.getElementById('paymentName').value = '';
             document.getElementById('paymentAddress').value = '';
             document.getElementById('paymentInstructions').value = '';
             document.getElementById('paymentIconFile').value = '';
-            
             loadPaymentMethods();
         } catch (error) {
             hideLoading();
@@ -2425,48 +2275,75 @@ async function addPaymentMethod() {
     }
 }
 
-// Load Payment Methods for Enhanced Products Select
-async function loadPaymentMethodsForSelect() {
+async function editPayment(id) {
+    const { data: payment } = await supabase
+        .from('payment_methods')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Name</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editPaymentName" value="${payment.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentName')">😀</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="editPaymentAddress" value="${payment.address}">
+        </div>
+        <div class="form-group">
+            <label>Instructions</label>
+            <div class="textarea-with-emoji">
+                <textarea id="editPaymentInstructions">${payment.instructions || ''}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editPaymentInstructions')">😀</button>
+            </div>
+        </div>
+        <button class="btn-primary" onclick="updatePayment(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function updatePayment(id) {
+    const name = document.getElementById('editPaymentName').value.trim();
+    const address = document.getElementById('editPaymentAddress').value.trim();
+    const instructions = document.getElementById('editPaymentInstructions').value.trim();
+
+    if (!name || !address) {
+        alert('Please fill all required fields');
+        return;
+    }
+
+    showLoading();
     try {
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('payment_methods')
-            .select('*')
-            .order('created_at', { ascending: true });
+            .update({
+                name: name,
+                address: address,
+                instructions: instructions
+            })
+            .eq('id', id);
 
         if (error) throw error;
 
-        const container = document.getElementById('enhancedProductPaymentMethods');
-        if (!container) return;
-        
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            data.forEach(payment => {
-                const checkbox = document.createElement('div');
-                checkbox.className = 'checkbox-item';
-                checkbox.innerHTML = `
-                    <input type="checkbox" id="payment_${payment.id}" value="${payment.id}">
-                    <label for="payment_${payment.id}">
-                        <img src="${payment.icon_url}" alt="${payment.name}" width="20" height="20">
-                        ${payment.name}
-                    </label>
-                `;
-                container.appendChild(checkbox);
-            });
-        } else {
-            container.innerHTML = '<p>No payment methods available</p>';
-        }
+        hideLoading();
+        closeEditModal();
+        alert('Payment method updated!');
+        loadPaymentMethods();
     } catch (error) {
-        console.error('Error loading payment methods for select:', error);
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
     }
 }
 
-async function editPaymentMethod(id) {
-    alert('Edit functionality will be implemented in the next update');
-}
-
-async function deletePaymentMethod(id) {
-    if (!confirm('Delete this payment method?')) return;
+async function deletePayment(id) {
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -2482,7 +2359,7 @@ async function deletePaymentMethod(id) {
         loadPaymentMethods();
     } catch (error) {
         hideLoading();
-        alert('Error deleting payment method');
+        alert('Error deleting');
         console.error(error);
     }
 }
@@ -2494,7 +2371,7 @@ async function loadContacts() {
         const { data, error } = await supabase
             .from('contacts')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: true });
 
         const container = document.getElementById('contactsContainer');
         container.innerHTML = '';
@@ -2502,18 +2379,14 @@ async function loadContacts() {
         if (data && data.length > 0) {
             data.forEach(contact => {
                 const nameHtml = renderAnimatedText(contact.name);
-                const descriptionHtml = renderAnimatedText(contact.description);
+                const descHtml = renderAnimatedText(contact.description || '');
                 
                 container.innerHTML += `
                     <div class="item-card">
-                        <img src="${contact.icon_url}" alt="Contact Icon">
-                        <div>
-                            <h4>${nameHtml}</h4>
-                            <p><strong>Description:</strong></p>
-                            <div class="description-text">${descriptionHtml}</div>
-                            <p><strong>Link:</strong> ${contact.link || 'None'}</p>
-                            <p><strong>Address:</strong> ${contact.address || 'None'}</p>
-                        </div>
+                        <img src="${contact.icon_url}" alt="${contact.name}">
+                        <h4>${nameHtml}</h4>
+                        <p>${descHtml}</p>
+                        <p>${contact.link || contact.address || ''}</p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editContact(${contact.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteContact(${contact.id})">Delete</button>
@@ -2536,15 +2409,15 @@ async function addContact() {
     const address = document.getElementById('contactAddress').value.trim();
     const file = document.getElementById('contactIconFile').files[0];
 
-    if (!name || !description || !file) {
-        alert('Please fill in name, description and select an icon');
+    if (!name || !file) {
+        alert('Please fill required fields');
         return;
     }
 
     showLoading();
-    const iconUrl = await uploadFile(file, 'contacts');
+    const url = await uploadFile(file, 'contact-icons');
     
-    if (iconUrl) {
+    if (url) {
         try {
             const { error } = await supabase
                 .from('contacts')
@@ -2553,21 +2426,18 @@ async function addContact() {
                     description: description,
                     link: link,
                     address: address,
-                    icon_url: iconUrl
+                    icon_url: url
                 }]);
 
             if (error) throw error;
 
             hideLoading();
             alert('Contact added!');
-            
-            // Reset form
             document.getElementById('contactName').value = '';
             document.getElementById('contactDescription').value = '';
             document.getElementById('contactLink').value = '';
             document.getElementById('contactAddress').value = '';
             document.getElementById('contactIconFile').value = '';
-            
             loadContacts();
         } catch (error) {
             hideLoading();
@@ -2580,48 +2450,81 @@ async function addContact() {
     }
 }
 
-// Load Contacts for Enhanced Products Select
-async function loadContactsForSelect() {
+async function editContact(id) {
+    const { data: contact } = await supabase
+        .from('contacts')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Name</label>
+            <div class="input-with-emoji">
+                <input type="text" id="editContactName" value="${contact.name}">
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactName')">😀</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <div class="textarea-with-emoji">
+                <textarea id="editContactDescription">${contact.description || ''}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editContactDescription')">😀</button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Link</label>
+            <input type="text" id="editContactLink" value="${contact.link || ''}">
+        </div>
+        <div class="form-group">
+            <label>Address</label>
+            <input type="text" id="editContactAddress" value="${contact.address || ''}">
+        </div>
+        <button class="btn-primary" onclick="updateContact(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function updateContact(id) {
+    const name = document.getElementById('editContactName').value.trim();
+    const description = document.getElementById('editContactDescription').value.trim();
+    const link = document.getElementById('editContactLink').value.trim();
+    const address = document.getElementById('editContactAddress').value.trim();
+
+    if (!name) {
+        alert('Please enter a name');
+        return;
+    }
+
+    showLoading();
     try {
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('contacts')
-            .select('*')
-            .order('created_at', { ascending: true });
+            .update({
+                name: name,
+                description: description,
+                link: link,
+                address: address
+            })
+            .eq('id', id);
 
         if (error) throw error;
 
-        const container = document.getElementById('enhancedProductContacts');
-        if (!container) return;
-        
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            data.forEach(contact => {
-                const checkbox = document.createElement('div');
-                checkbox.className = 'checkbox-item';
-                checkbox.innerHTML = `
-                    <input type="checkbox" id="contact_${contact.id}" value="${contact.id}">
-                    <label for="contact_${contact.id}">
-                        <img src="${contact.icon_url}" alt="${contact.name}" width="20" height="20">
-                        ${contact.name}
-                    </label>
-                `;
-                container.appendChild(checkbox);
-            });
-        } else {
-            container.innerHTML = '<p>No contacts available</p>';
-        }
+        hideLoading();
+        closeEditModal();
+        alert('Contact updated!');
+        loadContacts();
     } catch (error) {
-        console.error('Error loading contacts for select:', error);
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
     }
 }
 
-async function editContact(id) {
-    alert('Edit functionality will be implemented in the next update');
-}
-
 async function deleteContact(id) {
-    if (!confirm('Delete this contact?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -2637,12 +2540,39 @@ async function deleteContact(id) {
         loadContacts();
     } catch (error) {
         hideLoading();
-        alert('Error deleting contact');
+        alert('Error deleting');
         console.error(error);
     }
 }
 
 // ==================== YOUTUBE VIDEOS ====================
+
+async function loadButtonsForVideos() {
+    const categoryId = document.getElementById('videoCategorySelect').value;
+    if (!categoryId) {
+        document.getElementById('videoButtonSelect').innerHTML = '<option value="">Select Button</option>';
+        return;
+    }
+
+    try {
+        const { data } = await supabase
+            .from('category_buttons')
+            .select('*')
+            .eq('category_id', categoryId);
+
+        const select = document.getElementById('videoButtonSelect');
+        select.innerHTML = '<option value="">Select Button</option>';
+        
+        if (data) {
+            data.forEach(btn => {
+                const nameText = btn.name.replace(/\{anim:[^}]+\}/g, '');
+                select.innerHTML += `<option value="${btn.id}">${nameText}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading buttons:', error);
+    }
+}
 
 async function loadVideos() {
     try {
@@ -2650,29 +2580,24 @@ async function loadVideos() {
             .from('youtube_videos')
             .select(`
                 *,
-                categories (title),
-                category_buttons (name)
+                category_buttons (name, categories (title))
             `)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: true });
 
         const container = document.getElementById('videosContainer');
         container.innerHTML = '';
 
         if (data && data.length > 0) {
             data.forEach(video => {
-                const descriptionHtml = renderAnimatedText(video.description);
+                const descHtml = renderAnimatedText(video.description);
+                const buttonNameHtml = renderAnimatedText(video.category_buttons.name);
                 
                 container.innerHTML += `
                     <div class="item-card">
-                        <img src="${video.banner_url}" alt="Video Banner">
-                        <div>
-                            <h4>YouTube Video</h4>
-                            <p><strong>Description:</strong></p>
-                            <div class="description-text">${descriptionHtml}</div>
-                            <p><strong>URL:</strong> <a href="${video.video_url}" target="_blank">${video.video_url}</a></p>
-                            <p><strong>Category:</strong> ${video.categories?.title || 'Unknown'}</p>
-                            <p><strong>Button:</strong> ${video.category_buttons?.name || 'Unknown'}</p>
-                        </div>
+                        <img src="${video.banner_url}" alt="Video">
+                        <h4>${descHtml}</h4>
+                        <p>Button: ${buttonNameHtml}</p>
+                        <p><a href="${video.video_url}" target="_blank">View Video</a></p>
                         <div class="item-actions">
                             <button class="btn-secondary" onclick="editVideo(${video.id})">Edit</button>
                             <button class="btn-danger" onclick="deleteVideo(${video.id})">Delete</button>
@@ -2689,50 +2614,37 @@ async function loadVideos() {
 }
 
 async function addVideo() {
-    const categoryId = document.getElementById('videoCategorySelect').value;
     const buttonId = document.getElementById('videoButtonSelect').value;
+    const file = document.getElementById('videoBannerFile').files[0];
     const videoUrl = document.getElementById('videoUrl').value.trim();
     const description = document.getElementById('videoDescription').value.trim();
-    const bannerFile = document.getElementById('videoBannerFile').files[0];
 
-    if (!categoryId || !buttonId || !videoUrl || !description || !bannerFile) {
+    if (!buttonId || !file || !videoUrl || !description) {
         alert('Please fill all fields');
         return;
     }
 
-    // Validate YouTube URL
-    if (!videoUrl.includes('youtube.com') && !videoUrl.includes('youtu.be')) {
-        alert('Please enter a valid YouTube URL');
-        return;
-    }
-
     showLoading();
-    const bannerUrl = await uploadFile(bannerFile, 'videos');
+    const bannerUrl = await uploadFile(file, 'video-banners');
     
     if (bannerUrl) {
         try {
             const { error } = await supabase
                 .from('youtube_videos')
                 .insert([{
-                    category_id: parseInt(categoryId),
-                    button_id: parseInt(buttonId),
+                    button_id: buttonId,
+                    banner_url: bannerUrl,
                     video_url: videoUrl,
-                    description: description,
-                    banner_url: bannerUrl
+                    description: description
                 }]);
 
             if (error) throw error;
 
             hideLoading();
             alert('Video added!');
-            
-            // Reset form
-            document.getElementById('videoCategorySelect').value = '';
-            document.getElementById('videoButtonSelect').value = '';
+            document.getElementById('videoBannerFile').value = '';
             document.getElementById('videoUrl').value = '';
             document.getElementById('videoDescription').value = '';
-            document.getElementById('videoBannerFile').value = '';
-            
             loadVideos();
         } catch (error) {
             hideLoading();
@@ -2746,11 +2658,65 @@ async function addVideo() {
 }
 
 async function editVideo(id) {
-    alert('Edit functionality will be implemented in the next update');
+    const { data: video } = await supabase
+        .from('youtube_videos')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    const modalBody = document.getElementById('modalBody');
+    modalBody.innerHTML = `
+        <div class="form-group">
+            <label>Video URL</label>
+            <input type="text" id="editVideoUrl" value="${video.video_url}">
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <div class="textarea-with-emoji">
+                <textarea id="editVideoDescription">${video.description}</textarea>
+                <button class="emoji-picker-btn" onclick="openEmojiPicker('editVideoDescription')">😀</button>
+            </div>
+        </div>
+        <button class="btn-primary" onclick="updateVideo(${id})">Save Changes</button>
+    `;
+
+    document.getElementById('editModal').classList.add('active');
+}
+
+async function updateVideo(id) {
+    const videoUrl = document.getElementById('editVideoUrl').value.trim();
+    const description = document.getElementById('editVideoDescription').value.trim();
+
+    if (!videoUrl || !description) {
+        alert('Please fill all fields');
+        return;
+    }
+
+    showLoading();
+    try {
+        const { error } = await supabase
+            .from('youtube_videos')
+            .update({
+                video_url: videoUrl,
+                description: description
+            })
+            .eq('id', id);
+
+        if (error) throw error;
+
+        hideLoading();
+        closeEditModal();
+        alert('Video updated!');
+        loadVideos();
+    } catch (error) {
+        hideLoading();
+        alert('Error updating');
+        console.error(error);
+    }
 }
 
 async function deleteVideo(id) {
-    if (!confirm('Delete this video?')) return;
+    if (!confirm('Delete?')) return;
 
     showLoading();
     try {
@@ -2766,275 +2732,161 @@ async function deleteVideo(id) {
         loadVideos();
     } catch (error) {
         hideLoading();
-        alert('Error deleting video');
+        alert('Error deleting');
         console.error(error);
     }
 }
 
-// ==================== ORDERS (Original) ====================
+// ==================== ORDERS ====================
+
+function filterOrders(status) {
+    currentFilter = status;
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    loadOrders();
+}
 
 async function loadOrders() {
     try {
-        const { data, error } = await supabase
+        let query = supabase
             .from('orders')
             .select(`
                 *,
-                users (name, email),
-                menus (name, price),
-                payment_methods (name, icon_url)
+                users (name, username, email),
+                menus (name, amount, price),
+                payment_methods (name)
             `)
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
+        if (currentFilter !== 'all') {
+            query = query.eq('status', currentFilter);
+        }
 
-        displayOrders(data || []);
+        const { data, error } = await query;
+
+        const container = document.getElementById('ordersContainer');
+        container.innerHTML = '';
+
+        if (data && data.length > 0) {
+            data.forEach(order => {
+                let statusClass = 'pending';
+                if (order.status === 'approved') statusClass = 'approved';
+                if (order.status === 'rejected') statusClass = 'rejected';
+
+                const menuNameHtml = renderAnimatedText(order.menus?.name || 'Unknown');
+                const menuAmountHtml = renderAnimatedText(order.menus?.amount || '');
+                const paymentNameHtml = renderAnimatedText(order.payment_methods?.name || 'N/A');
+
+                container.innerHTML += `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div>
+                                <h3>Order #${order.id}</h3>
+                                <p>${new Date(order.created_at).toLocaleString()}</p>
+                            </div>
+                            <span class="order-status ${statusClass}">${order.status.toUpperCase()}</span>
+                        </div>
+                        <div class="order-info">
+                            <div class="info-item">
+                                <span class="info-label">Customer</span>
+                                <span class="info-value">${order.users.name} (@${order.users.username})</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email</span>
+                                <span class="info-value">${order.users.email}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Product</span>
+                                <span class="info-value">${menuNameHtml}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Amount</span>
+                                <span class="info-value">${menuAmountHtml}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Price</span>
+                                <span class="info-value">${order.menus?.price || 0} MMK</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Payment</span>
+                                <span class="info-value">${paymentNameHtml}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Transaction Code</span>
+                                <span class="info-value">${order.transaction_code}</span>
+                            </div>
+                        </div>
+                        ${order.status === 'pending' ? `
+                            <div class="order-actions">
+                                <button class="btn-success" onclick="approveOrder(${order.id})">Approve</button>
+                                <button class="btn-danger" onclick="rejectOrder(${order.id})">Reject</button>
+                            </div>
+                        ` : ''}
+                        ${order.admin_message ? `<p style="margin-top: 15px; color: #fbbf24;"><strong>Message:</strong> ${order.admin_message}</p>` : ''}
+                    </div>
+                `;
+            });
+        } else {
+            container.innerHTML = '<p>No orders found</p>';
+        }
     } catch (error) {
         console.error('Error loading orders:', error);
     }
 }
 
-function displayOrders(orders) {
-    const container = document.getElementById('ordersContainer');
-    
-    if (orders.length === 0) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px;"><h3 style="margin-bottom:12px;">No Orders Yet</h3><p>Customer orders will appear here.</p></div>';
-        return;
-    }
-
-    container.innerHTML = '';
-
-    orders.forEach(order => {
-        const item = document.createElement('div');
-        item.className = 'order-card';
-
-        let statusClass = 'pending';
-        let statusIcon = '⏳';
-        if (order.status === 'approved') {
-            statusClass = 'approved';
-            statusIcon = '✅';
-        }
-        if (order.status === 'rejected') {
-            statusClass = 'rejected';
-            statusIcon = '❌';
-        }
-
-        item.innerHTML = `
-            <div class="order-header">
-                <h3>Order #${order.id}</h3>
-                <div class="order-status ${statusClass}">${statusIcon} ${order.status.toUpperCase()}</div>
-            </div>
-            <div class="order-info">
-                <div class="info-item">
-                    <div class="info-label">Customer</div>
-                    <div class="info-value">${order.users?.name || 'Unknown'} (${order.users?.email || 'N/A'})</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Product</div>
-                    <div class="info-value">${order.menus?.name || 'Unknown Product'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Price</div>
-                    <div class="info-value">${order.menus?.price || 0} MMK</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Payment Method</div>
-                    <div class="info-value">
-                        <img src="${order.payment_methods?.icon_url}" width="20" height="20" alt="">
-                        ${order.payment_methods?.name || 'Unknown'}
-                    </div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Transaction Code</div>
-                    <div class="info-value">${order.transaction_code}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Order Date</div>
-                    <div class="info-value">${new Date(order.created_at).toLocaleString()}</div>
-                </div>
-                ${order.admin_message ? `
-                <div class="info-item">
-                    <div class="info-label">Admin Message</div>
-                    <div class="info-value admin-message">${order.admin_message}</div>
-                </div>
-                ` : ''}
-            </div>
-            <div class="order-actions">
-                <button onclick="viewOrderDetails(${order.id})" class="btn-secondary">View Details</button>
-                ${order.status === 'pending' ? `
-                    <button onclick="approveOrder(${order.id})" class="btn-success">Approve</button>
-                    <button onclick="rejectOrder(${order.id})" class="btn-danger">Reject</button>
-                ` : ''}
-            </div>
-        `;
-
-        container.appendChild(item);
-    });
-}
-
-function filterOrders(status) {
-    document.querySelectorAll('.orders-filter .filter-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.classList.add('active');
-    
-    const orders = document.querySelectorAll('.order-card');
-    orders.forEach(order => {
-        const orderStatus = order.querySelector('.order-status').textContent.toLowerCase();
-        if (status === 'all' || orderStatus.includes(status)) {
-            order.style.display = 'block';
-        } else {
-            order.style.display = 'none';
-        }
-    });
-}
-
-async function viewOrderDetails(orderId) {
-    try {
-        const { data, error } = await supabase
-            .from('orders')
-            .select(`
-                *,
-                users (name, email, username),
-                menus (name, amount, price, icon_url),
-                payment_methods (name, icon_url, address, instructions)
-            `)
-            .eq('id', orderId)
-            .single();
-
-        if (error) throw error;
-
-        const modalBody = document.getElementById('orderModalBody');
-        
-        let tableDataHtml = '';
-        if (data.table_data && Object.keys(data.table_data).length > 0) {
-            tableDataHtml = `
-                <div class="order-table-data">
-                    <h4>Form Data</h4>
-                    ${Object.entries(data.table_data).map(([key, value]) => `
-                        <div class="table-data-item">
-                            <strong>${key}:</strong> ${value}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-        }
-
-        modalBody.innerHTML = `
-            <div class="order-details">
-                <div class="order-summary">
-                    <h3>Order #${data.id}</h3>
-                    <div class="order-status-display ${data.status}">${data.status.toUpperCase()}</div>
-                </div>
-                
-                <div class="detail-sections">
-                    <div class="detail-section">
-                        <h4>Customer Information</h4>
-                        <p><strong>Name:</strong> ${data.users?.name}</p>
-                        <p><strong>Username:</strong> ${data.users?.username}</p>
-                        <p><strong>Email:</strong> ${data.users?.email}</p>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>Product Information</h4>
-                        <p><strong>Name:</strong> ${renderAnimatedText(data.menus?.name || 'N/A')}</p>
-                        <p><strong>Amount:</strong> ${renderAnimatedText(data.menus?.amount || 'N/A')}</p>
-                        <p><strong>Price:</strong> ${data.menus?.price} MMK</p>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>Payment Information</h4>
-                        <p><strong>Method:</strong> 
-                            <img src="${data.payment_methods?.icon_url}" width="20" height="20" alt="">
-                            ${data.payment_methods?.name}
-                        </p>
-                        <p><strong>Address:</strong> ${data.payment_methods?.address}</p>
-                        <p><strong>Instructions:</strong> ${renderAnimatedText(data.payment_methods?.instructions || '')}</p>
-                    </div>
-                    
-                    <div class="detail-section">
-                        <h4>Order Information</h4>
-                        <p><strong>Transaction Code:</strong> ${data.transaction_code}</p>
-                        <p><strong>Order Date:</strong> ${new Date(data.created_at).toLocaleString()}</p>
-                        ${data.admin_message ? `<p><strong>Admin Message:</strong> ${data.admin_message}</p>` : ''}
-                    </div>
-                    
-                    ${tableDataHtml}
-                </div>
-                
-                ${data.status === 'pending' ? `
-                <div class="order-actions-modal">
-                    <button onclick="closeOrderModal(); approveOrder(${data.id})" class="btn-success">Approve Order</button>
-                    <button onclick="closeOrderModal(); rejectOrder(${data.id})" class="btn-danger">Reject Order</button>
-                </div>
-                ` : ''}
-            </div>
-        `;
-
-        document.getElementById('orderModal').classList.add('active');
-
-    } catch (error) {
-        console.error('Error loading order details:', error);
-        alert('Error loading order details');
-    }
-}
-
-async function approveOrder(orderId) {
-    const message = prompt('Enter a message for the customer (optional):');
+async function approveOrder(id) {
+    const message = prompt('Enter message (optional):');
     
     showLoading();
-
     try {
         const { error } = await supabase
             .from('orders')
-            .update({ 
+            .update({
                 status: 'approved',
-                admin_message: message || null
+                admin_message: message || 'Your order has been approved!'
             })
-            .eq('id', orderId);
+            .eq('id', id);
 
         if (error) throw error;
 
         hideLoading();
-        alert('Order approved successfully!');
-        await loadOrders();
-
+        alert('Order approved!');
+        loadOrders();
     } catch (error) {
         hideLoading();
-        console.error('Error approving order:', error);
-        alert('Error approving order');
+        alert('Error approving');
+        console.error(error);
     }
 }
 
-async function rejectOrder(orderId) {
-    const message = prompt('Enter a reason for rejection:');
+async function rejectOrder(id) {
+    const message = prompt('Enter rejection reason:');
     if (!message) return;
     
     showLoading();
-
     try {
         const { error } = await supabase
             .from('orders')
-            .update({ 
+            .update({
                 status: 'rejected',
                 admin_message: message
             })
-            .eq('id', orderId);
+            .eq('id', id);
 
         if (error) throw error;
 
         hideLoading();
-        alert('Order rejected successfully!');
-        await loadOrders();
-
+        alert('Order rejected!');
+        loadOrders();
     } catch (error) {
         hideLoading();
-        console.error('Error rejecting order:', error);
-        alert('Error rejecting order');
+        alert('Error rejecting');
+        console.error(error);
     }
-}
-
-function closeOrderModal() {
-    document.getElementById('orderModal').classList.remove('active');
 }
 
 // ==================== USERS ====================
@@ -3046,76 +2898,62 @@ async function loadUsers() {
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) throw error;
-
         const container = document.getElementById('usersContainer');
-        const totalUsersEl = document.getElementById('totalUsers');
-        const todayUsersEl = document.getElementById('todayUsers');
-        
-        // Update stats
-        totalUsersEl.textContent = data?.length || 0;
-        
-        const today = new Date().toDateString();
-        const todayUsers = data?.filter(user => new Date(user.created_at).toDateString() === today).length || 0;
-        todayUsersEl.textContent = todayUsers;
-
         container.innerHTML = '';
 
         if (data && data.length > 0) {
+            document.getElementById('totalUsers').textContent = data.length;
+            
+            const today = new Date().toDateString();
+            const todayUsers = data.filter(user => {
+                return new Date(user.created_at).toDateString() === today;
+            });
+            document.getElementById('todayUsers').textContent = todayUsers.length;
+
             data.forEach(user => {
-                const nameHtml = renderAnimatedText(user.name);
-                
                 container.innerHTML += `
                     <div class="user-card">
-                        <div class="user-avatar">${user.name.charAt(0).toUpperCase()}</div>
                         <div class="user-info">
-                            <h4>${nameHtml}</h4>
-                            <p><strong>Username:</strong> ${user.username}</p>
-                            <p><strong>Email:</strong> ${user.email}</p>
-                            <p><strong>Joined:</strong> ${new Date(user.created_at).toLocaleDateString()}</p>
+                            <h4>${user.name}</h4>
+                            <p>@${user.username} | ${user.email}</p>
+                            <p style="font-size: 12px; color: #94a3b8;">Joined: ${new Date(user.created_at).toLocaleDateString()}</p>
                         </div>
-                        <div class="user-actions">
-                            <button class="btn-secondary" onclick="viewUserOrders(${user.id})">View Orders</button>
-                            <button class="btn-danger" onclick="deleteUser(${user.id})">Delete User</button>
-                        </div>
+                        <div class="user-badge">Active</div>
                     </div>
                 `;
             });
         } else {
             container.innerHTML = '<p>No users yet</p>';
+            document.getElementById('totalUsers').textContent = '0';
+            document.getElementById('todayUsers').textContent = '0';
         }
-
     } catch (error) {
         console.error('Error loading users:', error);
     }
 }
 
-async function viewUserOrders(userId) {
-    alert('View user orders functionality will be implemented in the next update');
+// ==================== MODALS ====================
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.remove('active');
 }
 
-async function deleteUser(userId) {
-    if (!confirm('Delete this user? This will also delete all their orders.')) return;
-
-    showLoading();
-    try {
-        const { error } = await supabase
-            .from('users')
-            .delete()
-            .eq('id', userId);
-
-        if (error) throw error;
-
-        hideLoading();
-        alert('User deleted!');
-        loadUsers();
-    } catch (error) {
-        hideLoading();
-        alert('Error deleting user');
-        console.error(error);
-    }
+function closeOrderModal() {
+    document.getElementById('orderModal').classList.remove('active');
 }
 
-// ==================== Enhanced Functions will be loaded from panel.js ==================== 
+// ==================== UTILITY FUNCTIONS ====================
 
-console.log('✅ Admin2.js loaded successfully!');
+function showError(element, message) {
+    element.textContent = message;
+    element.classList.add('show');
+    setTimeout(() => element.classList.remove('show'), 5000);
+}
+
+function showSuccess(element, message) {
+    element.textContent = message;
+    element.classList.add('show');
+    setTimeout(() => element.classList.remove('show'), 5000);
+}
+
+console.log('✅ Admin panel initialized with animations support!');
