@@ -58,105 +58,6 @@ async function loadEnhancedProducts() {
     }
 }
 
-// Load Enhanced Products buttons for categories
-async function loadButtonsForEnhancedProducts() {
-    const categoryId = document.getElementById('enhancedProductCategorySelect').value;
-    const buttonSelect = document.getElementById('enhancedProductButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for enhanced products:', error);
-    }
-}
-
-// Load Payment Methods for Enhanced Products
-async function loadPaymentMethodsForSelect() {
-    try {
-        const { data, error } = await supabase
-            .from('payment_methods')
-            .select('*')
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        const container = document.getElementById('enhancedProductPaymentMethods');
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            data.forEach(payment => {
-                const checkbox = document.createElement('div');
-                checkbox.className = 'checkbox-item';
-                checkbox.innerHTML = `
-                    <input type="checkbox" id="payment_${payment.id}" value="${payment.id}">
-                    <label for="payment_${payment.id}">
-                        <img src="${payment.icon_url}" alt="${payment.name}" width="20" height="20">
-                        ${payment.name}
-                    </label>
-                `;
-                container.appendChild(checkbox);
-            });
-        } else {
-            container.innerHTML = '<p>No payment methods available</p>';
-        }
-    } catch (error) {
-        console.error('Error loading payment methods:', error);
-    }
-}
-
-// Load Contacts for Enhanced Products
-async function loadContactsForSelect() {
-    try {
-        const { data, error } = await supabase
-            .from('contacts')
-            .select('*')
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        const container = document.getElementById('enhancedProductContacts');
-        container.innerHTML = '';
-
-        if (data && data.length > 0) {
-            data.forEach(contact => {
-                const checkbox = document.createElement('div');
-                checkbox.className = 'checkbox-item';
-                checkbox.innerHTML = `
-                    <input type="checkbox" id="contact_${contact.id}" value="${contact.id}">
-                    <label for="contact_${contact.id}">
-                        <img src="${contact.icon_url}" alt="${contact.name}" width="20" height="20">
-                        ${contact.name}
-                    </label>
-                `;
-                container.appendChild(checkbox);
-            });
-        } else {
-            container.innerHTML = '<p>No contacts available</p>';
-        }
-    } catch (error) {
-        console.error('Error loading contacts:', error);
-    }
-}
-
 // Handle Enhanced Product Media Upload
 function handleEnhancedProductMedia() {
     const fileInput = document.getElementById('enhancedProductMedia');
@@ -256,7 +157,7 @@ function displayMediaPreviews() {
                         <p class="media-size">${sizeMB} MB</p>
                         <p class="media-type">Video</p>
                     </div>
-                    <button class="media-remove-btn" onclick="removeMediaFile(${index})">×</button>
+                    <button class="media-remove-btn" onclick="removeMediaFile(${index})">🗑️</button>
                 </div>
             `;
         } else {
@@ -274,7 +175,7 @@ function displayMediaPreviews() {
                         <p class="media-size">${sizeMB} MB</p>
                         <p class="media-type">Image</p>
                     </div>
-                    <button class="media-remove-btn" onclick="removeMediaFile(${index})">×</button>
+                    <button class="media-remove-btn" onclick="removeMediaFile(${index})">🗑️</button>
                 </div>
             `;
         }
@@ -427,7 +328,7 @@ async function createEnhancedProduct() {
         if (contactError) throw contactError;
         
         hideLoading();
-        alert('🎯 Enhanced Product created successfully!');
+        alert('✨ Enhanced Product created successfully!');
         
         // Reset form
         resetEnhancedProductForm();
@@ -680,37 +581,6 @@ async function loadProductPageBanners() {
     }
 }
 
-// Load buttons for banners
-async function loadButtonsForBanners() {
-    const categoryId = document.getElementById('bannerCategorySelect').value;
-    const buttonSelect = document.getElementById('bannerButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for banners:', error);
-    }
-}
-
 // Preview product banner
 document.addEventListener('DOMContentLoaded', () => {
     const bannerInput = document.getElementById('productBannerFile');
@@ -856,71 +726,6 @@ async function loadProductPageContent() {
         }
     } catch (error) {
         console.error('Error loading product page content:', error);
-    }
-}
-
-// Load buttons for content
-async function loadButtonsForContent() {
-    const categoryId = document.getElementById('contentCategorySelect').value;
-    const buttonSelect = document.getElementById('contentButtonSelect');
-    
-    buttonSelect.innerHTML = '<option value="">Select Button</option>';
-    
-    if (!categoryId) {
-        document.getElementById('contentProductSelect').innerHTML = '<option value="">General Page Content</option>';
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase
-            .from('category_buttons')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(button => {
-                const option = document.createElement('option');
-                option.value = button.id;
-                option.textContent = button.name;
-                buttonSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading buttons for content:', error);
-    }
-}
-
-// Load products for content
-async function loadProductsForContent() {
-    const buttonId = document.getElementById('contentButtonSelect').value;
-    const productSelect = document.getElementById('contentProductSelect');
-    
-    productSelect.innerHTML = '<option value="">General Page Content</option>';
-    
-    if (!buttonId) return;
-
-    try {
-        const { data, error } = await supabase
-            .from('enhanced_products')
-            .select('*')
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-
-        if (data) {
-            data.forEach(product => {
-                const option = document.createElement('option');
-                option.value = product.id;
-                option.textContent = product.name;
-                productSelect.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading products for content:', error);
     }
 }
 
@@ -1386,12 +1191,8 @@ async function viewEnhancedOrderDetails(orderId) {
                 
                 ${data.status === 'pending' ? `
                 <div class="order-actions-modal">
-                    <button onclick="closeOrderModal(); approveEnhancedOrder(${data.id})" class="btn-success">
-                        ✅ Approve Order
-                    </button>
-                    <button onclick="closeOrderModal(); rejectEnhancedOrder(${data.id})" class="btn-danger">
-                        ❌ Reject Order
-                    </button>
+                    <button onclick="closeOrderModal(); approveEnhancedOrder(${data.id})" class="btn-success">Approve Order</button>
+                    <button onclick="closeOrderModal(); rejectEnhancedOrder(${data.id})" class="btn-danger">Reject Order</button>
                 </div>
                 ` : ''}
             </div>
@@ -1407,25 +1208,25 @@ async function viewEnhancedOrderDetails(orderId) {
 
 // Approve Enhanced Order
 async function approveEnhancedOrder(orderId) {
-    const message = prompt('Enter approval message (optional):') || '';
+    const message = prompt('Enter a message for the customer (optional):');
     
     showLoading();
-    
+
     try {
         const { error } = await supabase
             .from('enhanced_orders')
             .update({ 
                 status: 'approved',
-                admin_message: message
+                admin_message: message || null
             })
             .eq('id', orderId);
-        
+
         if (error) throw error;
-        
+
         hideLoading();
-        alert('✅ Enhanced order approved successfully!');
+        alert('Enhanced order approved successfully!');
         await loadEnhancedOrders();
-        
+
     } catch (error) {
         hideLoading();
         console.error('Error approving enhanced order:', error);
@@ -1435,11 +1236,11 @@ async function approveEnhancedOrder(orderId) {
 
 // Reject Enhanced Order
 async function rejectEnhancedOrder(orderId) {
-    const message = prompt('Enter rejection reason:');
+    const message = prompt('Enter a reason for rejection:');
     if (!message) return;
     
     showLoading();
-    
+
     try {
         const { error } = await supabase
             .from('enhanced_orders')
@@ -1448,13 +1249,13 @@ async function rejectEnhancedOrder(orderId) {
                 admin_message: message
             })
             .eq('id', orderId);
-        
+
         if (error) throw error;
-        
+
         hideLoading();
-        alert('❌ Enhanced order rejected.');
+        alert('Enhanced order rejected successfully!');
         await loadEnhancedOrders();
-        
+
     } catch (error) {
         hideLoading();
         console.error('Error rejecting enhanced order:', error);
@@ -1462,232 +1263,4 @@ async function rejectEnhancedOrder(orderId) {
     }
 }
 
-// ==================== ADDITIONAL UTILITY FUNCTIONS ====================
-
-// Format file size
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-// Validate file type
-function isValidFileType(file, allowedTypes) {
-    return allowedTypes.some(type => {
-        if (type.endsWith('/*')) {
-            return file.type.startsWith(type.slice(0, -1));
-        }
-        return file.type === type;
-    });
-}
-
-// Initialize panel.js functions when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    // Add file size display styles
-    const style = document.createElement('style');
-    style.textContent = `
-        .media-upload-section {
-            margin: 20px 0;
-            padding: 20px;
-            border: 2px dashed var(--border-primary);
-            border-radius: var(--radius-md);
-            background: var(--bg-glass);
-        }
-        
-        .file-size-info {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: var(--bg-hover);
-            border-radius: var(--radius-sm);
-        }
-        
-        .size-progress-bar {
-            width: 100%;
-            height: 8px;
-            background: var(--bg-secondary);
-            border-radius: 4px;
-            overflow: hidden;
-            margin-top: 8px;
-        }
-        
-        .size-progress-fill {
-            height: 100%;
-            background: var(--success);
-            transition: all 0.3s ease;
-            border-radius: 4px;
-        }
-        
-        .media-preview-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 16px;
-            margin-top: 16px;
-        }
-        
-        .media-preview-item {
-            position: relative;
-            border: 1px solid var(--border-primary);
-            border-radius: var(--radius-md);
-            overflow: hidden;
-            background: var(--bg-card);
-        }
-        
-        .media-preview-content {
-            position: relative;
-        }
-        
-        .media-preview-content img,
-        .media-preview-content video {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-        }
-        
-        .media-preview-info {
-            padding: 8px;
-            font-size: 12px;
-        }
-        
-        .media-name {
-            font-weight: 600;
-            margin-bottom: 4px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        
-        .media-size,
-        .media-type {
-            color: var(--text-tertiary);
-            margin: 2px 0;
-        }
-        
-        .media-remove-btn {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 24px;
-            height: 24px;
-            background: var(--error);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: var(--transition-normal);
-        }
-        
-        .media-remove-btn:hover {
-            transform: scale(1.1);
-        }
-        
-        .checkbox-group {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-top: 8px;
-        }
-        
-        .checkbox-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px;
-            background: var(--bg-glass);
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border-primary);
-        }
-        
-        .checkbox-item input[type="checkbox"] {
-            width: auto;
-            margin: 0;
-        }
-        
-        .checkbox-item label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin: 0;
-            cursor: pointer;
-            flex: 1;
-        }
-        
-        .checkbox-item:hover {
-            background: var(--bg-hover);
-        }
-        
-        .enhanced-product-card .product-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 12px;
-        }
-        
-        .enhanced-product-card .product-price {
-            font-size: 18px;
-            font-weight: 700;
-            color: var(--success);
-        }
-        
-        .enhanced-product-card .product-description {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 8px;
-            line-height: 1.4;
-        }
-        
-        .status-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .status-badge.active {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-        
-        .status-badge.inactive {
-            background: rgba(156, 163, 175, 0.2);
-            color: var(--text-tertiary);
-            border: 1px solid rgba(156, 163, 175, 0.3);
-        }
-        
-        .ads-card .script-preview {
-            margin-top: 12px;
-        }
-        
-        .ads-card .script-preview pre {
-            background: var(--bg-secondary);
-            padding: 12px;
-            border-radius: var(--radius-sm);
-            overflow-x: auto;
-            font-size: 12px;
-            margin-top: 8px;
-        }
-        
-        .enhanced-order-card {
-            border-left: 4px solid var(--primary-solid);
-        }
-        
-        .content-card .content-preview {
-            margin-top: 12px;
-            padding: 12px;
-            background: var(--bg-glass);
-            border-radius: var(--radius-sm);
-            border-left: 3px solid var(--primary-solid);
-            font-size: 14px;
-            line-height: 1.5;
-        }
-    `;
-    document.head.appendChild(style);
-});
-
-console.log('✅ Panel.js loaded successfully - Enhanced Products System Ready!');
+console.log('✅ Panel.js loaded successfully!');
