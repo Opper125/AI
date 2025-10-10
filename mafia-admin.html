@@ -129,7 +129,27 @@
                 </button>
                 <button class="nav-btn" data-section="menus" onclick="switchSection('menus')">
                     <span class="nav-icon">🛒</span>
-                    <span class="nav-text">Products (Menus)</span>
+                    <span class="nav-text">Products (Original)</span>
+                </button>
+                <!-- NEW ENHANCED PRODUCTS SECTION -->
+                <button class="nav-btn" data-section="enhanced-products" onclick="switchSection('enhanced-products')">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-text">Enhanced Products</span>
+                </button>
+                <!-- PRODUCT PAGE BANNERS SECTION -->
+                <button class="nav-btn" data-section="product-banners" onclick="switchSection('product-banners')">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-text">Product Page Banners</span>
+                </button>
+                <!-- PRODUCT PAGE CONTENT SECTION -->
+                <button class="nav-btn" data-section="product-content" onclick="switchSection('product-content')">
+                    <span class="nav-icon">📄</span>
+                    <span class="nav-text">Product Page Content</span>
+                </button>
+                <!-- ADS SYSTEM SECTION -->
+                <button class="nav-btn" data-section="ads-system" onclick="switchSection('ads-system')">
+                    <span class="nav-icon">📺</span>
+                    <span class="nav-text">Ads System</span>
                 </button>
                 <button class="nav-btn" data-section="payments" onclick="switchSection('payments')">
                     <span class="nav-icon">💳</span>
@@ -149,7 +169,12 @@
                 </button>
                 <button class="nav-btn" data-section="orders" onclick="switchSection('orders')">
                     <span class="nav-icon">📦</span>
-                    <span class="nav-text">Orders</span>
+                    <span class="nav-text">Orders (Original)</span>
+                </button>
+                <!-- ENHANCED ORDERS SECTION -->
+                <button class="nav-btn" data-section="enhanced-orders" onclick="switchSection('enhanced-orders')">
+                    <span class="nav-icon">🎯</span>
+                    <span class="nav-text">Enhanced Orders</span>
                 </button>
                 <button class="nav-btn" data-section="users" onclick="switchSection('users')">
                     <span class="nav-icon">👥</span>
@@ -308,12 +333,12 @@
                 </div>
             </section>
 
-            <!-- All other sections remain the same as original -->
+            <!-- Original sections remain the same -->
             <!-- Banners Section -->
             <section id="banners" class="content-section">
                 <div class="section-header">
-                    <h2>🖼️ Banners Management</h2>
-                    <p>Add and manage promotional banners for your website</p>
+                    <h2>🖼️ Home Page Banners</h2>
+                    <p>Add and manage promotional banners for your website homepage</p>
                 </div>
                 
                 <div class="action-card">
@@ -403,11 +428,11 @@
                 <div class="items-list" id="tablesContainer"></div>
             </section>
 
-            <!-- Menus Section -->
+            <!-- Original Menus Section -->
             <section id="menus" class="content-section">
                 <div class="section-header">
-                    <h2>🛒 Products (Menus) Management</h2>
-                    <p>Add and manage your products/services</p>
+                    <h2>🛒 Products (Original System)</h2>
+                    <p>Add and manage your products/services using the original system</p>
                 </div>
                 
                 <div class="action-card">
@@ -439,6 +464,247 @@
                 </div>
 
                 <div class="items-grid" id="menusContainer"></div>
+            </section>
+
+            <!-- NEW ENHANCED PRODUCTS SECTION -->
+            <section id="enhanced-products" class="content-section">
+                <div class="section-header">
+                    <h2>🎯 Enhanced Products Management</h2>
+                    <p>Create advanced products with multiple images, videos, and enhanced features</p>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Create Enhanced Product</h3>
+                    
+                    <!-- Category & Button Selection -->
+                    <div class="form-group">
+                        <label>Select Category</label>
+                        <select id="enhancedProductCategorySelect" class="form-select" onchange="loadButtonsForEnhancedProducts()">
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Select Category Button</label>
+                        <select id="enhancedProductButtonSelect" class="form-select">
+                            <option value="">Select Button</option>
+                        </select>
+                    </div>
+
+                    <!-- Product Basic Info -->
+                    <div class="form-group">
+                        <label>Product Name</label>
+                        <div class="input-with-emoji">
+                            <input type="text" id="enhancedProductName" placeholder="Enter product name">
+                            <button class="emoji-picker-btn" onclick="openEmojiPicker('enhancedProductName')">😀</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Product Description</label>
+                        <div class="textarea-with-emoji">
+                            <textarea id="enhancedProductDescription" placeholder="Enter product description" rows="3"></textarea>
+                            <button class="emoji-picker-btn" onclick="openEmojiPicker('enhancedProductDescription')">😀</button>
+                        </div>
+                    </div>
+
+                    <!-- Stock & Pricing -->
+                    <div class="form-group">
+                        <label>Stock Quantity</label>
+                        <input type="number" id="enhancedProductStock" placeholder="Available quantity" min="0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Original Price</label>
+                        <input type="number" id="enhancedProductOriginalPrice" placeholder="Original price" min="0" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Sale Percentage (Optional)</label>
+                        <input type="number" id="enhancedProductSalePercentage" placeholder="e.g. 10 for 10% off" min="0" max="100">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Currency Type</label>
+                        <input type="text" id="enhancedProductCurrency" placeholder="e.g. MMK, Ks, Yuan, ¥, USD" value="MMK">
+                    </div>
+
+                    <!-- Product Details -->
+                    <div class="form-group">
+                        <label>Product Type</label>
+                        <input type="text" id="enhancedProductType" placeholder="e.g. Digital, Physical, Service">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Product Level</label>
+                        <input type="text" id="enhancedProductLevel" placeholder="e.g. Basic, Premium, Pro">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Custom Product ID</label>
+                        <input type="text" id="enhancedProductCustomId" placeholder="Custom identifier">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Delivery Time</label>
+                        <input type="text" id="enhancedProductDeliveryTime" placeholder="e.g. 24 hours, 3-5 days">
+                    </div>
+
+                    <!-- Media Upload Section -->
+                    <div class="media-upload-section">
+                        <h4>Product Images & Videos</h4>
+                        <div class="file-size-info">
+                            <span id="totalFileSizeDisplay">Total Size: 0 MB / 50 MB</span>
+                            <div class="size-progress-bar">
+                                <div id="sizeProgressFill" class="size-progress-fill"></div>
+                            </div>
+                        </div>
+                        
+                        <input type="file" id="enhancedProductMedia" multiple accept="image/*,video/*" onchange="handleEnhancedProductMedia()">
+                        <p class="file-format-info">📁 Max file size: 10MB per file, Total: 50MB. Supported: Images (JPG, PNG, GIF, WebP), Videos (MP4, WebM, AVI)</p>
+                        
+                        <div id="mediaPreviewContainer" class="media-preview-container"></div>
+                        <button type="button" onclick="clearAllMedia()" class="btn-danger" style="display:none;" id="clearAllMediaBtn">Clear All Media</button>
+                    </div>
+
+                    <!-- Payment Methods Selection -->
+                    <div class="form-group">
+                        <label>Payment Methods</label>
+                        <div id="enhancedProductPaymentMethods" class="checkbox-group">
+                            <!-- Payment methods will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Contacts Selection -->
+                    <div class="form-group">
+                        <label>Contact Methods</label>
+                        <div id="enhancedProductContacts" class="checkbox-group">
+                            <!-- Contacts will be loaded here -->
+                        </div>
+                    </div>
+
+                    <button onclick="createEnhancedProduct()" class="btn-primary">Create Enhanced Product</button>
+                </div>
+
+                <div class="items-grid" id="enhancedProductsContainer"></div>
+            </section>
+
+            <!-- PRODUCT PAGE BANNERS SECTION -->
+            <section id="product-banners" class="content-section">
+                <div class="section-header">
+                    <h2>🖼️ Product Page Banners</h2>
+                    <p>Add banners to specific product pages</p>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Add Product Page Banner</h3>
+                    
+                    <div class="form-group">
+                        <label>Select Category</label>
+                        <select id="bannerCategorySelect" class="form-select" onchange="loadButtonsForBanners()">
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Select Category Button</label>
+                        <select id="bannerButtonSelect" class="form-select">
+                            <option value="">Select Button</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Banner Image</label>
+                        <input type="file" id="productBannerFile" accept="image/*">
+                        <div id="productBannerPreview" class="image-preview"></div>
+                    </div>
+
+                    <button onclick="addProductPageBanner()" class="btn-primary">Add Banner</button>
+                </div>
+
+                <div class="items-grid" id="productBannersContainer"></div>
+            </section>
+
+            <!-- PRODUCT PAGE CONTENT SECTION -->
+            <section id="product-content" class="content-section">
+                <div class="section-header">
+                    <h2>📄 Product Page Content</h2>
+                    <p>Add custom content and descriptions to product pages</p>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Add Product Page Content</h3>
+                    
+                    <div class="form-group">
+                        <label>Select Category</label>
+                        <select id="contentCategorySelect" class="form-select" onchange="loadButtonsForContent()">
+                            <option value="">Select Category</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Select Category Button</label>
+                        <select id="contentButtonSelect" class="form-select" onchange="loadProductsForContent()">
+                            <option value="">Select Button</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Select Product (Optional - Leave empty for general page content)</label>
+                        <select id="contentProductSelect" class="form-select">
+                            <option value="">General Page Content</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Content Text</label>
+                        <div class="textarea-with-emoji">
+                            <textarea id="productPageContent" placeholder="Enter content text with proper formatting..." rows="6"></textarea>
+                            <button class="emoji-picker-btn" onclick="openEmojiPicker('productPageContent')">😀</button>
+                        </div>
+                        <small>Tip: Use line breaks for proper formatting. Text will be displayed with Myanmar font support.</small>
+                    </div>
+
+                    <button onclick="addProductPageContent()" class="btn-primary">Add Content</button>
+                </div>
+
+                <div class="items-list" id="productContentContainer"></div>
+            </section>
+
+            <!-- ADS SYSTEM SECTION -->
+            <section id="ads-system" class="content-section">
+                <div class="section-header">
+                    <h2>📺 Ads Management System</h2>
+                    <p>Manage advertisement banners and scripts for your website</p>
+                </div>
+                
+                <div class="action-card">
+                    <h3>Add New Ad Banner</h3>
+                    
+                    <div class="form-group">
+                        <label>Banner Size</label>
+                        <input type="text" id="adBannerSize" placeholder="e.g. 160x300, 728x90, 300x250" required>
+                        <small>Enter dimensions in format: width x height (e.g., 160x300)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ad Script Code</label>
+                        <textarea id="adScriptCode" placeholder="Paste your ad script code here..." rows="8" required></textarea>
+                        <small>Example: &lt;script&gt; ad network code &lt;/script&gt;</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="adStatus" class="form-select">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+
+                    <button onclick="addAdBanner()" class="btn-primary">Add Ad Banner</button>
+                </div>
+
+                <div class="items-list" id="adsContainer"></div>
             </section>
 
             <!-- Payment Methods Section -->
@@ -540,11 +806,11 @@
                 <div class="animations-grid" id="animationsContainer"></div>
             </section>
 
-            <!-- Orders Section -->
+            <!-- Original Orders Section -->
             <section id="orders" class="content-section">
                 <div class="section-header">
-                    <h2>📦 Orders Management</h2>
-                    <p>Review and manage customer orders</p>
+                    <h2>📦 Orders Management (Original System)</h2>
+                    <p>Review and manage customer orders from the original product system</p>
                 </div>
                 
                 <div class="orders-filter">
@@ -555,6 +821,23 @@
                 </div>
 
                 <div class="orders-list" id="ordersContainer"></div>
+            </section>
+
+            <!-- ENHANCED ORDERS SECTION -->
+            <section id="enhanced-orders" class="content-section">
+                <div class="section-header">
+                    <h2>🎯 Enhanced Orders Management</h2>
+                    <p>Review and manage customer orders from the enhanced product system</p>
+                </div>
+                
+                <div class="orders-filter">
+                    <button class="filter-btn active" onclick="filterEnhancedOrders('all')">All Orders</button>
+                    <button class="filter-btn" onclick="filterEnhancedOrders('pending')">Pending</button>
+                    <button class="filter-btn" onclick="filterEnhancedOrders('approved')">Approved</button>
+                    <button class="filter-btn" onclick="filterEnhancedOrders('rejected')">Rejected</button>
+                </div>
+
+                <div class="orders-list" id="enhancedOrdersContainer"></div>
             </section>
 
             <!-- Users Section -->
@@ -633,7 +916,19 @@
         </div>
     </div>
 
+    <!-- Enhanced Product Details Modal -->
+    <div id="enhancedProductModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Enhanced Product Details</h2>
+                <span class="close-modal" onclick="closeEnhancedProductModal()">&times;</span>
+            </div>
+            <div id="enhancedProductModalBody"></div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="admin.js"></script>
+    <script src="panel.js"></script>
 </body>
 </html>
