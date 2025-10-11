@@ -28,15 +28,14 @@ window.appState = {
     currentTables: [],
     currentBannerIndex: 0,
     bannerInterval: null,
-    // Enhanced product system state
+    // NEW: Enhanced products state
     enhancedProducts: [],
-    currentCategoryId: null,
-    currentButtonData: null,
-    productBanners: [],
-    productDescriptions: [],
-    currentProductBannerIndex: 0,
-    productBannerInterval: null,
-    selectedEnhancedProduct: null
+    selectedEnhancedProduct: null,
+    currentEnhancedProduct: null,
+    currentProductBanners: [],
+    currentProductContent: [],
+    currentAds: [],
+    isEnhancedProductMode: false
 };
 
 // ========== DISABLE RIGHT CLICK & CONTEXT MENU ==========
@@ -192,6 +191,226 @@ function addAnimationStyles() {
         .order-summary .inline-animation {
             width: 20px;
             height: 20px;
+        }
+
+        /* Enhanced Product Styles */
+        .enhanced-product-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--shadow-md);
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .enhanced-product-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-color);
+        }
+
+        .enhanced-product-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .enhanced-product-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .enhanced-product-price {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--success-color);
+        }
+
+        .enhanced-product-original-price {
+            font-size: 14px;
+            color: var(--text-muted);
+            text-decoration: line-through;
+            margin-left: 8px;
+        }
+
+        .enhanced-product-sale-badge {
+            background: var(--error-color);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .enhanced-product-media-preview {
+            width: 100%;
+            height: 200px;
+            background: var(--bg-glass);
+            border-radius: var(--border-radius);
+            margin-bottom: 12px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .enhanced-product-media-preview img,
+        .enhanced-product-media-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .enhanced-product-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        .enhanced-product-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .enhanced-product-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .enhanced-product-detail-label {
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .enhanced-product-gallery {
+            display: flex;
+            gap: 8px;
+            margin: 16px 0;
+            overflow-x: auto;
+            padding: 8px 0;
+        }
+
+        .enhanced-product-gallery-item {
+            min-width: 80px;
+            height: 80px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: var(--transition);
+        }
+
+        .enhanced-product-gallery-item.active {
+            border-color: var(--primary-color);
+        }
+
+        .enhanced-product-gallery-item img,
+        .enhanced-product-gallery-item video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .enhanced-product-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            margin: 16px 0;
+        }
+
+        .enhanced-product-nav-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: var(--transition);
+        }
+
+        .enhanced-product-nav-btn:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        .enhanced-product-nav-btn:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .copy-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            margin-left: 8px;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            background: var(--primary-color);
+        }
+
+        .product-page-banner {
+            width: 100%;
+            margin-bottom: 20px;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+        }
+
+        .product-page-content {
+            background: var(--bg-card);
+            padding: 20px;
+            margin: 16px 0;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .ads-container {
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .category-button-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 12px;
+            background: var(--bg-glass);
+            border-radius: var(--border-radius);
+        }
+
+        .category-button-info img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .category-button-info h3 {
+            color: var(--text-primary);
+            font-size: 18px;
+            font-weight: 600;
         }
     `;
     document.head.appendChild(style);
@@ -412,11 +631,6 @@ function handleLogout() {
     setTimeout(() => {
         location.reload();
     }, 1500);
-}
-
-function validateEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
 }
 
 // ========== WEBSITE SETTINGS ==========
@@ -654,462 +868,616 @@ function displayCategoryButtons(categoryId, buttons) {
         const nameSpan = btnEl.querySelector('span');
         applyAnimationRendering(nameSpan, button.name);
         
-        btnEl.addEventListener('click', () => openEnhancedCategoryPage(categoryId, button.id, button));
+        btnEl.addEventListener('click', () => openCategoryPage(categoryId, button.id, button.name, button.icon_url));
         container.appendChild(btnEl);
     });
 }
 
 // ========== ENHANCED CATEGORY PAGE SYSTEM ==========
-async function openEnhancedCategoryPage(categoryId, buttonId, buttonData) {
-    console.log('🎮 Opening Enhanced Category Page:', categoryId, buttonId);
+async function openCategoryPage(categoryId, buttonId, buttonName, buttonIcon) {
+    console.log('\n🎮 ========== OPENING CATEGORY PAGE ==========');
+    console.log('Category ID:', categoryId);
+    console.log('Button ID:', buttonId);
+    console.log('Button Name:', buttonName);
     
     showLoading();
 
     try {
-        // Store current state
-        window.appState.currentCategoryId = categoryId;
+        // Reset state
         window.appState.currentButtonId = buttonId;
-        window.appState.currentButtonData = buttonData;
+        window.appState.selectedMenuItem = null;
+        window.appState.currentMenu = null;
+        window.appState.selectedEnhancedProduct = null;
+        window.appState.currentEnhancedProduct = null;
+        window.appState.currentTableData = {};
+        window.appState.allMenus = [];
+        window.appState.enhancedProducts = [];
+        window.appState.currentTables = [];
+        window.appState.currentProductBanners = [];
+        window.appState.currentProductContent = [];
+        window.appState.isEnhancedProductMode = false;
         
-        // Load enhanced products
-        const { data: enhancedProducts, error: productsError } = await supabase
-            .from('enhanced_products')
-            .select('*')
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
+        // Load both original and enhanced products
+        const [tablesResult, menusResult, videosResult, enhancedProductsResult, bannersResult, contentResult, adsResult] = await Promise.all([
+            supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.rpc('get_enhanced_products_with_details', { p_button_id: buttonId }),
+            supabase.rpc('get_product_page_banners', { p_button_id: buttonId }),
+            supabase.rpc('get_product_page_content', { p_button_id: buttonId }),
+            supabase.rpc('get_active_ads')
+        ]);
 
-        if (productsError) {
-            console.log('No enhanced products, loading regular menus');
-            // Fallback to regular menu system
-            await openCategoryPage(categoryId, buttonId);
-            return;
-        }
+        if (menusResult.error) throw menusResult.error;
+        if (tablesResult.error) throw tablesResult.error;
+        if (videosResult.error) throw videosResult.error;
+        if (enhancedProductsResult.error) throw enhancedProductsResult.error;
 
-        // Load product banners
-        const { data: productBanners } = await supabase
-            .from('product_banners')
-            .select('*')
-            .eq('category_id', categoryId)
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
+        const tables = tablesResult.data || [];
+        const menus = menusResult.data || [];
+        const videos = videosResult.data || [];
+        const enhancedProducts = enhancedProductsResult.data || [];
+        const banners = bannersResult.data || [];
+        const content = contentResult.data || [];
+        const ads = adsResult.data || [];
 
-        // Load product descriptions
-        const { data: productDescriptions } = await supabase
-            .from('product_descriptions')
-            .select('*')
-            .eq('category_id', categoryId)
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
+        // Store in global state
+        window.appState.allMenus = menus;
+        window.appState.enhancedProducts = enhancedProducts;
+        window.appState.currentTables = tables;
+        window.appState.currentProductBanners = banners;
+        window.appState.currentProductContent = content;
+        window.appState.currentAds = ads;
 
-        // Load ads for this category/button
-        const { data: ads } = await supabase
-            .from('category_ads')
-            .select('*')
-            .eq('category_id', categoryId)
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
-
-        // Store in state
-        window.appState.enhancedProducts = enhancedProducts || [];
-        window.appState.productBanners = productBanners || [];
-        window.appState.productDescriptions = productDescriptions || [];
-        window.appState.categoryAds = ads || [];
+        console.log('✅ Loaded data:');
+        console.log('  - Tables:', tables.length);
+        console.log('  - Original Menus:', menus.length);
+        console.log('  - Enhanced Products:', enhancedProducts.length);
+        console.log('  - Videos:', videos.length);
+        console.log('  - Banners:', banners.length);
+        console.log('  - Content:', content.length);
+        console.log('  - Ads:', ads.length);
 
         hideLoading();
 
-        // Show enhanced products page
-        showEnhancedProductsPage();
+        // Determine which system to use
+        if (enhancedProducts.length > 0 || menus.length > 0) {
+            showProductPage(buttonName, buttonIcon, tables, menus, enhancedProducts, videos, banners, content, ads);
+        } else {
+            showToast('No products available for this category', 'warning');
+        }
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Error loading enhanced category:', error);
+        console.error('❌ Error loading category data:', error);
         showToast('Error loading products. Please try again.', 'error');
     }
 }
 
-function showEnhancedProductsPage() {
-    // Hide home page and show products page
-    switchPage('products');
-
-    // Update header
-    const categoryIcon = document.getElementById('currentCategoryIcon');
-    const categoryName = document.getElementById('currentCategoryName');
+// Show Enhanced Product Page
+function showProductPage(buttonName, buttonIcon, tables, originalMenus, enhancedProducts, videos, banners, content, ads) {
+    const modal = document.getElementById('purchaseModal');
+    const modalContent = document.getElementById('purchaseContent');
     
-    if (window.appState.currentButtonData) {
-        categoryIcon.src = window.appState.currentButtonData.icon_url;
-        categoryName.textContent = window.appState.currentButtonData.name;
-    }
-
-    // Display product banners
-    displayProductBanners();
-
-    // Display product descriptions
-    displayProductDescriptions();
-
-    // Display enhanced products
-    displayEnhancedProducts();
-
-    // Display ads
-    displayCategoryAds();
-}
-
-// ========== PRODUCT BANNERS SYSTEM ==========
-function displayProductBanners() {
-    const container = document.getElementById('productBannerContainer');
-    const pagination = document.getElementById('productBannerPagination');
-    const bannerSection = document.getElementById('productBanners');
+    let html = '<div class="enhanced-product-page">';
     
-    if (!container || !pagination) return;
-
-    const banners = window.appState.productBanners;
-    
-    if (!banners || banners.length === 0) {
-        bannerSection.style.display = 'none';
-        return;
-    }
-
-    bannerSection.style.display = 'block';
-    container.innerHTML = '';
-    pagination.innerHTML = '';
-    
-    const wrapper = document.createElement('div');
-    wrapper.className = 'product-banner-wrapper';
-
-    banners.forEach((banner, index) => {
-        const item = document.createElement('div');
-        item.className = 'product-banner-item';
-        item.innerHTML = `<img src="${banner.banner_url}" alt="Product Banner ${index + 1}">`;
-        wrapper.appendChild(item);
-    });
-
-    container.appendChild(wrapper);
-
-    // Create pagination dots
-    if (banners.length > 1) {
-        banners.forEach((_, index) => {
-            const dot = document.createElement('div');
-            dot.className = `product-banner-dot ${index === 0 ? 'active' : ''}`;
-            dot.addEventListener('click', () => goToProductBanner(index, wrapper, banners.length));
-            pagination.appendChild(dot);
-        });
-
-        // Auto-scroll every 5 seconds
-        startProductBannerAutoScroll(wrapper, banners.length);
-    }
-}
-
-function goToProductBanner(index, wrapper, totalBanners) {
-    window.appState.currentProductBannerIndex = index;
-    wrapper.style.transform = `translateX(-${index * 100}%)`;
-    
-    // Update pagination dots
-    document.querySelectorAll('.product-banner-dot').forEach((dot, dotIndex) => {
-        dot.classList.toggle('active', dotIndex === index);
-    });
-}
-
-function startProductBannerAutoScroll(wrapper, totalBanners) {
-    // Clear existing interval
-    if (window.appState.productBannerInterval) {
-        clearInterval(window.appState.productBannerInterval);
-    }
-    
-    window.appState.productBannerInterval = setInterval(() => {
-        window.appState.currentProductBannerIndex = (window.appState.currentProductBannerIndex + 1) % totalBanners;
-        goToProductBanner(window.appState.currentProductBannerIndex, wrapper, totalBanners);
-    }, 5000);
-}
-
-// ========== PRODUCT DESCRIPTIONS SYSTEM ==========
-function displayProductDescriptions() {
-    const container = document.getElementById('productDescriptions');
-    if (!container) return;
-
-    const descriptions = window.appState.productDescriptions;
-    
-    if (!descriptions || descriptions.length === 0) {
-        container.style.display = 'none';
-        return;
-    }
-
-    container.style.display = 'block';
-    container.innerHTML = '';
-
-    descriptions.forEach(desc => {
-        const descElement = document.createElement('div');
-        descElement.className = 'product-description-item';
-        applyAnimationRendering(descElement, desc.content);
-        container.appendChild(descElement);
-    });
-}
-
-// ========== ENHANCED PRODUCTS DISPLAY ==========
-function displayEnhancedProducts() {
-    const container = document.getElementById('productsGrid');
-    if (!container) return;
-
-    const products = window.appState.enhancedProducts;
-    
-    if (!products || products.length === 0) {
-        container.innerHTML = '<div class="no-products">No products available for this category.</div>';
-        return;
-    }
-
-    container.innerHTML = '';
-
-    products.forEach(product => {
-        const productEl = document.createElement('div');
-        productEl.className = 'enhanced-product-item';
-        
-        // Calculate discount price if available
-        let priceDisplay = `${product.price} ${product.currency}`;
-        if (product.discount_percentage && product.discount_percentage > 0) {
-            const discountedPrice = product.price * (1 - product.discount_percentage / 100);
-            priceDisplay = `
-                <span class="original-price">${product.price} ${product.currency}</span>
-                <span class="discounted-price">${discountedPrice.toFixed(0)} ${product.currency}</span>
-                <span class="discount-badge">-${product.discount_percentage}%</span>
-            `;
-        }
-
-        // Get first image
-        const images = product.images ? JSON.parse(product.images) : [];
-        const firstImage = images.length > 0 ? images[0] : null;
-
-        productEl.innerHTML = `
-            <div class="product-image">
-                ${firstImage ? `<img src="${firstImage}" alt="${product.name}">` : '<div class="no-image">No Image</div>'}
-                ${product.discount_percentage ? `<div class="discount-indicator">-${product.discount_percentage}%</div>` : ''}
-            </div>
-            <div class="product-info">
-                <h3 class="product-name">${product.name}</h3>
-                <p class="product-description">${product.description || ''}</p>
-                <div class="product-details">
-                    <span class="product-price">${priceDisplay}</span>
-                    <span class="product-stock">Stock: ${product.stock_quantity || 'N/A'}</span>
-                </div>
-                <button class="btn-view-details" onclick="viewEnhancedProductDetails(${product.id})">
-                    View Details
-                </button>
-            </div>
-        `;
-
-        container.appendChild(productEl);
-    });
-}
-
-// ========== CATEGORY ADS SYSTEM ==========
-function displayCategoryAds() {
-    const container = document.getElementById('adsSection');
-    if (!container) return;
-
-    const ads = window.appState.categoryAds;
-    
-    if (!ads || ads.length === 0) {
-        container.style.display = 'none';
-        return;
-    }
-
-    container.style.display = 'block';
-    container.innerHTML = '';
-
-    ads.forEach(ad => {
-        const adElement = document.createElement('div');
-        adElement.className = 'ad-container';
-        adElement.innerHTML = ad.script_code;
-        container.appendChild(adElement);
-    });
-}
-
-// ========== ENHANCED PRODUCT DETAILS ==========
-async function viewEnhancedProductDetails(productId) {
-    console.log('🔍 Viewing Enhanced Product Details:', productId);
-    
-    const product = window.appState.enhancedProducts.find(p => p.id === productId);
-    if (!product) {
-        showToast('Product not found', 'error');
-        return;
-    }
-
-    window.appState.selectedEnhancedProduct = product;
-
-    // Display detailed modal
-    const modal = document.getElementById('productDetailsModal');
-    const content = document.getElementById('productDetailsContent');
-
-    // Parse images
-    const images = product.images ? JSON.parse(product.images) : [];
-    
-    // Calculate discount price
-    let priceDisplay = `${product.price} ${product.currency}`;
-    let finalPrice = product.price;
-    
-    if (product.discount_percentage && product.discount_percentage > 0) {
-        finalPrice = product.price * (1 - product.discount_percentage / 100);
-        priceDisplay = `
-            <div class="price-section">
-                <span class="original-price">${product.price} ${product.currency}</span>
-                <span class="discounted-price">${finalPrice.toFixed(0)} ${product.currency}</span>
-                <span class="discount-badge">Save ${product.discount_percentage}%</span>
-            </div>
-        `;
-    } else {
-        priceDisplay = `<div class="price-section"><span class="current-price">${product.price} ${product.currency}</span></div>`;
-    }
-
-    // Parse payment methods
-    const paymentMethods = product.payment_methods ? JSON.parse(product.payment_methods) : [];
-    
-    // Parse contacts
-    const contacts = product.contacts ? JSON.parse(product.contacts) : [];
-
-    content.innerHTML = `
-        <div class="enhanced-product-details">
-            <div class="product-images-section">
-                ${images.length > 0 ? `
-                    <div class="main-image">
-                        <img id="mainProductImage" src="${images[0]}" alt="${product.name}">
-                        <div class="image-navigation">
-                            <button class="nav-btn prev-btn" onclick="changeProductImage(-1)" ${images.length <= 1 ? 'style="display:none"' : ''}>◀</button>
-                            <button class="nav-btn next-btn" onclick="changeProductImage(1)" ${images.length <= 1 ? 'style="display:none"' : ''}>▶</button>
-                        </div>
-                    </div>
-                    ${images.length > 1 ? `
-                        <div class="image-thumbnails">
-                            ${images.map((img, index) => `
-                                <img class="thumbnail ${index === 0 ? 'active' : ''}" 
-                                     src="${img}" 
-                                     onclick="selectProductImage(${index})"
-                                     alt="Thumbnail ${index + 1}">
-                            `).join('')}
-                        </div>
-                    ` : ''}
-                ` : '<div class="no-image-large">No Images Available</div>'}
-            </div>
-            
-            <div class="product-details-section">
-                <h2>${product.name}</h2>
-                <div class="product-meta">
-                    <span class="product-type">${product.product_type || 'Product'}</span>
-                    <span class="product-level">${product.product_level || ''}</span>
-                    <span class="product-id">ID: ${product.product_id || product.id}</span>
-                </div>
-                
-                <div class="product-description-full">
-                    <p>${product.description || 'No description available.'}</p>
-                </div>
-                
-                ${priceDisplay}
-                
-                <div class="product-stock-info">
-                    <span class="stock-quantity">Available: ${product.stock_quantity || 'N/A'}</span>
-                    <span class="delivery-time">Delivery: ${product.delivery_time || 'Contact for details'}</span>
-                </div>
-                
-                ${paymentMethods.length > 0 ? `
-                    <div class="payment-methods-section">
-                        <h4>Accepted Payment Methods:</h4>
-                        <div class="payment-icons">
-                            ${paymentMethods.map(pmId => {
-                                const pm = window.appState.payments.find(p => p.id === pmId);
-                                return pm ? `
-                                    <div class="payment-icon">
-                                        <img src="${pm.icon_url}" alt="${pm.name}" title="${pm.name}">
-                                    </div>
-                                ` : '';
-                            }).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-                
-                ${contacts.length > 0 ? `
-                    <div class="contact-methods-section">
-                        <h4>Contact Options:</h4>
-                        <div class="contact-buttons">
-                            ${contacts.map(contactId => {
-                                const contact = window.appState.contacts.find(c => c.id === contactId);
-                                return contact ? `
-                                    <button class="contact-btn" onclick="window.open('${contact.link || contact.address}', '_blank')">
-                                        <img src="${contact.icon_url}" alt="${contact.name}">
-                                        <span>${contact.name}</span>
-                                    </button>
-                                ` : '';
-                            }).join('')}
-                        </div>
-                    </div>
-                ` : ''}
-                
-                <div class="product-actions">
-                    <button class="btn-buy-now" onclick="purchaseEnhancedProduct(${product.id})">
-                        Buy Now - ${finalPrice.toFixed(0)} ${product.currency}
-                    </button>
-                </div>
-            </div>
+    // Category Button Info
+    html += `
+        <div class="category-button-info">
+            <img src="${buttonIcon}" alt="${buttonName}">
+            <h3>${renderAnimatedContent(buttonName)}</h3>
         </div>
     `;
+    
+    // Product Page Banners
+    if (banners.length > 0) {
+        html += '<div class="product-page-banners">';
+        if (banners.length === 1) {
+            html += `<img src="${banners[0].banner_url}" alt="Banner" class="product-page-banner">`;
+        } else {
+            html += `
+                <div class="banner-container">
+                    <div class="banner-wrapper" id="productBannerWrapper">
+                        ${banners.map((banner, index) => `
+                            <div class="banner-item">
+                                <img src="${banner.banner_url}" alt="Banner ${index + 1}" class="product-page-banner">
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div class="banner-pagination" id="productBannerPagination">
+                        ${banners.map((_, index) => `
+                            <div class="banner-dot ${index === 0 ? 'active' : ''}" onclick="goToProductBanner(${index})"></div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+    }
+    
+    // Ads between banners and content
+    if (ads.length > 0) {
+        html += '<div class="ads-container">';
+        ads.forEach(ad => {
+            html += `<div class="ad-banner" style="width: ${ad.banner_size}">${ad.script_code}</div>`;
+        });
+        html += '</div>';
+    }
+    
+    // Product Page Content
+    if (content.length > 0) {
+        html += '<div class="product-page-content-section">';
+        content.forEach(contentItem => {
+            html += `<div class="product-page-content">${renderAnimatedContent(contentItem.content_text)}</div>`;
+        });
+        html += '</div>';
+    }
+    
+    // Input Tables (if any)
+    if (tables.length > 0) {
+        html += '<div class="input-tables-section" style="margin-bottom: 24px;">';
+        tables.forEach(table => {
+            html += `
+                <div class="form-group">
+                    <label data-table-label="${table.id}" style="font-weight: 600; color: var(--text-primary);"></label>
+                    <input type="text" 
+                           id="table-${table.id}" 
+                           data-table-id="${table.id}"
+                           placeholder="${table.instruction || ''}"
+                           required>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    // Products Section
+    html += '<h3 style="margin: 20px 0 16px 0; font-size: 20px; font-weight: 700; color: var(--text-primary);">Select Product</h3>';
+    
+    // Enhanced Products (Priority)
+    if (enhancedProducts.length > 0) {
+        html += '<div class="enhanced-products-section">';
+        enhancedProducts.forEach(product => {
+            const firstMedia = product.media && product.media.length > 0 ? product.media[0] : null;
+            html += `
+                <div class="enhanced-product-item" data-enhanced-product-id="${product.id}">
+                    <div class="enhanced-product-header">
+                        <div class="enhanced-product-name" data-enhanced-product-name="${product.id}"></div>
+                        <div class="enhanced-product-pricing">
+                            <span class="enhanced-product-price">${product.current_price} ${product.currency_type}</span>
+                            ${product.sale_percentage > 0 ? `
+                                <span class="enhanced-product-original-price">${product.original_price} ${product.currency_type}</span>
+                                <span class="enhanced-product-sale-badge">${product.sale_percentage}% OFF</span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    ${firstMedia ? `
+                        <div class="enhanced-product-media-preview">
+                            ${firstMedia.type === 'video' ? `
+                                <video autoplay loop muted>
+                                    <source src="${firstMedia.url}" type="video/mp4">
+                                </video>
+                            ` : `
+                                <img src="${firstMedia.url}" alt="${product.name}">
+                            `}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="enhanced-product-description" data-enhanced-product-description="${product.id}"></div>
+                    
+                    <div class="enhanced-product-details">
+                        ${product.stock_quantity !== null ? `
+                            <div class="enhanced-product-detail">
+                                <div class="enhanced-product-detail-label">Stock</div>
+                                <div>${product.stock_quantity}</div>
+                            </div>
+                        ` : ''}
+                        ${product.delivery_time ? `
+                            <div class="enhanced-product-detail">
+                                <div class="enhanced-product-detail-label">Delivery</div>
+                                <div>${product.delivery_time}</div>
+                            </div>
+                        ` : ''}
+                        ${product.product_type ? `
+                            <div class="enhanced-product-detail">
+                                <div class="enhanced-product-detail-label">Type</div>
+                                <div>${product.product_type}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    // Original Products (if no enhanced products or both exist)
+    if (originalMenus.length > 0) {
+        html += `<div class="original-products-section" ${enhancedProducts.length > 0 ? 'style="margin-top: 32px;"' : ''}>`;
+        if (enhancedProducts.length > 0) {
+            html += '<h4 style="margin-bottom: 16px; color: var(--text-secondary);">Classic Products</h4>';
+        }
+        html += '<div class="menu-items">';
+        originalMenus.forEach(menu => {
+            html += `
+                <div class="menu-item" data-menu-id="${menu.id}">
+                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" alt="Product">` : '<div class="menu-item-icon" style="background: var(--bg-glass);"></div>'}
+                    <div class="menu-item-info">
+                        <div class="menu-item-name" data-menu-name="${menu.id}"></div>
+                        <div class="menu-item-amount" data-menu-amount="${menu.id}"></div>
+                        <div class="menu-item-price">${menu.price} MMK</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        html += '</div>';
+    }
+    
+    // Video Tutorials
+    if (videos.length > 0) {
+        html += '<div class="video-section"><h3>Tutorials & Guides</h3>';
+        videos.forEach(video => {
+            html += `
+                <div class="video-item" style="cursor:pointer;">
+                    <img src="${video.banner_url}" alt="Tutorial Video">
+                    <p data-video-desc="${video.id}"></p>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+    
+    // Continue Button
+    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 24px; width: 100%;">Continue to Purchase</button>`;
+    html += '</div>';
 
-    // Set up image state for navigation
-    window.currentImageIndex = 0;
-    window.productImages = images;
-
+    modalContent.innerHTML = html;
     modal.classList.add('active');
+
+    // Apply animations and attach events
+    setTimeout(() => {
+        console.log('🎨 Applying animations and attaching events...');
+        
+        // Initialize product banners if multiple
+        if (banners.length > 1) {
+            startProductBannerAutoScroll();
+        }
+        
+        // Render table labels
+        tables.forEach(table => {
+            const labelEl = document.querySelector(`[data-table-label="${table.id}"]`);
+            if (labelEl) applyAnimationRendering(labelEl, table.name);
+        });
+
+        // Render enhanced products
+        enhancedProducts.forEach(product => {
+            const nameEl = document.querySelector(`[data-enhanced-product-name="${product.id}"]`);
+            const descEl = document.querySelector(`[data-enhanced-product-description="${product.id}"]`);
+            if (nameEl) applyAnimationRendering(nameEl, product.name);
+            if (descEl) applyAnimationRendering(descEl, product.description || '');
+        });
+
+        // Render original menu items
+        originalMenus.forEach(menu => {
+            const nameEl = document.querySelector(`[data-menu-name="${menu.id}"]`);
+            const amountEl = document.querySelector(`[data-menu-amount="${menu.id}"]`);
+            if (nameEl) applyAnimationRendering(nameEl, menu.name);
+            if (amountEl) applyAnimationRendering(amountEl, menu.amount);
+        });
+
+        // Render video descriptions
+        videos.forEach(video => {
+            const descEl = document.querySelector(`[data-video-desc="${video.id}"]`);
+            if (descEl) applyAnimationRendering(descEl, video.description);
+            
+            // Add click event for video
+            const videoItem = descEl.closest('.video-item');
+            if (videoItem) {
+                videoItem.addEventListener('click', () => {
+                    window.open(video.video_url, '_blank');
+                });
+            }
+        });
+
+        // Attach enhanced product click events
+        const enhancedProductItems = document.querySelectorAll('.enhanced-product-item');
+        console.log('📌 Attaching click events to', enhancedProductItems.length, 'enhanced product items');
+        
+        enhancedProductItems.forEach(item => {
+            const productId = parseInt(item.getAttribute('data-enhanced-product-id'));
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ Enhanced product clicked:', productId);
+                selectEnhancedProduct(productId);
+            });
+        });
+
+        // Attach original menu item click events
+        const menuItems = document.querySelectorAll('.menu-item');
+        console.log('📌 Attaching click events to', menuItems.length, 'menu items');
+        
+        menuItems.forEach(item => {
+            const menuId = parseInt(item.getAttribute('data-menu-id'));
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ Menu item clicked:', menuId);
+                selectMenuItem(menuId);
+            });
+        });
+
+        // Attach buy button event
+        const buyBtn = document.getElementById('buyNowBtn');
+        if (buyBtn) {
+            buyBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🛒 Buy button clicked');
+                proceedToPurchase();
+            });
+        }
+
+        console.log('✅ Events attached successfully');
+    }, 150);
 }
 
-// Product image navigation functions
-function changeProductImage(direction) {
-    if (!window.productImages || window.productImages.length <= 1) return;
+// Product Banner Navigation
+function goToProductBanner(index) {
+    const wrapper = document.getElementById('productBannerWrapper');
+    const dots = document.querySelectorAll('#productBannerPagination .banner-dot');
     
-    window.currentImageIndex = (window.currentImageIndex + direction + window.productImages.length) % window.productImages.length;
-    
-    document.getElementById('mainProductImage').src = window.productImages[window.currentImageIndex];
-    
-    // Update thumbnail selection
-    document.querySelectorAll('.thumbnail').forEach((thumb, index) => {
-        thumb.classList.toggle('active', index === window.currentImageIndex);
-    });
+    if (wrapper) {
+        wrapper.style.transform = `translateX(-${index * 100}%)`;
+        dots.forEach((dot, dotIndex) => {
+            dot.classList.toggle('active', dotIndex === index);
+        });
+    }
 }
 
-function selectProductImage(index) {
-    if (!window.productImages || index < 0 || index >= window.productImages.length) return;
+function startProductBannerAutoScroll() {
+    const wrapper = document.getElementById('productBannerWrapper');
+    const dots = document.querySelectorAll('#productBannerPagination .banner-dot');
+    let currentIndex = 0;
     
-    window.currentImageIndex = index;
-    document.getElementById('mainProductImage').src = window.productImages[index];
-    
-    // Update thumbnail selection
-    document.querySelectorAll('.thumbnail').forEach((thumb, thumbIndex) => {
-        thumb.classList.toggle('active', thumbIndex === index);
-    });
+    if (wrapper && dots.length > 1) {
+        setInterval(() => {
+            currentIndex = (currentIndex + 1) % dots.length;
+            goToProductBanner(currentIndex);
+        }, 5000);
+    }
 }
 
-function closeProductDetails() {
-    document.getElementById('productDetailsModal').classList.remove('active');
-    window.currentImageIndex = 0;
-    window.productImages = [];
-}
-
-// ========== ENHANCED PRODUCT PURCHASE ==========
-async function purchaseEnhancedProduct(productId) {
-    console.log('🛒 Purchasing Enhanced Product:', productId);
+// Enhanced Product Selection
+function selectEnhancedProduct(productId) {
+    console.log('\n🔍 ========== SELECTING ENHANCED PRODUCT ==========');
+    console.log('Product ID:', productId, '(type:', typeof productId, ')');
+    console.log('Available enhanced products:', window.appState.enhancedProducts.length);
     
-    const product = window.appState.enhancedProducts.find(p => p.id === productId);
-    if (!product) {
-        showToast('Product not found', 'error');
+    if (!productId || isNaN(productId)) {
+        console.error('❌ Invalid enhanced product ID');
+        showToast('Invalid product selection', 'error');
         return;
     }
 
-    // Close product details modal
-    closeProductDetails();
+    const parsedProductId = parseInt(productId);
+    window.appState.selectedEnhancedProduct = parsedProductId;
+    window.appState.isEnhancedProductMode = true;
+    
+    // Clear original product selection
+    window.appState.selectedMenuItem = null;
+    window.appState.currentMenu = null;
+    
+    // Find product in stored data
+    const product = window.appState.enhancedProducts.find(p => p.id === parsedProductId);
+    
+    if (product) {
+        window.appState.currentEnhancedProduct = product;
+        console.log('✅ Enhanced Product found and stored:');
+        console.log('  - ID:', product.id);
+        console.log('  - Name:', product.name);
+        console.log('  - Current Price:', product.current_price);
+        console.log('  - Currency:', product.currency_type);
+    } else {
+        console.error('❌ Enhanced Product not found in stored products');
+        console.log('Available enhanced product IDs:', window.appState.enhancedProducts.map(p => p.id));
+        showToast('Product data not found. Please try again.', 'error');
+        return;
+    }
 
-    // Set current enhanced product for purchase
-    window.appState.selectedEnhancedProduct = product;
-
-    // Show enhanced payment modal
-    await showEnhancedPaymentModal(product);
+    // Update UI
+    document.querySelectorAll('.enhanced-product-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    const selectedItem = document.querySelector(`[data-enhanced-product-id="${parsedProductId}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+        console.log('✅ UI updated - enhanced product marked as selected');
+    } else {
+        console.warn('⚠️ Could not find enhanced product element to mark as selected');
+    }
 }
 
-async function showEnhancedPaymentModal(product) {
-    console.log('💳 Showing Enhanced Payment Modal');
+// Original Menu Selection (updated)
+function selectMenuItem(menuId) {
+    console.log('\n🔍 ========== SELECTING MENU ITEM ==========');
+    console.log('Menu ID:', menuId, '(type:', typeof menuId, ')');
+    console.log('Available menus:', window.appState.allMenus.length);
     
+    if (!menuId || isNaN(menuId)) {
+        console.error('❌ Invalid menu ID');
+        showToast('Invalid product selection', 'error');
+        return;
+    }
+
+    const parsedMenuId = parseInt(menuId);
+    window.appState.selectedMenuItem = parsedMenuId;
+    window.appState.isEnhancedProductMode = false;
+    
+    // Clear enhanced product selection
+    window.appState.selectedEnhancedProduct = null;
+    window.appState.currentEnhancedProduct = null;
+    
+    // Find menu in stored data
+    const menu = window.appState.allMenus.find(m => m.id === parsedMenuId);
+    
+    if (menu) {
+        window.appState.currentMenu = menu;
+        console.log('✅ Menu found and stored:');
+        console.log('  - ID:', menu.id);
+        console.log('  - Name:', menu.name);
+        console.log('  - Price:', menu.price);
+        console.log('  - Amount:', menu.amount);
+    } else {
+        console.error('❌ Menu not found in stored menus');
+        console.log('Available menu IDs:', window.appState.allMenus.map(m => m.id));
+        showToast('Product data not found. Please try again.', 'error');
+        return;
+    }
+
+    // Update UI
+    document.querySelectorAll('.enhanced-product-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    const selectedItem = document.querySelector(`[data-menu-id="${parsedMenuId}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+        console.log('✅ UI updated - menu item marked as selected');
+    } else {
+        console.warn('⚠️ Could not find menu item element to mark as selected');
+    }
+}
+
+function closePurchaseModal() {
+    console.log('🚪 Closing purchase modal');
+    document.getElementById('purchaseModal').classList.remove('active');
+}
+
+// Updated Proceed to Purchase
+async function proceedToPurchase() {
+    console.log('\n🛒 ========== PROCEEDING TO PURCHASE ==========');
+    console.log('Enhanced Product Mode:', window.appState.isEnhancedProductMode);
+    console.log('Selected Enhanced Product ID:', window.appState.selectedEnhancedProduct);
+    console.log('Selected Menu ID:', window.appState.selectedMenuItem);
+    console.log('Button ID:', window.appState.currentButtonId);
+    
+    // Validation
+    if (!window.appState.isEnhancedProductMode && !window.appState.selectedMenuItem) {
+        console.error('❌ No product selected');
+        showToast('Please select a product first', 'warning');
+        return;
+    }
+    
+    if (window.appState.isEnhancedProductMode && !window.appState.selectedEnhancedProduct) {
+        console.error('❌ No enhanced product selected');
+        showToast('Please select a product first', 'warning');
+        return;
+    }
+
+    // Verify product data
+    let currentProduct = null;
+    if (window.appState.isEnhancedProductMode) {
+        if (!window.appState.currentEnhancedProduct) {
+            console.error('❌ Enhanced product data not found');
+            const product = window.appState.enhancedProducts.find(p => p.id === window.appState.selectedEnhancedProduct);
+            if (product) {
+                window.appState.currentEnhancedProduct = product;
+                console.log('✅ Enhanced product data recovered:', product);
+            } else {
+                console.error('❌ Could not recover enhanced product data');
+                showToast('Product data not found. Please select the product again.', 'error');
+                return;
+            }
+        }
+        currentProduct = window.appState.currentEnhancedProduct;
+    } else {
+        if (!window.appState.currentMenu) {
+            console.error('❌ Menu data not found');
+            const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
+            if (menu) {
+                window.appState.currentMenu = menu;
+                console.log('✅ Menu data recovered:', menu);
+            } else {
+                console.error('❌ Could not recover menu data');
+                showToast('Product data not found. Please select the product again.', 'error');
+                return;
+            }
+        }
+        currentProduct = window.appState.currentMenu;
+    }
+
+    // Collect table data
+    const tableData = {};
+    let allFilled = true;
+
+    console.log('📝 Collecting table data from', window.appState.currentTables.length, 'tables');
+    
+    window.appState.currentTables.forEach(table => {
+        const inputEl = document.querySelector(`[data-table-id="${table.id}"]`);
+        if (inputEl) {
+            const value = inputEl.value.trim();
+            console.log(`  - Table ${table.id} (${table.name}):`, value || '(empty)');
+            if (!value) {
+                allFilled = false;
+            }
+            tableData[table.name] = value; // Use table name as key
+        } else {
+            console.warn(`⚠️ Input element not found for table ${table.id}`);
+        }
+    });
+
+    if (window.appState.currentTables.length > 0 && !allFilled) {
+        console.error('❌ Not all required fields filled');
+        showToast('Please fill in all required fields', 'warning');
+        return;
+    }
+
+    window.appState.currentTableData = tableData;
+    console.log('✅ Table data collected:', tableData);
+
+    closePurchaseModal();
+    
+    console.log('➡️ Moving to payment modal...');
+    await showPaymentModal();
+}
+
+// Updated Payment Modal
+async function showPaymentModal() {
+    console.log('\n💳 ========== SHOWING PAYMENT MODAL ==========');
+    
+    let currentProduct = null;
+    if (window.appState.isEnhancedProductMode) {
+        currentProduct = window.appState.currentEnhancedProduct;
+    } else {
+        currentProduct = window.appState.currentMenu;
+    }
+    
+    if (!currentProduct) {
+        console.error('❌ Product data not found in payment modal');
+        showToast('Error: Product data not found. Please try again.', 'error');
+        return;
+    }
+
+    console.log('✅ Product data available:');
+    console.log('  - Name:', currentProduct.name);
+    if (window.appState.isEnhancedProductMode) {
+        console.log('  - Price:', currentProduct.current_price, currentProduct.currency_type);
+    } else {
+        console.log('  - Price:', currentProduct.price, 'MMK');
+    }
+
     const modal = document.getElementById('paymentModal');
     const content = document.getElementById('paymentContent');
 
@@ -1117,50 +1485,49 @@ async function showEnhancedPaymentModal(product) {
 
     // Load payments if not loaded
     if (!window.appState.payments || window.appState.payments.length === 0) {
+        console.log('📥 Loading payment methods...');
         await loadPayments();
     }
 
     hideLoading();
 
-    // Get allowed payment methods for this product
-    const allowedPaymentIds = product.payment_methods ? JSON.parse(product.payment_methods) : [];
-    const allowedPayments = window.appState.payments.filter(pm => allowedPaymentIds.includes(pm.id));
-
-    // Calculate final price
-    let finalPrice = product.price;
-    if (product.discount_percentage && product.discount_percentage > 0) {
-        finalPrice = product.price * (1 - product.discount_percentage / 100);
+    let availablePayments = [];
+    
+    if (window.appState.isEnhancedProductMode && currentProduct.payment_methods) {
+        // Use product-specific payment methods for enhanced products
+        availablePayments = currentProduct.payment_methods;
+    } else {
+        // Use all payment methods for original products
+        availablePayments = window.appState.payments;
     }
 
-    let html = '<div class="enhanced-payment-selection">';
+    console.log('💳 Available payment methods:', availablePayments.length);
+
+    let html = '<div class="payment-selection">';
     
     // Order Summary
+    const productPrice = window.appState.isEnhancedProductMode ? 
+        `${currentProduct.current_price} ${currentProduct.currency_type}` : 
+        `${currentProduct.price} MMK`;
+    
     html += `<div class="order-summary">
-        <h3>${product.name}</h3>
-        <p>${product.description || ''}</p>
-        <div class="price-breakdown">
-            ${product.discount_percentage ? `
-                <div class="original-price-line">Original: ${product.price} ${product.currency}</div>
-                <div class="discount-line">Discount (${product.discount_percentage}%): -${(product.price * product.discount_percentage / 100).toFixed(0)} ${product.currency}</div>
-                <div class="final-price-line">Final Price: ${finalPrice.toFixed(0)} ${product.currency}</div>
-            ` : `
-                <div class="final-price-line">Price: ${finalPrice.toFixed(0)} ${product.currency}</div>
-            `}
-        </div>
+        <h3 data-order-summary-name style="font-size: 18px; font-weight: 700; margin-bottom: 8px;"></h3>
+        <p data-order-summary-amount style="font-size: 14px; color: var(--text-muted); margin-bottom: 12px;"></p>
+        <p class="price">${productPrice}</p>
     </div>`;
 
     html += '<h3 style="margin: 24px 0 16px 0; font-size: 20px; font-weight: 700; color: var(--text-primary);">Select Payment Method</h3>';
     
     // Payment Methods
-    if (allowedPayments.length === 0) {
-        html += '<div style="text-align: center; color: var(--warning-color); padding: 40px; background: rgba(245, 158, 11, 0.1); border-radius: var(--border-radius); margin: 20px 0;"><p>⚠️ No payment methods available for this product</p></div>';
+    if (availablePayments.length === 0) {
+        html += '<div style="text-align: center; color: var(--warning-color); padding: 40px; background: rgba(245, 158, 11, 0.1); border-radius: var(--border-radius); margin: 20px 0;"><p>⚠️ No payment methods available</p><p style="font-size: 14px; margin-top: 8px; color: var(--text-muted);">Please contact admin to set up payment methods</p></div>';
     } else {
         html += '<div class="payment-methods">';
-        allowedPayments.forEach(payment => {
+        availablePayments.forEach(payment => {
             html += `
                 <div class="payment-method" data-payment-id="${payment.id}">
                     <img src="${payment.icon_url}" alt="${payment.name}">
-                    <span>${payment.name}</span>
+                    <span data-payment-name="${payment.id}"></span>
                 </div>
             `;
         });
@@ -1168,36 +1535,87 @@ async function showEnhancedPaymentModal(product) {
     }
 
     html += '<div id="paymentDetails" style="display:none;"></div>';
-    html += `<button class="btn-primary" id="submitEnhancedOrderBtn" style="margin-top: 24px; width: 100%;" ${allowedPayments.length === 0 ? 'disabled' : ''}>Submit Order</button>`;
+    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 24px; width: 100%;" ${availablePayments.length === 0 ? 'disabled' : ''}>Submit Order</button>`;
     html += '</div>';
 
     content.innerHTML = html;
     modal.classList.add('active');
 
-    // Attach payment method click events
-    const paymentMethods = document.querySelectorAll('.payment-method');
-    paymentMethods.forEach(item => {
-        const paymentId = parseInt(item.getAttribute('data-payment-id'));
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            selectEnhancedPayment(paymentId);
-        });
-    });
+    // Apply animations and attach events
+    setTimeout(() => {
+        console.log('🎨 Rendering payment modal content...');
+        
+        // Render order summary
+        const summaryNameEl = document.querySelector('[data-order-summary-name]');
+        const summaryAmountEl = document.querySelector('[data-order-summary-amount]');
+        if (summaryNameEl) applyAnimationRendering(summaryNameEl, currentProduct.name);
+        if (summaryAmountEl) {
+            const amountText = window.appState.isEnhancedProductMode ? 
+                (currentProduct.description || '') : 
+                (currentProduct.amount || '');
+            applyAnimationRendering(summaryAmountEl, amountText);
+        }
 
-    // Attach submit button event
-    const submitBtn = document.getElementById('submitEnhancedOrderBtn');
-    if (submitBtn && !submitBtn.disabled) {
-        submitBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            submitEnhancedOrder();
+        // Render payment names
+        availablePayments.forEach(payment => {
+            const nameEl = document.querySelector(`[data-payment-name="${payment.id}"]`);
+            if (nameEl) applyAnimationRendering(nameEl, payment.name);
         });
+
+        // Attach payment method click events
+        const paymentMethods = document.querySelectorAll('.payment-method');
+        console.log('📌 Attaching click events to', paymentMethods.length, 'payment methods');
+        
+        paymentMethods.forEach(item => {
+            const paymentId = parseInt(item.getAttribute('data-payment-id'));
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ Payment method clicked:', paymentId);
+                selectPayment(paymentId);
+            });
+        });
+
+        // Attach submit button event
+        const submitBtn = document.getElementById('submitOrderBtn');
+        if (submitBtn && !submitBtn.disabled) {
+            submitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('📤 Submit order button clicked');
+                submitOrder();
+            });
+        }
+
+        console.log('✅ Payment modal events attached');
+    }, 150);
+}
+
+// Rest of the functions remain similar with enhanced product support...
+// Continue with selectPayment, submitOrder, loadPayments, etc. with enhanced product logic
+
+async function loadPayments() {
+    try {
+        const { data, error } = await supabase
+            .from('payment_methods')
+            .select('*')
+            .order('created_at', { ascending: true});
+
+        if (error) throw error;
+
+        window.appState.payments = data || [];
+        console.log(`✅ Loaded ${data?.length || 0} payment methods`);
+        return data || [];
+    } catch (error) {
+        console.error('❌ Error loading payments:', error);
+        window.appState.payments = [];
+        return [];
     }
 }
 
-async function selectEnhancedPayment(paymentId) {
-    console.log('💳 Selecting Enhanced Payment:', paymentId);
+async function selectPayment(paymentId) {
+    console.log('\n💳 ========== SELECTING PAYMENT ==========');
+    console.log('Payment ID:', paymentId);
     
     window.appState.selectedPayment = parseInt(paymentId);
 
@@ -1209,6 +1627,7 @@ async function selectEnhancedPayment(paymentId) {
     const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
     if (selectedEl) {
         selectedEl.classList.add('selected');
+        console.log('✅ Payment method marked as selected');
     }
 
     // Load payment details
@@ -1221,16 +1640,18 @@ async function selectEnhancedPayment(paymentId) {
 
         if (error) throw error;
 
+        console.log('✅ Payment details loaded:', payment.name);
+
         const detailsDiv = document.getElementById('paymentDetails');
         if (detailsDiv && payment) {
             detailsDiv.style.display = 'block';
             detailsDiv.innerHTML = `
                 <div class="payment-info">
-                    <h4>${payment.name}</h4>
-                    <p>${payment.instructions || 'Please complete payment and enter transaction details below.'}</p>
+                    <h4 data-payment-detail-name style="font-size: 18px; font-weight: 600; margin-bottom: 12px;"></h4>
+                    <p data-payment-detail-instruction style="margin-bottom: 12px; line-height: 1.5;"></p>
                     <p style="margin-bottom: 16px;"><strong>Payment Address:</strong> 
-                        <span style="color: var(--accent-color); font-weight: 600;">${payment.address}</span>
-                        <button class="copy-btn" onclick="copyToClipboard('${payment.address}')">📋 Copy</button>
+                        <span data-payment-detail-address style="color: var(--accent-color); font-weight: 600;"></span>
+                        <button class="copy-btn" onclick="copyToClipboard('${payment.address}')">Copy</button>
                     </p>
                     <div class="form-group" style="margin-top: 20px;">
                         <label style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: block;">Transaction ID (Last 6 digits)</label>
@@ -1238,6 +1659,17 @@ async function selectEnhancedPayment(paymentId) {
                     </div>
                 </div>
             `;
+
+            // Render with animations
+            setTimeout(() => {
+                const nameEl = document.querySelector('[data-payment-detail-name]');
+                const instructionEl = document.querySelector('[data-payment-detail-instruction]');
+                const addressEl = document.querySelector('[data-payment-detail-address]');
+                
+                if (nameEl) applyAnimationRendering(nameEl, payment.name);
+                if (instructionEl) applyAnimationRendering(instructionEl, payment.instructions || 'Please complete payment and enter transaction details below.');
+                if (addressEl) applyAnimationRendering(addressEl, payment.address);
+            }, 50);
         }
     } catch (error) {
         console.error('❌ Error loading payment details:', error);
@@ -1245,446 +1677,141 @@ async function selectEnhancedPayment(paymentId) {
     }
 }
 
+// Copy to clipboard function
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => {
-        showToast('Address copied to clipboard!', 'success');
-    }).catch(() => {
-        showToast('Failed to copy address', 'error');
+        showToast('Payment address copied to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Failed to copy. Please copy manually.', 'error');
     });
-}
-
-async function submitEnhancedOrder() {
-    console.log('📤 Submitting Enhanced Order');
-
-    if (!window.appState.selectedPayment) {
-        showToast('Please select a payment method', 'warning');
-        return;
-    }
-
-    const transactionCode = document.getElementById('transactionCode')?.value;
-    if (!transactionCode || transactionCode.trim().length !== 6) {
-        showToast('Please enter last 6 digits of transaction ID', 'warning');
-        return;
-    }
-
-    const product = window.appState.selectedEnhancedProduct;
-    if (!product) {
-        showToast('Product information not found', 'error');
-        return;
-    }
-
-    showLoading();
-
-    try {
-        // Calculate final price
-        let finalPrice = product.price;
-        if (product.discount_percentage && product.discount_percentage > 0) {
-            finalPrice = product.price * (1 - product.discount_percentage / 100);
-        }
-
-        const orderData = {
-            user_id: parseInt(window.appState.currentUser.id),
-            enhanced_product_id: parseInt(product.id),
-            button_id: parseInt(window.appState.currentButtonId),
-            payment_method_id: parseInt(window.appState.selectedPayment),
-            final_price: finalPrice,
-            currency: product.currency,
-            transaction_code: transactionCode.trim(),
-            status: 'pending',
-            created_at: new Date().toISOString()
-        };
-
-        const { data, error } = await supabase
-            .from('enhanced_orders')
-            .insert([orderData])
-            .select()
-            .single();
-
-        if (error) throw error;
-
-        hideLoading();
-        closePaymentModal();
-        
-        showToast(`🎉 Order Placed Successfully! Order ID: #${data.id}`, 'success', 8000);
-
-        // Reset state
-        window.appState.selectedEnhancedProduct = null;
-        window.appState.selectedPayment = null;
-        
-        // Reload history and switch to history page
-        await loadOrderHistory();
-        switchPage('history');
-
-    } catch (error) {
-        hideLoading();
-        console.error('❌ Enhanced order submission failed:', error);
-        showToast('Error submitting order: ' + error.message, 'error');
-    }
-}
-
-// ========== LEGACY MENU SYSTEM (Fallback) ==========
-async function openCategoryPage(categoryId, buttonId) {
-    console.log('🎮 Opening Legacy Category Page:', categoryId, buttonId);
-    
-    showLoading();
-
-    try {
-        // Reset state
-        window.appState.currentButtonId = buttonId;
-        window.appState.selectedMenuItem = null;
-        window.appState.currentMenu = null;
-        window.appState.currentTableData = {};
-        window.appState.allMenus = [];
-        window.appState.currentTables = [];
-        
-        // Load data
-        const [tablesResult, menusResult, videosResult] = await Promise.all([
-            supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
-            supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
-            supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true })
-        ]);
-
-        if (menusResult.error) throw menusResult.error;
-        if (tablesResult.error) throw tablesResult.error;
-        if (videosResult.error) throw videosResult.error;
-
-        const tables = tablesResult.data || [];
-        const menus = menusResult.data || [];
-        const videos = videosResult.data || [];
-
-        // Store in global state
-        window.appState.allMenus = menus;
-        window.appState.currentTables = tables;
-
-        hideLoading();
-
-        if (menus.length === 0) {
-            showToast('No products available for this category', 'warning');
-            return;
-        }
-
-        showPurchaseModal(tables, menus, videos);
-
-    } catch (error) {
-        hideLoading();
-        console.error('❌ Error loading category data:', error);
-        showToast('Error loading products. Please try again.', 'error');
-    }
-}
-
-function showPurchaseModal(tables, menus, videos) {
-    const modal = document.getElementById('purchaseModal');
-    const content = document.getElementById('purchaseContent');
-    
-    let html = '<div class="purchase-form">';
-
-    // Input Tables
-    if (tables && tables.length > 0) {
-        html += '<div class="input-tables" style="margin-bottom: 24px;">';
-        tables.forEach(table => {
-            html += `
-                <div class="form-group">
-                    <label>${renderAnimatedContent(table.name)}</label>
-                    <input type="text" 
-                           id="table-${table.id}" 
-                           data-table-id="${table.id}"
-                           placeholder="${table.instruction || ''}"
-                           required>
-                </div>
-            `;
-        });
-        html += '</div>';
-    }
-
-    // Menu Items
-    if (menus && menus.length > 0) {
-        html += '<h3 style="margin: 20px 0 16px 0;">Select Product</h3>';
-        html += '<div class="menu-items">';
-        menus.forEach(menu => {
-            html += `
-                <div class="menu-item" data-menu-id="${menu.id}">
-                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" alt="Product">` : '<div class="menu-item-icon"></div>'}
-                    <div class="menu-item-info">
-                        <div class="menu-item-name">${renderAnimatedContent(menu.name)}</div>
-                        <div class="menu-item-amount">${renderAnimatedContent(menu.amount)}</div>
-                        <div class="menu-item-price">${menu.price} MMK</div>
-                    </div>
-                </div>
-            `;
-        });
-        html += '</div>';
-    }
-
-    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 24px; width: 100%;">Continue to Purchase</button>`;
-    html += '</div>';
-
-    content.innerHTML = html;
-    modal.classList.add('active');
-
-    // Attach events
-    setTimeout(() => {
-        const menuItems = document.querySelectorAll('.menu-item');
-        menuItems.forEach(item => {
-            const menuId = parseInt(item.getAttribute('data-menu-id'));
-            item.addEventListener('click', () => selectMenuItem(menuId));
-        });
-
-        const buyBtn = document.getElementById('buyNowBtn');
-        if (buyBtn) {
-            buyBtn.addEventListener('click', proceedToPurchase);
-        }
-    }, 150);
-}
-
-function selectMenuItem(menuId) {
-    window.appState.selectedMenuItem = menuId;
-    const menu = window.appState.allMenus.find(m => m.id === menuId);
-    if (menu) {
-        window.appState.currentMenu = menu;
-    }
-
-    document.querySelectorAll('.menu-item').forEach(item => {
-        item.classList.remove('selected');
-    });
-    
-    const selectedItem = document.querySelector(`[data-menu-id="${menuId}"]`);
-    if (selectedItem) {
-        selectedItem.classList.add('selected');
-    }
-}
-
-function closePurchaseModal() {
-    document.getElementById('purchaseModal').classList.remove('active');
-}
-
-async function proceedToPurchase() {
-    if (!window.appState.selectedMenuItem) {
-        showToast('Please select a product first', 'warning');
-        return;
-    }
-
-    if (!window.appState.currentMenu) {
-        const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
-        if (menu) {
-            window.appState.currentMenu = menu;
-        } else {
-            showToast('Product data not found. Please select the product again.', 'error');
-            return;
-        }
-    }
-
-    // Collect table data
-    const tableData = {};
-    let allFilled = true;
-
-    window.appState.currentTables.forEach(table => {
-        const inputEl = document.querySelector(`[data-table-id="${table.id}"]`);
-        if (inputEl) {
-            const value = inputEl.value.trim();
-            if (!value) {
-                allFilled = false;
-            }
-            tableData[table.name] = value;
-        }
-    });
-
-    if (window.appState.currentTables.length > 0 && !allFilled) {
-        showToast('Please fill in all required fields', 'warning');
-        return;
-    }
-
-    window.appState.currentTableData = tableData;
-    closePurchaseModal();
-    await showPaymentModal();
-}
-
-// ========== PAYMENT MODAL ==========
-async function loadPayments() {
-    try {
-        const { data, error } = await supabase
-            .from('payment_methods')
-            .select('*')
-            .order('created_at', { ascending: true});
-
-        if (error) throw error;
-
-        window.appState.payments = data || [];
-        return data || [];
-    } catch (error) {
-        console.error('❌ Error loading payments:', error);
-        window.appState.payments = [];
-        return [];
-    }
-}
-
-async function showPaymentModal() {
-    const menu = window.appState.currentMenu;
-    
-    if (!menu) {
-        showToast('Error: Product data not found. Please try again.', 'error');
-        return;
-    }
-
-    const modal = document.getElementById('paymentModal');
-    const content = document.getElementById('paymentContent');
-
-    showLoading();
-
-    if (!window.appState.payments || window.appState.payments.length === 0) {
-        await loadPayments();
-    }
-
-    hideLoading();
-
-    const payments = window.appState.payments;
-
-    let html = '<div class="payment-selection">';
-    
-    // Order Summary
-    html += `<div class="order-summary">
-        <h3>${renderAnimatedContent(menu.name)}</h3>
-        <p>${renderAnimatedContent(menu.amount)}</p>
-        <p class="price">${menu.price} MMK</p>
-    </div>`;
-
-    html += '<h3 style="margin: 24px 0 16px 0;">Select Payment Method</h3>';
-    
-    // Payment Methods
-    if (payments.length === 0) {
-        html += '<div style="text-align: center; color: var(--warning-color); padding: 40px;"><p>⚠️ No payment methods available</p></div>';
-    } else {
-        html += '<div class="payment-methods">';
-        payments.forEach(payment => {
-            html += `
-                <div class="payment-method" data-payment-id="${payment.id}">
-                    <img src="${payment.icon_url}" alt="${payment.name}">
-                    <span>${renderAnimatedContent(payment.name)}</span>
-                </div>
-            `;
-        });
-        html += '</div>';
-    }
-
-    html += '<div id="paymentDetails" style="display:none;"></div>';
-    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 24px; width: 100%;" ${payments.length === 0 ? 'disabled' : ''}>Submit Order</button>`;
-    html += '</div>';
-
-    content.innerHTML = html;
-    modal.classList.add('active');
-
-    // Attach events
-    setTimeout(() => {
-        const paymentMethods = document.querySelectorAll('.payment-method');
-        paymentMethods.forEach(item => {
-            const paymentId = parseInt(item.getAttribute('data-payment-id'));
-            item.addEventListener('click', () => selectPayment(paymentId));
-        });
-
-        const submitBtn = document.getElementById('submitOrderBtn');
-        if (submitBtn && !submitBtn.disabled) {
-            submitBtn.addEventListener('click', submitOrder);
-        }
-    }, 150);
-}
-
-async function selectPayment(paymentId) {
-    window.appState.selectedPayment = parseInt(paymentId);
-
-    document.querySelectorAll('.payment-method').forEach(pm => {
-        pm.classList.remove('selected');
-    });
-
-    const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
-    if (selectedEl) {
-        selectedEl.classList.add('selected');
-    }
-
-    try {
-        const { data: payment, error } = await supabase
-            .from('payment_methods')
-            .select('*')
-            .eq('id', paymentId)
-            .single();
-
-        if (error) throw error;
-
-        const detailsDiv = document.getElementById('paymentDetails');
-        if (detailsDiv && payment) {
-            detailsDiv.style.display = 'block';
-            detailsDiv.innerHTML = `
-                <div class="payment-info">
-                    <h4>${renderAnimatedContent(payment.name)}</h4>
-                    <p>${renderAnimatedContent(payment.instructions || 'Please complete payment and enter transaction details below.')}</p>
-                    <p style="margin-bottom: 16px;"><strong>Payment Address:</strong> <span style="color: var(--accent-color); font-weight: 600;">${renderAnimatedContent(payment.address)}</span></p>
-                    <div class="form-group" style="margin-top: 20px;">
-                        <label>Transaction ID (Last 6 digits)</label>
-                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits" required>
-                    </div>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('❌ Error loading payment details:', error);
-        showToast('Error loading payment details', 'error');
-    }
 }
 
 function closePaymentModal() {
+    console.log('🚪 Closing payment modal');
     document.getElementById('paymentModal').classList.remove('active');
 }
 
+// Updated Submit Order
 async function submitOrder() {
+    console.log('\n📤 ========== SUBMITTING ORDER ==========');
+    console.log('Enhanced Product Mode:', window.appState.isEnhancedProductMode);
+    console.log('State check:');
+    console.log('  - User ID:', window.appState.currentUser?.id);
+    console.log('  - Enhanced Product ID:', window.appState.selectedEnhancedProduct);
+    console.log('  - Menu ID:', window.appState.selectedMenuItem);
+    console.log('  - Button ID:', window.appState.currentButtonId);
+    console.log('  - Payment ID:', window.appState.selectedPayment);
+    console.log('  - Table data:', window.appState.currentTableData);
+
+    // Validation
     if (!window.appState.selectedPayment) {
+        console.error('❌ No payment method selected');
         showToast('Please select a payment method', 'warning');
         return;
     }
 
     const transactionCode = document.getElementById('transactionCode')?.value;
     if (!transactionCode || transactionCode.trim().length !== 6) {
+        console.error('❌ Invalid transaction code');
         showToast('Please enter last 6 digits of transaction ID', 'warning');
         return;
     }
 
-    if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
-        showToast('Error: Missing order information. Please try again.', 'error');
-        return;
+    if (window.appState.isEnhancedProductMode) {
+        if (!window.appState.selectedEnhancedProduct || !window.appState.currentButtonId) {
+            console.error('❌ Missing enhanced product order information');
+            showToast('Error: Missing order information. Please try again.', 'error');
+            return;
+        }
+    } else {
+        if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
+            console.error('❌ Missing original product order information');
+            showToast('Error: Missing order information. Please try again.', 'error');
+            return;
+        }
     }
 
     showLoading();
 
     try {
-        const orderData = {
-            user_id: parseInt(window.appState.currentUser.id),
-            menu_id: parseInt(window.appState.selectedMenuItem),
-            button_id: parseInt(window.appState.currentButtonId),
-            payment_method_id: parseInt(window.appState.selectedPayment),
-            table_data: window.appState.currentTableData,
-            transaction_code: transactionCode.trim(),
-            status: 'pending',
-            created_at: new Date().toISOString()
-        };
+        let orderData = {};
+        
+        if (window.appState.isEnhancedProductMode) {
+            // Enhanced product order
+            const currentProduct = window.appState.currentEnhancedProduct;
+            const selectedPaymentMethods = currentProduct.payment_methods ? 
+                [window.appState.selectedPayment] : 
+                [window.appState.selectedPayment];
+            const selectedContacts = currentProduct.contacts ? 
+                currentProduct.contacts.map(c => c.id) : 
+                [];
+            
+            orderData = {
+                user_id: parseInt(window.appState.currentUser.id),
+                enhanced_product_id: parseInt(window.appState.selectedEnhancedProduct),
+                selected_payment_methods: selectedPaymentMethods,
+                selected_contacts: selectedContacts,
+                table_data: window.appState.currentTableData,
+                transaction_code: transactionCode.trim(),
+                status: 'pending',
+                created_at: new Date().toISOString()
+            };
 
-        const { data, error } = await supabase
-            .from('orders')
-            .insert([orderData])
-            .select()
-            .single();
+            console.log('📦 Enhanced order data prepared:', orderData);
 
-        if (error) throw error;
+            const { data, error } = await supabase
+                .from('enhanced_orders')
+                .insert([orderData])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Enhanced order submitted successfully:', data);
+            showToast(`🎉 Order Placed Successfully! Order ID: #${data.id}`, 'success', 8000);
+        } else {
+            // Original product order
+            orderData = {
+                user_id: parseInt(window.appState.currentUser.id),
+                menu_id: parseInt(window.appState.selectedMenuItem),
+                button_id: parseInt(window.appState.currentButtonId),
+                payment_method_id: parseInt(window.appState.selectedPayment),
+                table_data: window.appState.currentTableData,
+                transaction_code: transactionCode.trim(),
+                status: 'pending',
+                created_at: new Date().toISOString()
+            };
+
+            console.log('📦 Original order data prepared:', orderData);
+
+            const { data, error } = await supabase
+                .from('orders')
+                .insert([orderData])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            console.log('✅ Original order submitted successfully:', data);
+            showToast(`🎉 Order Placed Successfully! Order ID: #${data.id}`, 'success', 8000);
+        }
 
         hideLoading();
         closePaymentModal();
         
-        showToast(`🎉 Order Placed Successfully! Order ID: #${data.id}`, 'success', 8000);
-
         // Reset state
         window.appState.selectedMenuItem = null;
+        window.appState.selectedEnhancedProduct = null;
         window.appState.selectedPayment = null;
         window.appState.currentTableData = {};
         window.appState.currentMenu = null;
+        window.appState.currentEnhancedProduct = null;
         window.appState.currentButtonId = null;
         window.appState.currentTables = [];
+        window.appState.isEnhancedProductMode = false;
         
+        // Reload history and switch to history page
         await loadOrderHistory();
         switchPage('history');
 
@@ -1695,11 +1822,11 @@ async function submitOrder() {
     }
 }
 
-// ========== ORDER HISTORY ==========
+// Updated Order History
 async function loadOrderHistory() {
     try {
-        // Load both regular orders and enhanced orders
-        const [regularOrders, enhancedOrders] = await Promise.all([
+        // Load both original and enhanced orders
+        const [originalOrdersResult, enhancedOrdersResult] = await Promise.all([
             supabase
                 .from('orders')
                 .select(`
@@ -1713,16 +1840,23 @@ async function loadOrderHistory() {
                 .from('enhanced_orders')
                 .select(`
                     *,
-                    enhanced_products (name, price, currency),
-                    payment_methods (name)
+                    enhanced_products (name, current_price, currency_type, description),
+                    users!inner(id)
                 `)
                 .eq('user_id', window.appState.currentUser.id)
                 .order('created_at', { ascending: false })
         ]);
 
+        if (originalOrdersResult.error) throw originalOrdersResult.error;
+        if (enhancedOrdersResult.error) throw enhancedOrdersResult.error;
+
+        const originalOrders = originalOrdersResult.data || [];
+        const enhancedOrders = enhancedOrdersResult.data || [];
+
+        // Combine and sort orders by date
         const allOrders = [
-            ...(regularOrders.data || []).map(order => ({...order, type: 'regular'})),
-            ...(enhancedOrders.data || []).map(order => ({...order, type: 'enhanced'}))
+            ...originalOrders.map(order => ({ ...order, type: 'original' })),
+            ...enhancedOrders.map(order => ({ ...order, type: 'enhanced' }))
         ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
         displayOrderHistory(allOrders);
@@ -1735,7 +1869,7 @@ function displayOrderHistory(orders) {
     const container = document.getElementById('historyContainer');
     
     if (orders.length === 0) {
-        container.innerHTML = '<div class="no-orders">No orders yet. Your order history will appear here.</div>';
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px;"><h3 style="margin-bottom:12px;">No Orders Yet</h3><p>Your order history will appear here once you make your first purchase.</p></div>';
         return;
     }
 
@@ -1743,7 +1877,7 @@ function displayOrderHistory(orders) {
 
     orders.forEach(order => {
         const item = document.createElement('div');
-        item.className = 'history-item';
+        item.className = `history-item ${order.type}-order`;
 
         let statusClass = 'pending';
         let statusIcon = '⏳';
@@ -1756,32 +1890,58 @@ function displayOrderHistory(orders) {
             statusIcon = '❌';
         }
 
-        let productName, productPrice, productAmount;
+        let productName, productPrice, productDescription;
         
         if (order.type === 'enhanced') {
             productName = order.enhanced_products?.name || 'Unknown Product';
-            productPrice = `${order.final_price || order.enhanced_products?.price || 0} ${order.currency || 'MMK'}`;
-            productAmount = '';
+            productPrice = `${order.enhanced_products?.current_price || 0} ${order.enhanced_products?.currency_type || 'MMK'}`;
+            productDescription = order.enhanced_products?.description || '';
         } else {
             productName = order.menus?.name || 'Unknown Product';
             productPrice = `${order.menus?.price || 0} MMK`;
-            productAmount = order.menus?.amount || '';
+            productDescription = order.menus?.amount || '';
         }
 
         item.innerHTML = `
             <div class="history-status ${statusClass}">${statusIcon} ${order.status.toUpperCase()}</div>
-            <h3>${renderAnimatedContent(productName)}</h3>
-            ${productAmount ? `<p>${renderAnimatedContent(productAmount)}</p>` : ''}
-            <div class="order-details">
-                <p><strong>Price:</strong> <span class="price">${productPrice}</span></p>
+            <div class="order-type-badge ${order.type}">${order.type === 'enhanced' ? '🎯 Enhanced' : '🛒 Classic'}</div>
+            <h3 data-order-name="${order.id}" style="font-size: 18px; font-weight: 600; margin-bottom: 8px;"></h3>
+            <p data-order-amount="${order.id}" style="color: var(--text-secondary); margin-bottom: 12px;"></p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+                <p><strong>Price:</strong> <span style="color: var(--success-color); font-weight: 600;">${productPrice}</span></p>
                 <p><strong>Order ID:</strong> #${order.id}</p>
-                <p><strong>Payment:</strong> ${renderAnimatedContent(order.payment_methods?.name || 'N/A')}</p>
-                <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
             </div>
-            ${order.admin_message ? `<div class="admin-message">${renderAnimatedContent(order.admin_message)}</div>` : ''}
+            <p style="margin-bottom: 8px;"><strong>Payment:</strong> <span data-order-payment="${order.id}"></span></p>
+            <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 14px;"><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+            ${order.admin_message ? `<div style="margin-top:16px;padding:16px;background:rgba(245,158,11,0.1);border-radius:var(--border-radius);border:1px solid var(--warning-color);" data-order-message="${order.id}"></div>` : ''}
         `;
 
         container.appendChild(item);
+
+        // Apply animations
+        setTimeout(() => {
+            const nameEl = document.querySelector(`[data-order-name="${order.id}"]`);
+            const amountEl = document.querySelector(`[data-order-amount="${order.id}"]`);
+            const paymentEl = document.querySelector(`[data-order-payment="${order.id}"]`);
+            const messageEl = document.querySelector(`[data-order-message="${order.id}"]`);
+
+            if (nameEl) applyAnimationRendering(nameEl, productName);
+            if (amountEl) applyAnimationRendering(amountEl, productDescription);
+            if (paymentEl) {
+                if (order.type === 'enhanced') {
+                    // For enhanced orders, show multiple payment methods
+                    const paymentIds = order.selected_payment_methods || [];
+                    if (paymentIds.length > 0) {
+                        applyAnimationRendering(paymentEl, `Multiple Methods (${paymentIds.length})`);
+                    } else {
+                        applyAnimationRendering(paymentEl, 'N/A');
+                    }
+                } else {
+                    applyAnimationRendering(paymentEl, order.payment_methods?.name || 'N/A');
+                }
+            }
+            if (messageEl) applyAnimationRendering(messageEl, `<strong style="color: var(--warning-color);">📢 Admin Message:</strong><br>${order.admin_message}`);
+        }, 50);
     });
 }
 
@@ -1795,7 +1955,6 @@ async function loadContacts() {
 
         if (error) throw error;
 
-        window.appState.contacts = data || [];
         displayContacts(data || []);
     } catch (error) {
         console.error('❌ Error loading contacts:', error);
@@ -1806,7 +1965,7 @@ function displayContacts(contacts) {
     const container = document.getElementById('contactsContainer');
     
     if (contacts.length === 0) {
-        container.innerHTML = '<div class="no-contacts">No contact information available.</div>';
+        container.innerHTML = '<div style="text-align:center;color:var(--text-muted);padding:60px 20px;"><h3 style="margin-bottom:12px;">No Contacts Available</h3><p>Contact information will be displayed here when available.</p></div>';
         return;
     }
 
@@ -1815,24 +1974,42 @@ function displayContacts(contacts) {
     contacts.forEach(contact => {
         const item = document.createElement('div');
         item.className = 'contact-item';
-        
+
+        const isClickable = contact.link && contact.link.trim() !== '';
+
         item.innerHTML = `
-            <img src="${contact.icon_url}" alt="${contact.name}" class="contact-icon">
-            <div class="contact-info">
-                <h3>${renderAnimatedContent(contact.name)}</h3>
-                <p>${renderAnimatedContent(contact.description || '')}</p>
+            <div class="contact-icon">
+                <img src="${contact.icon_url}" alt="${contact.name}">
             </div>
+            <div class="contact-info">
+                <h3 data-contact-name="${contact.id}"></h3>
+                <p data-contact-description="${contact.id}"></p>
+                ${contact.address ? `<p class="contact-address">${contact.address}</p>` : ''}
+            </div>
+            ${isClickable ? `<div class="contact-action">
+                <button onclick="window.open('${contact.link}', '_blank')" class="btn-primary">
+                    Connect
+                </button>
+            </div>` : ''}
         `;
 
-        item.addEventListener('click', () => {
-            if (contact.link) {
+        if (isClickable) {
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', () => {
                 window.open(contact.link, '_blank');
-            } else if (contact.address) {
-                window.open(contact.address, '_blank');
-            }
-        });
+            });
+        }
 
         container.appendChild(item);
+
+        // Apply animations
+        setTimeout(() => {
+            const nameEl = document.querySelector(`[data-contact-name="${contact.id}"]`);
+            const descEl = document.querySelector(`[data-contact-description="${contact.id}"]`);
+
+            if (nameEl) applyAnimationRendering(nameEl, contact.name);
+            if (descEl) applyAnimationRendering(descEl, contact.description || '');
+        }, 50);
     });
 }
 
@@ -1844,93 +2021,131 @@ async function loadProfile() {
     document.getElementById('profileName').value = user.name;
     document.getElementById('profileUsername').value = user.username;
     document.getElementById('profileEmail').value = user.email;
-    document.getElementById('profileAvatar').textContent = user.name.charAt(0).toUpperCase();
+
+    // Create avatar with initials
+    const avatar = document.getElementById('profileAvatar');
+    const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+    avatar.textContent = initials;
+    avatar.style.background = `linear-gradient(135deg, ${generateColorFromString(user.name)}, ${generateColorFromString(user.email)})`;
+}
+
+function generateColorFromString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = hash % 360;
+    return `hsl(${hue}, 70%, 50%)`;
 }
 
 async function updateProfile() {
-    const currentPassword = document.getElementById('currentPassword').value;
-    const newPassword = document.getElementById('newPassword').value;
+    const currentPassword = document.getElementById('currentPassword').value.trim();
+    const newPassword = document.getElementById('newPassword').value.trim();
+    const errorEl = document.getElementById('profileError');
+    const successEl = document.getElementById('profileSuccess');
 
-    if (!currentPassword || !newPassword) {
-        showToast('Please fill in both password fields', 'error');
+    // Clear previous messages
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    if (!currentPassword) {
+        errorEl.textContent = 'Please enter your current password to make changes';
+        errorEl.style.display = 'block';
         return;
     }
 
-    if (window.appState.currentUser.password !== currentPassword) {
-        showToast('Current password is incorrect', 'error');
+    // Verify current password
+    if (currentPassword !== window.appState.currentUser.password) {
+        errorEl.textContent = 'Current password is incorrect';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (!newPassword) {
+        errorEl.textContent = 'Please enter a new password';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        errorEl.textContent = 'New password must be at least 6 characters long';
+        errorEl.style.display = 'block';
         return;
     }
 
     showLoading();
 
     try {
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('users')
             .update({ password: newPassword })
-            .eq('id', window.appState.currentUser.id);
+            .eq('id', window.appState.currentUser.id)
+            .select()
+            .single();
 
         if (error) throw error;
 
-        window.appState.currentUser.password = newPassword;
-        localStorage.setItem('currentUser', JSON.stringify(window.appState.currentUser));
+        // Update local state
+        window.appState.currentUser = data;
+        localStorage.setItem('currentUser', JSON.stringify(data));
 
         hideLoading();
-        showToast('Password updated successfully!', 'success');
-        
+        successEl.textContent = 'Password updated successfully!';
+        successEl.style.display = 'block';
+
+        // Clear form
         document.getElementById('currentPassword').value = '';
         document.getElementById('newPassword').value = '';
 
+        showToast('Password updated successfully!', 'success');
+
     } catch (error) {
         hideLoading();
-        showToast('Error updating password', 'error');
+        errorEl.textContent = 'Error updating password: ' + error.message;
+        errorEl.style.display = 'block';
         console.error('❌ Profile update error:', error);
     }
 }
 
 // ========== NAVIGATION ==========
 function switchPage(pageName) {
-    // Clear any running intervals when leaving products page
-    if (window.appState.productBannerInterval) {
-        clearInterval(window.appState.productBannerInterval);
-        window.appState.productBannerInterval = null;
-    }
+    // Update navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
 
+    // Update pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
     document.getElementById(pageName + 'Page').classList.add('active');
 
-    document.querySelectorAll('.nav-item').forEach(nav => {
-        nav.classList.remove('active');
-    });
-    document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
-
     // Load page-specific data
-    if (pageName === 'history') {
-        loadOrderHistory();
-    } else if (pageName === 'contacts') {
-        loadContacts();
-    } else if (pageName === 'mi') {
-        loadProfile();
+    switch(pageName) {
+        case 'history':
+            loadOrderHistory();
+            break;
+        case 'contacts':
+            loadContacts();
+            break;
+        case 'mi':
+            loadProfile();
+            break;
     }
 }
 
-function goBackToHome() {
-    // Clear product page intervals
-    if (window.appState.productBannerInterval) {
-        clearInterval(window.appState.productBannerInterval);
-        window.appState.productBannerInterval = null;
-    }
-    
-    // Reset product page state
-    window.appState.currentCategoryId = null;
-    window.appState.currentButtonData = null;
-    window.appState.enhancedProducts = [];
-    window.appState.productBanners = [];
-    window.appState.productDescriptions = [];
-    window.appState.categoryAds = [];
-    
-    switchPage('home');
+// ========== UTILITY FUNCTIONS ==========
+function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
 }
 
-console.log('✅ Enhanced Gaming Store App loaded successfully');
+// Clean up intervals on page unload
+window.addEventListener('beforeunload', () => {
+    if (window.appState.bannerInterval) {
+        clearInterval(window.appState.bannerInterval);
+    }
+});
+
+console.log('✅ Enhanced Gaming Store App initialized successfully!');
