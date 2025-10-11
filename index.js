@@ -34,11 +34,9 @@ window.appState = {
     currentButtonData: null,
     productBanners: [],
     productDescriptions: [],
-    categoryAds: [],
     currentProductBannerIndex: 0,
     productBannerInterval: null,
-    selectedEnhancedProduct: null,
-    currentPageType: 'enhanced' // 'enhanced' or 'legacy'
+    selectedEnhancedProduct: null
 };
 
 // ========== DISABLE RIGHT CLICK & CONTEXT MENU ==========
@@ -661,7 +659,10 @@ function displayCategoryButtons(categoryId, buttons) {
     });
 }
 
-// ========== ENHANCED CATEGORY PAGE SYSTEM (FIXED) ==========
+// ========== ENHANCED CATEGORY PAGE SYSTEM ==========
+
+// Fixed openEnhancedCategoryPage function for index.js
+// Replace the existing function with this improved version
 
 async function openEnhancedCategoryPage(categoryId, buttonId, buttonData) {
     console.log('🎮 Opening Enhanced Category Page:', categoryId, buttonId);
@@ -674,165 +675,124 @@ async function openEnhancedCategoryPage(categoryId, buttonId, buttonData) {
         window.appState.currentButtonId = buttonId;
         window.appState.currentButtonData = buttonData;
         
-        // Use the new database function to get complete page data
-        const { data: pageData, error: pageError } = await supabase
-            .rpc('get_complete_category_page_data', {
-                target_category_id: categoryId,
-                target_button_id: buttonId
-            });
+        // Try to load enhanced products first
+        const { data: enhancedProducts, error: productsError } = await supabase
+            .from('enhanced_products')
+            .select('*')
+            .eq('button_id', buttonId)
+            .order('created_at', { ascending: true });
 
-        if (pageError) {
-            console.error('❌ Error getting page data:', pageError);
-            throw pageError;
-        }
-
-        console.log('📊 Page data loaded:', pageData);
-
-        // Check if we have enhanced content
-        if (pageData.has_enhanced_content && pageData.enhanced_products.length > 0) {
-            console.log(`✅ Found ${pageData.enhanced_products.length} enhanced products`);
+        // Check if we have enhanced products AND no critical errors
+        if (enhancedProducts && enhancedProducts.length > 0 && !productsError) {
+            console.log(`✅ Found ${enhancedProducts.length} enhanced products`);
             
-            // Store enhanced data in state
-            window.appState.enhancedProducts = pageData.enhanced_products;
-            window.appState.productBanners = pageData.product_banners;
-            window.appState.productDescriptions = pageData.product_descriptions;
-            window.appState.categoryAds = pageData.category_ads;
-            window.appState.currentPageType = 'enhanced';
+            // Load other enhanced content in parallel
+            const [
+                { data: productBanners },
+                { data: productDescriptions },
+                { data: ads }
+            ] = await Promise.all([
+                supabase.from('product_banners').select('*').eq('category_id', categoryId).eq('button_id', buttonId).order('created_at', { ascending: true }),
+                supabase.from('product_descriptions').select('*').eq('category_id', categoryId).eq('button_id', buttonId).order('created_at', { ascending: true }),
+                supabase.from('category_ads').select('*').eq('category_id', categoryId).eq('button_id', buttonId).order('created_at', { ascending: true })
+            ]);
+
+            // Store in state
+            window.appState.enhancedProducts = enhancedProducts;
+            window.appState.productBanners = productBanners || [];
+            window.appState.productDescriptions = productDescriptions || [];
+            window.appState.categoryAds = ads || [];
 
             hideLoading();
             showEnhancedProductsPage();
             return;
         }
 
-        // Check if we have legacy content
-        if (pageData.has_legacy_content && pageData.legacy_menus.length > 0) {
-            console.log(`✅ Found ${pageData.legacy_menus.length} legacy menus`);
-            
-            // Store legacy data in state
-            window.appState.allMenus = pageData.legacy_menus;
-            window.appState.currentTables = pageData.input_tables;
-            window.appState.currentPageType = 'legacy';
-
-            hideLoading();
-            showPurchaseModal(pageData.input_tables, pageData.legacy_menus, pageData.youtube_videos);
-            return;
+        // If no enhanced products or error, fall back to legacy system
+        console.log('⚠️ No enhanced products found or error occurred, using legacy menu system');
+        if (productsError) {
+            console.log('Enhanced products error:', productsError);
         }
-
-        // If no content found
-        hideLoading();
-        showToast('No products available for this category', 'warning');
+        
+        await openCategoryPage(categoryId, buttonId);
 
     } catch (error) {
         hideLoading();
         console.error('❌ Error in enhanced category system:', error);
-        showToast('Error loading products. Please try again later.', 'error');
-    }
-}
-
-// ========== ENHANCED PRODUCTS PAGE UI ==========
-
-function showEnhancedProductsPage() {
-    console.log('🎨 Showing Enhanced Products Page');
-    
-    // Hide other modals/containers
-    const containers = ['purchaseModal', 'paymentModal', 'historyModal', 'profileModal'];
-    containers.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) element.classList.remove('active');
-    });
-
-    // Show enhanced products modal
-    const modal = document.getElementById('productModal') || createEnhancedProductModal();
-    
-    // Clear and populate content
-    const content = modal.querySelector('.modal-content');
-    content.innerHTML = generateEnhancedPageContent();
-    
-    // Display all sections
-    displayProductBanners();
-    displayProductDescriptions();
-    displayEnhancedProducts();
-    displayCategoryAds();
-    
-    // Show modal
-    modal.classList.add('active');
-}
-
-function createEnhancedProductModal() {
-    const modal = document.createElement('div');
-    modal.id = 'productModal';
-    modal.className = 'modal enhanced-product-modal';
-    modal.innerHTML = `
-        <div class="modal-content enhanced-modal-content">
-            <!-- Content will be generated dynamically -->
-        </div>
-    `;
-    document.body.appendChild(modal);
-    
-    // Add click outside to close
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeEnhancedProductModal();
+        
+        // Final fallback: try legacy system
+        console.log('🔄 Trying legacy system as final fallback');
+        try {
+            await openCategoryPage(categoryId, buttonId);
+        } catch (legacyError) {
+            console.error('❌ Legacy system also failed:', legacyError);
+            showToast('Error loading products. Please try again later.', 'error');
         }
-    });
-    
-    return modal;
+    }
 }
 
-function generateEnhancedPageContent() {
-    const buttonData = window.appState.currentButtonData;
-    const buttonName = buttonData ? buttonData.name : 'Products';
+// Improved legacy openCategoryPage function with better error handling
+async function openCategoryPage(categoryId, buttonId) {
+    console.log('🎮 Opening Legacy Category Page:', categoryId, buttonId);
     
-    return `
-        <div class="enhanced-page-header">
-            <button class="modal-close" onclick="closeEnhancedProductModal()">×</button>
-            <h2 class="page-title">${buttonName}</h2>
-            <p class="page-subtitle">Browse our enhanced products</p>
-        </div>
+    showLoading();
 
-        <!-- Product Banners Section -->
-        <div id="productBanners" class="product-banners-section" style="display: none;">
-            <div class="banner-container" id="productBannerContainer"></div>
-            <div class="banner-pagination" id="productBannerPagination"></div>
-        </div>
+    try {
+        // Reset state
+        window.appState.currentButtonId = buttonId;
+        window.appState.selectedMenuItem = null;
+        window.appState.currentMenu = null;
+        window.appState.currentTableData = {};
+        window.appState.allMenus = [];
+        window.appState.currentTables = [];
+        
+        // Load legacy data with better error handling
+        const [tablesResult, menusResult, videosResult] = await Promise.all([
+            supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true })
+        ]);
 
-        <!-- Product Descriptions Section -->
-        <div id="productDescriptions" class="product-descriptions-section" style="display: none;">
-            <!-- Product descriptions will be displayed here -->
-        </div>
+        // Check for errors
+        if (menusResult.error) {
+            console.error('❌ Menus query error:', menusResult.error);
+            throw new Error('Failed to load menu items: ' + menusResult.error.message);
+        }
+        
+        if (tablesResult.error) {
+            console.error('❌ Tables query error:', tablesResult.error);
+            // Tables error is not critical, continue
+        }
+        
+        if (videosResult.error) {
+            console.error('❌ Videos query error:', videosResult.error);
+            // Videos error is not critical, continue
+        }
 
-        <!-- Products Grid -->
-        <div class="products-section">
-            <div class="products-grid" id="productsGrid">
-                <!-- Enhanced products will be displayed here -->
-            </div>
-        </div>
+        const tables = tablesResult.data || [];
+        const menus = menusResult.data || [];
+        const videos = videosResult.data || [];
 
-        <!-- Category Ads Section -->
-        <div id="adsSection" class="ads-section" style="display: none;">
-            <!-- Category ads will be displayed here -->
-        </div>
-    `;
-}
+        console.log(`📊 Legacy data loaded: ${menus.length} menus, ${tables.length} tables, ${videos.length} videos`);
 
-function closeEnhancedProductModal() {
-    const modal = document.getElementById('productModal');
-    if (modal) {
-        modal.classList.remove('active');
+        // Store in global state
+        window.appState.allMenus = menus;
+        window.appState.currentTables = tables;
+
+        hideLoading();
+
+        if (menus.length === 0) {
+            showToast('No products available for this category', 'warning');
+            return;
+        }
+
+        showPurchaseModal(tables, menus, videos);
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error loading legacy category data:', error);
+        showToast('Error loading products: ' + error.message, 'error');
     }
-    
-    // Clear product banner interval
-    if (window.appState.productBannerInterval) {
-        clearInterval(window.appState.productBannerInterval);
-        window.appState.productBannerInterval = null;
-    }
-    
-    // Reset state
-    window.appState.currentPageType = null;
-    window.appState.enhancedProducts = [];
-    window.appState.productBanners = [];
-    window.appState.productDescriptions = [];
-    window.appState.categoryAds = [];
 }
 
 // ========== PRODUCT BANNERS SYSTEM ==========
@@ -841,7 +801,7 @@ function displayProductBanners() {
     const pagination = document.getElementById('productBannerPagination');
     const bannerSection = document.getElementById('productBanners');
     
-    if (!container || !pagination || !bannerSection) return;
+    if (!container || !pagination) return;
 
     const banners = window.appState.productBanners;
     
@@ -1016,7 +976,7 @@ async function viewEnhancedProductDetails(productId) {
     window.appState.selectedEnhancedProduct = product;
 
     // Display detailed modal
-    const modal = document.getElementById('productDetailsModal') || createProductDetailsModal();
+    const modal = document.getElementById('productDetailsModal');
     const content = document.getElementById('productDetailsContent');
 
     // Parse images
@@ -1137,30 +1097,6 @@ async function viewEnhancedProductDetails(productId) {
     modal.classList.add('active');
 }
 
-function createProductDetailsModal() {
-    const modal = document.createElement('div');
-    modal.id = 'productDetailsModal';
-    modal.className = 'modal product-details-modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <button class="modal-close" onclick="closeProductDetails()">×</button>
-            <div id="productDetailsContent">
-                <!-- Product details will be loaded here -->
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    
-    // Add click outside to close
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeProductDetails();
-        }
-    });
-    
-    return modal;
-}
-
 // Product image navigation functions
 function changeProductImage(direction) {
     if (!window.productImages || window.productImages.length <= 1) return;
@@ -1188,10 +1124,7 @@ function selectProductImage(index) {
 }
 
 function closeProductDetails() {
-    const modal = document.getElementById('productDetailsModal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
+    document.getElementById('productDetailsModal').classList.remove('active');
     window.currentImageIndex = 0;
     window.productImages = [];
 }
@@ -1219,7 +1152,7 @@ async function purchaseEnhancedProduct(productId) {
 async function showEnhancedPaymentModal(product) {
     console.log('💳 Showing Enhanced Payment Modal');
     
-    const modal = document.getElementById('paymentModal') || createPaymentModal();
+    const modal = document.getElementById('paymentModal');
     const content = document.getElementById('paymentContent');
 
     showLoading();
@@ -1303,30 +1236,6 @@ async function showEnhancedPaymentModal(product) {
             submitEnhancedOrder();
         });
     }
-}
-
-function createPaymentModal() {
-    const modal = document.createElement('div');
-    modal.id = 'paymentModal';
-    modal.className = 'modal payment-modal';
-    modal.innerHTML = `
-        <div class="modal-content">
-            <button class="modal-close" onclick="closePaymentModal()">×</button>
-            <div id="paymentContent">
-                <!-- Payment content will be loaded here -->
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    
-    // Add click outside to close
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closePaymentModal();
-        }
-    });
-    
-    return modal;
 }
 
 async function selectEnhancedPayment(paymentId) {
@@ -1455,16 +1364,6 @@ async function submitEnhancedOrder() {
     }
 }
 
-function closePaymentModal() {
-    const modal = document.getElementById('paymentModal');
-    if (modal) {
-        modal.classList.remove('active');
-    }
-    
-    // Reset state
-    window.appState.selectedPayment = null;
-}
-
 // ========== LEGACY MENU SYSTEM (Fallback) ==========
 async function openCategoryPage(categoryId, buttonId) {
     console.log('🎮 Opening Legacy Category Page:', categoryId, buttonId);
@@ -1480,34 +1379,20 @@ async function openCategoryPage(categoryId, buttonId) {
         window.appState.allMenus = [];
         window.appState.currentTables = [];
         
-        // Load legacy data with better error handling
+        // Load data
         const [tablesResult, menusResult, videosResult] = await Promise.all([
             supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
             supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
             supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true })
         ]);
 
-        // Check for errors
-        if (menusResult.error) {
-            console.error('❌ Menus query error:', menusResult.error);
-            throw new Error('Failed to load menu items: ' + menusResult.error.message);
-        }
-        
-        if (tablesResult.error) {
-            console.error('❌ Tables query error:', tablesResult.error);
-            // Tables error is not critical, continue
-        }
-        
-        if (videosResult.error) {
-            console.error('❌ Videos query error:', videosResult.error);
-            // Videos error is not critical, continue
-        }
+        if (menusResult.error) throw menusResult.error;
+        if (tablesResult.error) throw tablesResult.error;
+        if (videosResult.error) throw videosResult.error;
 
         const tables = tablesResult.data || [];
         const menus = menusResult.data || [];
         const videos = videosResult.data || [];
-
-        console.log(`📊 Legacy data loaded: ${menus.length} menus, ${tables.length} tables, ${videos.length} videos`);
 
         // Store in global state
         window.appState.allMenus = menus;
@@ -1524,27 +1409,425 @@ async function openCategoryPage(categoryId, buttonId) {
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Error loading legacy category data:', error);
-        showToast('Error loading products: ' + error.message, 'error');
+        console.error('❌ Error loading category data:', error);
+        showToast('Error loading products. Please try again.', 'error');
     }
 }
 
-// ========== PAYMENTS & CONTACTS ==========
+function showPurchaseModal(tables, menus, videos) {
+    const modal = document.getElementById('purchaseModal');
+    const content = document.getElementById('purchaseContent');
+    
+    let html = '<div class="purchase-form">';
+
+    // Input Tables
+    if (tables && tables.length > 0) {
+        html += '<div class="input-tables" style="margin-bottom: 24px;">';
+        tables.forEach(table => {
+            html += `
+                <div class="form-group">
+                    <label>${renderAnimatedContent(table.name)}</label>
+                    <input type="text" 
+                           id="table-${table.id}" 
+                           data-table-id="${table.id}"
+                           placeholder="${table.instruction || ''}"
+                           required>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    // Menu Items
+    if (menus && menus.length > 0) {
+        html += '<h3 style="margin: 20px 0 16px 0;">Select Product</h3>';
+        html += '<div class="menu-items">';
+        menus.forEach(menu => {
+            html += `
+                <div class="menu-item" data-menu-id="${menu.id}">
+                    ${menu.icon_url ? `<img src="${menu.icon_url}" class="menu-item-icon" alt="Product">` : '<div class="menu-item-icon"></div>'}
+                    <div class="menu-item-info">
+                        <div class="menu-item-name">${renderAnimatedContent(menu.name)}</div>
+                        <div class="menu-item-amount">${renderAnimatedContent(menu.amount)}</div>
+                        <div class="menu-item-price">${menu.price} MMK</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    html += `<button class="btn-primary" id="buyNowBtn" style="margin-top: 24px; width: 100%;">Continue to Purchase</button>`;
+    html += '</div>';
+
+    content.innerHTML = html;
+    modal.classList.add('active');
+
+    // Attach events
+    setTimeout(() => {
+        const menuItems = document.querySelectorAll('.menu-item');
+        menuItems.forEach(item => {
+            const menuId = parseInt(item.getAttribute('data-menu-id'));
+            item.addEventListener('click', () => selectMenuItem(menuId));
+        });
+
+        const buyBtn = document.getElementById('buyNowBtn');
+        if (buyBtn) {
+            buyBtn.addEventListener('click', proceedToPurchase);
+        }
+    }, 150);
+}
+
+function selectMenuItem(menuId) {
+    window.appState.selectedMenuItem = menuId;
+    const menu = window.appState.allMenus.find(m => m.id === menuId);
+    if (menu) {
+        window.appState.currentMenu = menu;
+    }
+
+    document.querySelectorAll('.menu-item').forEach(item => {
+        item.classList.remove('selected');
+    });
+    
+    const selectedItem = document.querySelector(`[data-menu-id="${menuId}"]`);
+    if (selectedItem) {
+        selectedItem.classList.add('selected');
+    }
+}
+
+function closePurchaseModal() {
+    document.getElementById('purchaseModal').classList.remove('active');
+}
+
+async function proceedToPurchase() {
+    if (!window.appState.selectedMenuItem) {
+        showToast('Please select a product first', 'warning');
+        return;
+    }
+
+    if (!window.appState.currentMenu) {
+        const menu = window.appState.allMenus.find(m => m.id === window.appState.selectedMenuItem);
+        if (menu) {
+            window.appState.currentMenu = menu;
+        } else {
+            showToast('Product data not found. Please select the product again.', 'error');
+            return;
+        }
+    }
+
+    // Collect table data
+    const tableData = {};
+    let allFilled = true;
+
+    window.appState.currentTables.forEach(table => {
+        const inputEl = document.querySelector(`[data-table-id="${table.id}"]`);
+        if (inputEl) {
+            const value = inputEl.value.trim();
+            if (!value) {
+                allFilled = false;
+            }
+            tableData[table.name] = value;
+        }
+    });
+
+    if (window.appState.currentTables.length > 0 && !allFilled) {
+        showToast('Please fill in all required fields', 'warning');
+        return;
+    }
+
+    window.appState.currentTableData = tableData;
+    closePurchaseModal();
+    await showPaymentModal();
+}
+
+// ========== PAYMENT MODAL ==========
 async function loadPayments() {
     try {
         const { data, error } = await supabase
             .from('payment_methods')
             .select('*')
-            .order('created_at', { ascending: true });
+            .order('created_at', { ascending: true});
 
         if (error) throw error;
+
         window.appState.payments = data || [];
+        return data || [];
     } catch (error) {
         console.error('❌ Error loading payments:', error);
         window.appState.payments = [];
+        return [];
     }
 }
 
+async function showPaymentModal() {
+    const menu = window.appState.currentMenu;
+    
+    if (!menu) {
+        showToast('Error: Product data not found. Please try again.', 'error');
+        return;
+    }
+
+    const modal = document.getElementById('paymentModal');
+    const content = document.getElementById('paymentContent');
+
+    showLoading();
+
+    if (!window.appState.payments || window.appState.payments.length === 0) {
+        await loadPayments();
+    }
+
+    hideLoading();
+
+    const payments = window.appState.payments;
+
+    let html = '<div class="payment-selection">';
+    
+    // Order Summary
+    html += `<div class="order-summary">
+        <h3>${renderAnimatedContent(menu.name)}</h3>
+        <p>${renderAnimatedContent(menu.amount)}</p>
+        <p class="price">${menu.price} MMK</p>
+    </div>`;
+
+    html += '<h3 style="margin: 24px 0 16px 0;">Select Payment Method</h3>';
+    
+    // Payment Methods
+    if (payments.length === 0) {
+        html += '<div style="text-align: center; color: var(--warning-color); padding: 40px;"><p>⚠️ No payment methods available</p></div>';
+    } else {
+        html += '<div class="payment-methods">';
+        payments.forEach(payment => {
+            html += `
+                <div class="payment-method" data-payment-id="${payment.id}">
+                    <img src="${payment.icon_url}" alt="${payment.name}">
+                    <span>${renderAnimatedContent(payment.name)}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+    }
+
+    html += '<div id="paymentDetails" style="display:none;"></div>';
+    html += `<button class="btn-primary" id="submitOrderBtn" style="margin-top: 24px; width: 100%;" ${payments.length === 0 ? 'disabled' : ''}>Submit Order</button>`;
+    html += '</div>';
+
+    content.innerHTML = html;
+    modal.classList.add('active');
+
+    // Attach events
+    setTimeout(() => {
+        const paymentMethods = document.querySelectorAll('.payment-method');
+        paymentMethods.forEach(item => {
+            const paymentId = parseInt(item.getAttribute('data-payment-id'));
+            item.addEventListener('click', () => selectPayment(paymentId));
+        });
+
+        const submitBtn = document.getElementById('submitOrderBtn');
+        if (submitBtn && !submitBtn.disabled) {
+            submitBtn.addEventListener('click', submitOrder);
+        }
+    }, 150);
+}
+
+async function selectPayment(paymentId) {
+    window.appState.selectedPayment = parseInt(paymentId);
+
+    document.querySelectorAll('.payment-method').forEach(pm => {
+        pm.classList.remove('selected');
+    });
+
+    const selectedEl = document.querySelector(`[data-payment-id="${paymentId}"]`);
+    if (selectedEl) {
+        selectedEl.classList.add('selected');
+    }
+
+    try {
+        const { data: payment, error } = await supabase
+            .from('payment_methods')
+            .select('*')
+            .eq('id', paymentId)
+            .single();
+
+        if (error) throw error;
+
+        const detailsDiv = document.getElementById('paymentDetails');
+        if (detailsDiv && payment) {
+            detailsDiv.style.display = 'block';
+            detailsDiv.innerHTML = `
+                <div class="payment-info">
+                    <h4>${renderAnimatedContent(payment.name)}</h4>
+                    <p>${renderAnimatedContent(payment.instructions || 'Please complete payment and enter transaction details below.')}</p>
+                    <p style="margin-bottom: 16px;"><strong>Payment Address:</strong> <span style="color: var(--accent-color); font-weight: 600;">${renderAnimatedContent(payment.address)}</span></p>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Transaction ID (Last 6 digits)</label>
+                        <input type="text" id="transactionCode" maxlength="6" placeholder="Enter last 6 digits" required>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('❌ Error loading payment details:', error);
+        showToast('Error loading payment details', 'error');
+    }
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').classList.remove('active');
+}
+
+async function submitOrder() {
+    if (!window.appState.selectedPayment) {
+        showToast('Please select a payment method', 'warning');
+        return;
+    }
+
+    const transactionCode = document.getElementById('transactionCode')?.value;
+    if (!transactionCode || transactionCode.trim().length !== 6) {
+        showToast('Please enter last 6 digits of transaction ID', 'warning');
+        return;
+    }
+
+    if (!window.appState.selectedMenuItem || !window.appState.currentButtonId) {
+        showToast('Error: Missing order information. Please try again.', 'error');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const orderData = {
+            user_id: parseInt(window.appState.currentUser.id),
+            menu_id: parseInt(window.appState.selectedMenuItem),
+            button_id: parseInt(window.appState.currentButtonId),
+            payment_method_id: parseInt(window.appState.selectedPayment),
+            table_data: window.appState.currentTableData,
+            transaction_code: transactionCode.trim(),
+            status: 'pending',
+            created_at: new Date().toISOString()
+        };
+
+        const { data, error } = await supabase
+            .from('orders')
+            .insert([orderData])
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        hideLoading();
+        closePaymentModal();
+        
+        showToast(`🎉 Order Placed Successfully! Order ID: #${data.id}`, 'success', 8000);
+
+        // Reset state
+        window.appState.selectedMenuItem = null;
+        window.appState.selectedPayment = null;
+        window.appState.currentTableData = {};
+        window.appState.currentMenu = null;
+        window.appState.currentButtonId = null;
+        window.appState.currentTables = [];
+        
+        await loadOrderHistory();
+        switchPage('history');
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Order submission failed:', error);
+        showToast('Error submitting order: ' + error.message, 'error');
+    }
+}
+
+// ========== ORDER HISTORY ==========
+async function loadOrderHistory() {
+    try {
+        // Load both regular orders and enhanced orders
+        const [regularOrders, enhancedOrders] = await Promise.all([
+            supabase
+                .from('orders')
+                .select(`
+                    *,
+                    menus (name, price, amount),
+                    payment_methods (name)
+                `)
+                .eq('user_id', window.appState.currentUser.id)
+                .order('created_at', { ascending: false }),
+            supabase
+                .from('enhanced_orders')
+                .select(`
+                    *,
+                    enhanced_products (name, price, currency),
+                    payment_methods (name)
+                `)
+                .eq('user_id', window.appState.currentUser.id)
+                .order('created_at', { ascending: false })
+        ]);
+
+        const allOrders = [
+            ...(regularOrders.data || []).map(order => ({...order, type: 'regular'})),
+            ...(enhancedOrders.data || []).map(order => ({...order, type: 'enhanced'}))
+        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+        displayOrderHistory(allOrders);
+    } catch (error) {
+        console.error('❌ Error loading orders:', error);
+    }
+}
+
+function displayOrderHistory(orders) {
+    const container = document.getElementById('historyContainer');
+    
+    if (orders.length === 0) {
+        container.innerHTML = '<div class="no-orders">No orders yet. Your order history will appear here.</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+
+    orders.forEach(order => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
+
+        let statusClass = 'pending';
+        let statusIcon = '⏳';
+        if (order.status === 'approved') {
+            statusClass = 'approved';
+            statusIcon = '✅';
+        }
+        if (order.status === 'rejected') {
+            statusClass = 'rejected';
+            statusIcon = '❌';
+        }
+
+        let productName, productPrice, productAmount;
+        
+        if (order.type === 'enhanced') {
+            productName = order.enhanced_products?.name || 'Unknown Product';
+            productPrice = `${order.final_price || order.enhanced_products?.price || 0} ${order.currency || 'MMK'}`;
+            productAmount = '';
+        } else {
+            productName = order.menus?.name || 'Unknown Product';
+            productPrice = `${order.menus?.price || 0} MMK`;
+            productAmount = order.menus?.amount || '';
+        }
+
+        item.innerHTML = `
+            <div class="history-status ${statusClass}">${statusIcon} ${order.status.toUpperCase()}</div>
+            <h3>${renderAnimatedContent(productName)}</h3>
+            ${productAmount ? `<p>${renderAnimatedContent(productAmount)}</p>` : ''}
+            <div class="order-details">
+                <p><strong>Price:</strong> <span class="price">${productPrice}</span></p>
+                <p><strong>Order ID:</strong> #${order.id}</p>
+                <p><strong>Payment:</strong> ${renderAnimatedContent(order.payment_methods?.name || 'N/A')}</p>
+                <p><strong>Date:</strong> ${new Date(order.created_at).toLocaleString()}</p>
+            </div>
+            ${order.admin_message ? `<div class="admin-message">${renderAnimatedContent(order.admin_message)}</div>` : ''}
+        `;
+
+        container.appendChild(item);
+    });
+}
+
+// ========== CONTACTS ==========
 async function loadContacts() {
     try {
         const { data, error } = await supabase
@@ -1553,123 +1836,143 @@ async function loadContacts() {
             .order('created_at', { ascending: true });
 
         if (error) throw error;
+
         window.appState.contacts = data || [];
         displayContacts(data || []);
     } catch (error) {
         console.error('❌ Error loading contacts:', error);
-        window.appState.contacts = [];
     }
 }
 
 function displayContacts(contacts) {
-    const container = document.getElementById('contactsList');
-    if (!container) return;
-
-    container.innerHTML = '';
-
+    const container = document.getElementById('contactsContainer');
+    
     if (contacts.length === 0) {
-        container.innerHTML = '<p class="no-contacts">No contact methods available</p>';
+        container.innerHTML = '<div class="no-contacts">No contact information available.</div>';
         return;
     }
 
+    container.innerHTML = '';
+
     contacts.forEach(contact => {
-        const contactEl = document.createElement('div');
-        contactEl.className = 'contact-item';
-        contactEl.innerHTML = `
-            <img src="${contact.icon_url}" alt="${contact.name}">
+        const item = document.createElement('div');
+        item.className = 'contact-item';
+        
+        item.innerHTML = `
+            <img src="${contact.icon_url}" alt="${contact.name}" class="contact-icon">
             <div class="contact-info">
-                <h4>${contact.name}</h4>
-                <p>${contact.description || ''}</p>
-                ${contact.address ? `<p class="contact-address">${contact.address}</p>` : ''}
+                <h3>${renderAnimatedContent(contact.name)}</h3>
+                <p>${renderAnimatedContent(contact.description || '')}</p>
             </div>
         `;
-        
-        if (contact.link) {
-            contactEl.style.cursor = 'pointer';
-            contactEl.addEventListener('click', () => {
+
+        item.addEventListener('click', () => {
+            if (contact.link) {
                 window.open(contact.link, '_blank');
-            });
-        }
-        
-        container.appendChild(contactEl);
+            } else if (contact.address) {
+                window.open(contact.address, '_blank');
+            }
+        });
+
+        container.appendChild(item);
     });
 }
 
-// ========== LEGACY PURCHASE MODAL (Temporary placeholder) ==========
-function showPurchaseModal(tables, menus, videos) {
-    console.log('🛒 Showing Legacy Purchase Modal');
-    // This is a simplified placeholder for the legacy system
-    // The full implementation would be restored from the original file
-    showToast('Legacy product system loaded. This would show the purchase modal.', 'success');
-}
-
-// ========== PROFILE & HISTORY ==========
+// ========== PROFILE ==========
 async function loadProfile() {
-    // Profile loading logic here
+    const user = window.appState.currentUser;
+    if (!user) return;
+
+    document.getElementById('profileName').value = user.name;
+    document.getElementById('profileUsername').value = user.username;
+    document.getElementById('profileEmail').value = user.email;
+    document.getElementById('profileAvatar').textContent = user.name.charAt(0).toUpperCase();
 }
 
-async function loadOrderHistory() {
+async function updateProfile() {
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+
+    if (!currentPassword || !newPassword) {
+        showToast('Please fill in both password fields', 'error');
+        return;
+    }
+
+    if (window.appState.currentUser.password !== currentPassword) {
+        showToast('Current password is incorrect', 'error');
+        return;
+    }
+
+    showLoading();
+
     try {
-        // Load both legacy and enhanced orders
-        const [legacyOrdersResult, enhancedOrdersResult] = await Promise.all([
-            supabase.from('orders').select('*, menus(name), payment_methods(name)').eq('user_id', window.appState.currentUser.id).order('created_at', { ascending: false }),
-            supabase.from('enhanced_orders').select('*, enhanced_products(name), payment_methods(name)').eq('user_id', window.appState.currentUser.id).order('created_at', { ascending: false })
-        ]);
+        const { error } = await supabase
+            .from('users')
+            .update({ password: newPassword })
+            .eq('id', window.appState.currentUser.id);
 
-        const legacyOrders = legacyOrdersResult.data || [];
-        const enhancedOrders = enhancedOrdersResult.data || [];
+        if (error) throw error;
+
+        window.appState.currentUser.password = newPassword;
+        localStorage.setItem('currentUser', JSON.stringify(window.appState.currentUser));
+
+        hideLoading();
+        showToast('Password updated successfully!', 'success');
         
-        // Combine and sort orders by date
-        const allOrders = [
-            ...legacyOrders.map(o => ({ ...o, type: 'legacy', product_name: o.menus?.name })),
-            ...enhancedOrders.map(o => ({ ...o, type: 'enhanced', product_name: o.enhanced_products?.name }))
-        ].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        document.getElementById('currentPassword').value = '';
+        document.getElementById('newPassword').value = '';
 
-        displayOrderHistory(allOrders);
     } catch (error) {
-        console.error('❌ Error loading order history:', error);
+        hideLoading();
+        showToast('Error updating password', 'error');
+        console.error('❌ Profile update error:', error);
     }
 }
 
-function displayOrderHistory(orders) {
-    // Order history display logic here
-    console.log('📝 Order history loaded:', orders.length, 'orders');
-}
+// ========== NAVIGATION ==========
+function switchPage(pageName) {
+    // Clear any running intervals when leaving products page
+    if (window.appState.productBannerInterval) {
+        clearInterval(window.appState.productBannerInterval);
+        window.appState.productBannerInterval = null;
+    }
 
-// ========== PAGE SWITCHING ==========
-function switchPage(page) {
-    // Hide all modals
-    const modals = document.querySelectorAll('.modal');
-    modals.forEach(modal => modal.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(page => {
+        page.classList.remove('active');
+    });
+    document.getElementById(pageName + 'Page').classList.add('active');
 
-    // Show appropriate content based on page
-    switch(page) {
-        case 'home':
-            // Already showing home content
-            break;
-        case 'history':
-            showHistoryModal();
-            break;
-        case 'profile':
-            showProfileModal();
-            break;
-        case 'contacts':
-            showContactsModal();
-            break;
+    document.querySelectorAll('.nav-item').forEach(nav => {
+        nav.classList.remove('active');
+    });
+    document.querySelector(`[data-page="${pageName}"]`).classList.add('active');
+
+    // Load page-specific data
+    if (pageName === 'history') {
+        loadOrderHistory();
+    } else if (pageName === 'contacts') {
+        loadContacts();
+    } else if (pageName === 'mi') {
+        loadProfile();
     }
 }
 
-function showHistoryModal() {
-    // History modal logic here
+function goBackToHome() {
+    // Clear product page intervals
+    if (window.appState.productBannerInterval) {
+        clearInterval(window.appState.productBannerInterval);
+        window.appState.productBannerInterval = null;
+    }
+    
+    // Reset product page state
+    window.appState.currentCategoryId = null;
+    window.appState.currentButtonData = null;
+    window.appState.enhancedProducts = [];
+    window.appState.productBanners = [];
+    window.appState.productDescriptions = [];
+    window.appState.categoryAds = [];
+    
+    switchPage('home');
 }
 
-function showProfileModal() {
-    // Profile modal logic here
-}
-
-function showContactsModal() {
-    // Contacts modal logic here
-}
-
-// ========== CONSOLE LOG ==========
-console.log('✅ Enhanced Gaming Store Index.js loaded successfully');
+console.log('✅ Enhanced Gaming Store App loaded successfully');
