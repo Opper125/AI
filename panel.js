@@ -28,6 +28,9 @@ async function loadEnhancedProducts() {
 
         enhancedProductsData = data || [];
         displayEnhancedProducts(enhancedProductsData);
+        
+        // Update statistics
+        updateEnhancedProductsStats();
     } catch (error) {
         console.error('❌ Error loading enhanced products:', error);
     }
@@ -61,6 +64,7 @@ function displayEnhancedProducts(products) {
             </div>
             <div class="product-card-content">
                 <h4>${renderAnimatedText(product.name)}</h4>
+                <p class="product-category">${product.category_buttons?.categories?.name || 'Unknown'} › ${product.category_buttons?.name || 'Unknown'}</p>
                 <p class="product-type">${product.product_type || 'Product'} • Level: ${product.product_level || 'N/A'}</p>
                 <p class="product-description">${product.description ? product.description.substring(0, 100) + '...' : 'No description'}</p>
                 <div class="price-display">
@@ -78,11 +82,43 @@ function displayEnhancedProducts(products) {
                 <div class="product-actions">
                     <button onclick="editEnhancedProduct(${product.id})" class="btn-secondary">Edit</button>
                     <button onclick="deleteEnhancedProduct(${product.id})" class="btn-danger">Delete</button>
+                    <button onclick="previewEnhancedProduct(${product.id})" class="btn-info">Preview</button>
                 </div>
             </div>
         `;
         container.appendChild(card);
     });
+}
+
+function updateEnhancedProductsStats() {
+    const statsContainer = document.getElementById('enhancedProductsStats');
+    if (!statsContainer) return;
+
+    const totalProducts = enhancedProductsData.length;
+    const activeProducts = enhancedProductsData.filter(p => p.stock_quantity > 0).length;
+    const outOfStock = enhancedProductsData.filter(p => p.stock_quantity === 0).length;
+    const withDiscount = enhancedProductsData.filter(p => p.discount_percentage > 0).length;
+
+    statsContainer.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">${totalProducts}</div>
+                <div class="stat-label">Total Products</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${activeProducts}</div>
+                <div class="stat-label">In Stock</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${outOfStock}</div>
+                <div class="stat-label">Out of Stock</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${withDiscount}</div>
+                <div class="stat-label">On Sale</div>
+            </div>
+        </div>
+    `;
 }
 
 // Enhanced Product Creation Form
@@ -95,14 +131,14 @@ function createEnhancedProductForm() {
         <!-- Category & Button Selection -->
         <div class="form-row">
             <div class="form-group">
-                <label>Category</label>
-                <select id="enhancedProductCategory" onchange="loadButtonsForEnhancedProduct()">
+                <label>Category *</label>
+                <select id="enhancedProductCategory" onchange="loadButtonsForEnhancedProduct()" required>
                     <option value="">Select Category</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Category Button</label>
-                <select id="enhancedProductButton">
+                <label>Category Button *</label>
+                <select id="enhancedProductButton" required>
                     <option value="">Select Button</option>
                 </select>
             </div>
@@ -632,6 +668,184 @@ async function deleteEnhancedProduct(productId) {
     }
 }
 
+// Edit enhanced product
+async function editEnhancedProduct(productId) {
+    const product = enhancedProductsData.find(p => p.id === productId);
+    if (!product) {
+        alert('Product not found');
+        return;
+    }
+
+    // Show form with pre-filled data
+    showEnhancedProductForm();
+    
+    // Wait for form to render
+    setTimeout(() => {
+        // Fill form with existing data
+        const categoryButton = product.category_buttons;
+        if (categoryButton) {
+            document.getElementById('enhancedProductCategory').value = categoryButton.categories?.id || '';
+            loadButtonsForEnhancedProduct().then(() => {
+                document.getElementById('enhancedProductButton').value = product.button_id;
+            });
+        }
+
+        document.getElementById('enhancedProductName').value = product.name || '';
+        document.getElementById('enhancedProductDescription').value = product.description || '';
+        document.getElementById('enhancedProductPrice').value = product.price || '';
+        document.getElementById('enhancedProductCurrency').value = product.currency || '';
+        document.getElementById('enhancedProductDiscount').value = product.discount_percentage || '';
+        document.getElementById('enhancedProductStock').value = product.stock_quantity || '';
+        document.getElementById('enhancedProductType').value = product.product_type || '';
+        document.getElementById('enhancedProductLevel').value = product.product_level || '';
+        document.getElementById('enhancedProductId').value = product.product_id || '';
+        document.getElementById('enhancedProductDelivery').value = product.delivery_time || '';
+
+        // Pre-select payment methods and contacts
+        const paymentMethods = product.payment_methods ? JSON.parse(product.payment_methods) : [];
+        const contacts = product.contacts ? JSON.parse(product.contacts) : [];
+
+        loadPaymentAndContactMethods().then(() => {
+            // Select payment methods
+            paymentMethods.forEach(pmId => {
+                const checkbox = document.querySelector(`#paymentCheckboxes input[value="${pmId}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+            // Select contacts
+            contacts.forEach(contactId => {
+                const checkbox = document.querySelector(`#contactCheckboxes input[value="${contactId}"]`);
+                if (checkbox) checkbox.checked = true;
+            });
+
+            updateSelectedPayments();
+            updateSelectedContacts();
+        });
+
+        // Update form title and button
+        document.querySelector('.enhanced-product-form h3').textContent = 'Edit Enhanced Product';
+        document.querySelector('.enhanced-product-form .btn-primary').textContent = 'Update Product';
+        document.querySelector('.enhanced-product-form .btn-primary').onclick = () => updateEnhancedProduct(productId);
+
+        updatePricePreview();
+    }, 100);
+}
+
+// Update enhanced product
+async function updateEnhancedProduct(productId) {
+    // Similar validation as saveEnhancedProduct
+    const buttonId = document.getElementById('enhancedProductButton').value;
+    const name = document.getElementById('enhancedProductName').value.trim();
+    const price = parseFloat(document.getElementById('enhancedProductPrice').value);
+    const currency = document.getElementById('enhancedProductCurrency').value.trim();
+
+    if (!buttonId || !name || !price || !currency) {
+        alert('Please fill in all required fields (Category Button, Name, Price, Currency)');
+        return;
+    }
+
+    if (totalImageSize > MAX_TOTAL_SIZE) {
+        alert(`Total image size (${(totalImageSize / (1024 * 1024)).toFixed(2)}MB) exceeds the 50MB limit. Please remove some images.`);
+        return;
+    }
+
+    showLoading();
+
+    try {
+        // Upload new images if any
+        const imageUrls = [];
+        for (const file of uploadedImages) {
+            const url = await uploadFile(file, 'enhanced-products');
+            if (url) {
+                imageUrls.push(url);
+            }
+        }
+
+        // Get existing product to preserve existing images if no new ones uploaded
+        const existingProduct = enhancedProductsData.find(p => p.id === productId);
+        const finalImages = imageUrls.length > 0 ? imageUrls : (existingProduct?.images ? JSON.parse(existingProduct.images) : []);
+
+        // Prepare update data
+        const updateData = {
+            button_id: parseInt(buttonId),
+            name: name,
+            description: document.getElementById('enhancedProductDescription').value.trim() || null,
+            price: price,
+            currency: currency,
+            discount_percentage: parseFloat(document.getElementById('enhancedProductDiscount').value) || null,
+            stock_quantity: parseInt(document.getElementById('enhancedProductStock').value) || null,
+            product_type: document.getElementById('enhancedProductType').value.trim() || null,
+            product_level: document.getElementById('enhancedProductLevel').value.trim() || null,
+            product_id: document.getElementById('enhancedProductId').value.trim() || null,
+            delivery_time: document.getElementById('enhancedProductDelivery').value.trim() || null,
+            images: JSON.stringify(finalImages),
+            payment_methods: JSON.stringify(selectedPaymentMethods),
+            contacts: JSON.stringify(selectedContacts),
+            updated_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase
+            .from('enhanced_products')
+            .update(updateData)
+            .eq('id', productId);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('✅ Enhanced product updated successfully!');
+        
+        // Reset form
+        cancelEnhancedProductForm();
+        
+        // Reload products
+        await loadEnhancedProducts();
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error updating enhanced product:', error);
+        alert('Error updating product: ' + error.message);
+    }
+}
+
+// Preview enhanced product
+function previewEnhancedProduct(productId) {
+    const product = enhancedProductsData.find(p => p.id === productId);
+    if (!product) {
+        alert('Product not found');
+        return;
+    }
+
+    // Create preview modal
+    const modal = document.createElement('div');
+    modal.className = 'modal preview-modal';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <button class="modal-close" onclick="this.closest('.modal').remove()">×</button>
+            <h2>Product Preview</h2>
+            <div class="product-preview">
+                <div class="preview-info">
+                    <h3>${product.name}</h3>
+                    <p><strong>Category:</strong> ${product.category_buttons?.categories?.name || 'Unknown'} › ${product.category_buttons?.name || 'Unknown'}</p>
+                    <p><strong>Description:</strong> ${product.description || 'No description'}</p>
+                    <p><strong>Price:</strong> ${product.price} ${product.currency}</p>
+                    ${product.discount_percentage ? `<p><strong>Discount:</strong> ${product.discount_percentage}%</p>` : ''}
+                    <p><strong>Stock:</strong> ${product.stock_quantity || 'N/A'}</p>
+                    <p><strong>Type:</strong> ${product.product_type || 'N/A'}</p>
+                    <p><strong>Level:</strong> ${product.product_level || 'N/A'}</p>
+                    <p><strong>Product ID:</strong> ${product.product_id || product.id}</p>
+                    <p><strong>Delivery:</strong> ${product.delivery_time || 'N/A'}</p>
+                </div>
+                <div class="preview-images">
+                    ${product.images ? JSON.parse(product.images).map(img => `<img src="${img}" alt="Product Image" style="max-width: 200px; margin: 5px;">`).join('') : '<p>No images</p>'}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.classList.add('active');
+}
+
 // Show enhanced product creation form
 function showEnhancedProductForm() {
     const container = document.getElementById('enhancedProductsContainer');
@@ -672,6 +886,7 @@ async function loadProductBanners() {
 
         productBannersData = data || [];
         displayProductBanners(productBannersData);
+        updateProductBannersStats();
     } catch (error) {
         console.error('❌ Error loading product banners:', error);
     }
@@ -706,6 +921,27 @@ function displayProductBanners(banners) {
         `;
         container.appendChild(card);
     });
+}
+
+function updateProductBannersStats() {
+    const statsContainer = document.getElementById('productBannersStats');
+    if (!statsContainer) return;
+
+    const totalBanners = productBannersData.length;
+    const categoriesWithBanners = [...new Set(productBannersData.map(b => b.category_id))].length;
+
+    statsContainer.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">${totalBanners}</div>
+                <div class="stat-label">Total Banners</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${categoriesWithBanners}</div>
+                <div class="stat-label">Categories with Banners</div>
+            </div>
+        </div>
+    `;
 }
 
 // Add Product Banner
@@ -833,6 +1069,7 @@ async function loadProductDescriptions() {
 
         productDescriptionsData = data || [];
         displayProductDescriptions(productDescriptionsData);
+        updateProductDescriptionsStats();
     } catch (error) {
         console.error('❌ Error loading product descriptions:', error);
     }
@@ -868,6 +1105,27 @@ function displayProductDescriptions(descriptions) {
         `;
         container.appendChild(card);
     });
+}
+
+function updateProductDescriptionsStats() {
+    const statsContainer = document.getElementById('productDescriptionsStats');
+    if (!statsContainer) return;
+
+    const totalDescriptions = productDescriptionsData.length;
+    const categoriesWithDescriptions = [...new Set(productDescriptionsData.map(d => d.category_id))].length;
+
+    statsContainer.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">${totalDescriptions}</div>
+                <div class="stat-label">Total Descriptions</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${categoriesWithDescriptions}</div>
+                <div class="stat-label">Categories with Descriptions</div>
+            </div>
+        </div>
+    `;
 }
 
 // Add Product Description
@@ -912,6 +1170,103 @@ async function addProductDescription() {
         hideLoading();
         console.error('❌ Error adding product description:', error);
         alert('Error adding description: ' + error.message);
+    }
+}
+
+// Edit Product Description
+async function editProductDescription(descId) {
+    const desc = productDescriptionsData.find(d => d.id === descId);
+    if (!desc) {
+        alert('Description not found');
+        return;
+    }
+
+    const categoryId = desc.category_id;
+    const buttonId = desc.button_id;
+    const content = desc.content;
+
+    // Populate form with existing data
+    document.getElementById('productDescriptionCategory').value = categoryId;
+    
+    // Load buttons and then set the button value
+    const buttonSelect = document.getElementById('productDescriptionButton');
+    try {
+        const { data: buttons, error } = await supabase
+            .from('category_buttons')
+            .select('*')
+            .eq('category_id', categoryId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        buttonSelect.innerHTML = '<option value="">Select Button</option>';
+        buttons.forEach(button => {
+            buttonSelect.innerHTML += `<option value="${button.id}">${button.name}</option>`;
+        });
+        
+        buttonSelect.value = buttonId;
+        document.getElementById('productDescriptionContent').value = content;
+
+        // Change form to edit mode
+        const addBtn = document.querySelector('.action-card button[onclick="addProductDescription()"]');
+        if (addBtn) {
+            addBtn.textContent = 'Update Description';
+            addBtn.onclick = () => updateProductDescription(descId);
+        }
+
+    } catch (error) {
+        console.error('Error loading buttons for edit:', error);
+        alert('Error loading buttons');
+    }
+}
+
+// Update Product Description
+async function updateProductDescription(descId) {
+    const categoryId = document.getElementById('productDescriptionCategory').value;
+    const buttonId = document.getElementById('productDescriptionButton').value;
+    const content = document.getElementById('productDescriptionContent').value.trim();
+
+    if (!categoryId || !buttonId || !content) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const { error } = await supabase
+            .from('product_descriptions')
+            .update({
+                category_id: parseInt(categoryId),
+                button_id: parseInt(buttonId),
+                content: content,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', descId);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('✅ Product description updated successfully!');
+        
+        // Reset form and button
+        document.getElementById('productDescriptionCategory').value = '';
+        document.getElementById('productDescriptionButton').value = '';
+        document.getElementById('productDescriptionContent').value = '';
+        
+        const addBtn = document.querySelector('.action-card button');
+        if (addBtn) {
+            addBtn.textContent = 'Add Description';
+            addBtn.onclick = addProductDescription;
+        }
+        
+        // Reload descriptions
+        await loadProductDescriptions();
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error updating product description:', error);
+        alert('Error updating description: ' + error.message);
     }
 }
 
@@ -988,6 +1343,7 @@ async function loadCategoryAds() {
 
         categoryAdsData = data || [];
         displayCategoryAds(categoryAdsData);
+        updateCategoryAdsStats();
     } catch (error) {
         console.error('❌ Error loading category ads:', error);
     }
@@ -1024,6 +1380,27 @@ function displayCategoryAds(ads) {
         `;
         container.appendChild(card);
     });
+}
+
+function updateCategoryAdsStats() {
+    const statsContainer = document.getElementById('categoryAdsStats');
+    if (!statsContainer) return;
+
+    const totalAds = categoryAdsData.length;
+    const categoriesWithAds = [...new Set(categoryAdsData.map(a => a.category_id))].length;
+
+    statsContainer.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">${totalAds}</div>
+                <div class="stat-label">Total Ads</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${categoriesWithAds}</div>
+                <div class="stat-label">Categories with Ads</div>
+            </div>
+        </div>
+    `;
 }
 
 // Add Category Ad
@@ -1077,6 +1454,114 @@ async function addCategoryAd() {
         hideLoading();
         console.error('❌ Error adding category ad:', error);
         alert('Error adding ad: ' + error.message);
+    }
+}
+
+// Edit Category Ad
+async function editCategoryAd(adId) {
+    const ad = categoryAdsData.find(a => a.id === adId);
+    if (!ad) {
+        alert('Ad not found');
+        return;
+    }
+
+    const categoryId = ad.category_id;
+    const buttonId = ad.button_id;
+    const adSize = ad.ad_size;
+    const scriptCode = ad.script_code;
+
+    // Populate form with existing data
+    document.getElementById('categoryAdCategory').value = categoryId;
+    
+    // Load buttons and then set the button value
+    const buttonSelect = document.getElementById('categoryAdButton');
+    try {
+        const { data: buttons, error } = await supabase
+            .from('category_buttons')
+            .select('*')
+            .eq('category_id', categoryId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        buttonSelect.innerHTML = '<option value="">Select Button</option>';
+        buttons.forEach(button => {
+            buttonSelect.innerHTML += `<option value="${button.id}">${button.name}</option>`;
+        });
+        
+        buttonSelect.value = buttonId;
+        document.getElementById('categoryAdSize').value = adSize;
+        document.getElementById('categoryAdScript').value = scriptCode;
+
+        // Change form to edit mode
+        const addBtn = document.querySelector('.action-card button[onclick="addCategoryAd()"]');
+        if (addBtn) {
+            addBtn.textContent = 'Update Ad';
+            addBtn.onclick = () => updateCategoryAd(adId);
+        }
+
+    } catch (error) {
+        console.error('Error loading buttons for edit:', error);
+        alert('Error loading buttons');
+    }
+}
+
+// Update Category Ad
+async function updateCategoryAd(adId) {
+    const categoryId = document.getElementById('categoryAdCategory').value;
+    const buttonId = document.getElementById('categoryAdButton').value;
+    const adSize = document.getElementById('categoryAdSize').value.trim();
+    const scriptCode = document.getElementById('categoryAdScript').value.trim();
+
+    if (!categoryId || !buttonId || !adSize || !scriptCode) {
+        alert('Please fill in all fields');
+        return;
+    }
+
+    // Basic script validation
+    if (!scriptCode.includes('<script')) {
+        alert('Please enter a valid script code that includes <script> tags');
+        return;
+    }
+
+    showLoading();
+
+    try {
+        const { error } = await supabase
+            .from('category_ads')
+            .update({
+                category_id: parseInt(categoryId),
+                button_id: parseInt(buttonId),
+                ad_size: adSize,
+                script_code: scriptCode,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', adId);
+
+        if (error) throw error;
+
+        hideLoading();
+        alert('✅ Category ad updated successfully!');
+        
+        // Reset form and button
+        document.getElementById('categoryAdCategory').value = '';
+        document.getElementById('categoryAdButton').value = '';
+        document.getElementById('categoryAdSize').value = '';
+        document.getElementById('categoryAdScript').value = '';
+        
+        const addBtn = document.querySelector('.action-card button');
+        if (addBtn) {
+            addBtn.textContent = 'Add Category Ad';
+            addBtn.onclick = addCategoryAd;
+        }
+        
+        // Reload ads
+        await loadCategoryAds();
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error updating category ad:', error);
+        alert('Error updating ad: ' + error.message);
     }
 }
 
@@ -1151,6 +1636,7 @@ async function loadEnhancedOrders() {
         if (error) throw error;
 
         displayEnhancedOrders(data || []);
+        updateEnhancedOrdersStats(data || []);
     } catch (error) {
         console.error('❌ Error loading enhanced orders:', error);
     }
@@ -1199,6 +1685,38 @@ function displayEnhancedOrders(orders) {
         `;
         container.appendChild(card);
     });
+}
+
+function updateEnhancedOrdersStats(orders) {
+    const statsContainer = document.getElementById('enhancedOrdersStats');
+    if (!statsContainer) return;
+
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter(o => o.status === 'pending').length;
+    const approvedOrders = orders.filter(o => o.status === 'approved').length;
+    const rejectedOrders = orders.filter(o => o.status === 'rejected').length;
+    const totalRevenue = orders.filter(o => o.status === 'approved').reduce((sum, o) => sum + parseFloat(o.final_price || 0), 0);
+
+    statsContainer.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-number">${totalOrders}</div>
+                <div class="stat-label">Total Orders</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${pendingOrders}</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${approvedOrders}</div>
+                <div class="stat-label">Approved</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">${totalRevenue.toFixed(0)}</div>
+                <div class="stat-label">Revenue</div>
+            </div>
+        </div>
+    `;
 }
 
 // Update Enhanced Order Status
@@ -1291,6 +1809,9 @@ window.switchSection = function(sectionName) {
             loadCategoryAds();
             loadCategoriesForCategoryAds();
             break;
+        case 'enhanced-orders':
+            loadEnhancedOrders();
+            break;
     }
 };
 
@@ -1358,8 +1879,14 @@ async function loadCategoriesForCategoryAds() {
     }
 }
 
+// ==================== HTML SECTIONS INJECTION ====================
+
 // Add HTML sections when DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
+    // Get main content container
+    const mainContent = document.querySelector('.main-content');
+    if (!mainContent) return;
+
     // Add Enhanced Products Section
     const enhancedProductsSection = document.createElement('section');
     enhancedProductsSection.id = 'enhanced-products';
@@ -1368,6 +1895,10 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="section-header">
             <h2>⭐ Enhanced Products Management</h2>
             <p>Create advanced products with multiple images, payment options, and rich features</p>
+        </div>
+        
+        <div id="enhancedProductsStats" class="stats-container">
+            <!-- Stats will be loaded here -->
         </div>
         
         <div class="action-card">
@@ -1391,6 +1922,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <p>Add specific banners for category product pages</p>
         </div>
         
+        <div id="productBannersStats" class="stats-container">
+            <!-- Stats will be loaded here -->
+        </div>
+        
         <div class="action-card">
             <h3>Add Product Banner</h3>
             <div class="form-row">
@@ -1409,7 +1944,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="form-group">
                 <label>Banner Image</label>
-                <input type="file" id="productBannerFile" accept="image/*">
+                <input type="file" id="productBannerFile" accept="image/*" required>
             </div>
             <button onclick="addProductBanner()" class="btn-primary">Add Banner</button>
         </div>
@@ -1429,6 +1964,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <p>Add rich text content for category product pages</p>
         </div>
         
+        <div id="productDescriptionsStats" class="stats-container">
+            <!-- Stats will be loaded here -->
+        </div>
+        
         <div class="action-card">
             <h3>Add Product Description</h3>
             <div class="form-row">
@@ -1446,9 +1985,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>
             <div class="form-group">
-                <label>Content</label>
+                <label>Description Content</label>
                 <div class="textarea-with-emoji">
-                    <textarea id="productDescriptionContent" placeholder="Enter rich text content for this category page" rows="5"></textarea>
+                    <textarea id="productDescriptionContent" placeholder="Enter rich content for this category page" rows="5" required></textarea>
                     <button class="emoji-picker-btn" onclick="openEmojiPicker('productDescriptionContent')">😀</button>
                 </div>
             </div>
@@ -1470,6 +2009,10 @@ document.addEventListener('DOMContentLoaded', function() {
             <p>Add script-based advertisements for category product pages</p>
         </div>
         
+        <div id="categoryAdsStats" class="stats-container">
+            <!-- Stats will be loaded here -->
+        </div>
+        
         <div class="action-card">
             <h3>Add Category Ad</h3>
             <div class="form-row">
@@ -1488,14 +2031,13 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="form-group">
                 <label>Ad Size</label>
-                <input type="text" id="categoryAdSize" placeholder="e.g. 160x300, 728x90, 300x250">
+                <input type="text" id="categoryAdSize" placeholder="e.g. 728x90, 300x250, Custom" required>
             </div>
             <div class="form-group">
                 <label>Script Code</label>
-                <textarea id="categoryAdScript" placeholder="Paste your ad script code here (must include <script> tags)" rows="8"></textarea>
-                <small class="form-help">Paste the complete script code from your ad provider (Google AdSense, etc.)</small>
+                <textarea id="categoryAdScript" placeholder="Enter your ad script code (including <script> tags)" rows="5" required></textarea>
             </div>
-            <button onclick="addCategoryAd()" class="btn-primary">Add Ad</button>
+            <button onclick="addCategoryAd()" class="btn-primary">Add Category Ad</button>
         </div>
 
         <div class="category-ads-grid" id="categoryAdsContainer">
@@ -1503,28 +2045,67 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     `;
 
-    // Insert sections into main content
-    const mainContent = document.querySelector('.main-content');
-    if (mainContent) {
-        mainContent.appendChild(enhancedProductsSection);
-        mainContent.appendChild(productBannersSection);
-        mainContent.appendChild(productDescriptionsSection); 
-        mainContent.appendChild(categoryAdsSection);
-    }
+    // Add Enhanced Orders Section
+    const enhancedOrdersSection = document.createElement('section');
+    enhancedOrdersSection.id = 'enhanced-orders';
+    enhancedOrdersSection.className = 'content-section';
+    enhancedOrdersSection.innerHTML = `
+        <div class="section-header">
+            <h2>📦 Enhanced Orders Management</h2>
+            <p>Manage orders from enhanced products system</p>
+        </div>
+        
+        <div id="enhancedOrdersStats" class="stats-container">
+            <!-- Stats will be loaded here -->
+        </div>
+
+        <div class="enhanced-orders-grid" id="enhancedOrdersContainer">
+            <!-- Enhanced orders will be loaded here -->
+        </div>
+    `;
+
+    // Append all sections to main content
+    mainContent.appendChild(enhancedProductsSection);
+    mainContent.appendChild(productBannersSection);
+    mainContent.appendChild(productDescriptionsSection);
+    mainContent.appendChild(categoryAdsSection);
+    mainContent.appendChild(enhancedOrdersSection);
+
+    console.log('✅ Enhanced Products Panel HTML sections injected successfully');
 });
 
-// Enhanced orders integration with existing orders system
-const originalLoadOrders = window.loadOrders;
-window.loadOrders = async function() {
-    // Load regular orders
-    if (originalLoadOrders) {
-        await originalLoadOrders();
-    }
-    
-    // Load enhanced orders
-    await loadEnhancedOrders();
-    
-    // Combine display (you might want to modify this based on your UI)
-};
+// ==================== UTILITY FUNCTIONS ====================
+
+function renderAnimatedText(text) {
+    if (!text) return '';
+    // This function would render animated text/emojis
+    // For now, just return the text as-is
+    return text;
+}
+
+// Add loading and hiding functions if not already defined
+if (typeof showLoading !== 'function') {
+    window.showLoading = function() {
+        // Loading functionality
+        console.log('Loading...');
+    };
+}
+
+if (typeof hideLoading !== 'function') {
+    window.hideLoading = function() {
+        // Hide loading functionality
+        console.log('Loading hidden');
+    };
+}
+
+// Add file upload function if not already defined
+if (typeof uploadFile !== 'function') {
+    window.uploadFile = async function(file, folder) {
+        // This would be the actual file upload implementation
+        // For now, return a placeholder URL
+        console.log('Uploading file:', file.name, 'to folder:', folder);
+        return `https://placeholder.com/${folder}/${file.name}`;
+    };
+}
 
 console.log('✅ Enhanced Products Panel loaded successfully');
