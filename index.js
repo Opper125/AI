@@ -660,6 +660,10 @@ function displayCategoryButtons(categoryId, buttons) {
 }
 
 // ========== ENHANCED CATEGORY PAGE SYSTEM ==========
+
+// Fixed openEnhancedCategoryPage function for index.js
+// Replace the existing function with this improved version
+
 async function openEnhancedCategoryPage(categoryId, buttonId, buttonData) {
     console.log('🎮 Opening Enhanced Category Page:', categoryId, buttonId);
     
@@ -671,86 +675,124 @@ async function openEnhancedCategoryPage(categoryId, buttonId, buttonData) {
         window.appState.currentButtonId = buttonId;
         window.appState.currentButtonData = buttonData;
         
-        // Load enhanced products
+        // Try to load enhanced products first
         const { data: enhancedProducts, error: productsError } = await supabase
             .from('enhanced_products')
             .select('*')
             .eq('button_id', buttonId)
             .order('created_at', { ascending: true });
 
-        if (productsError) {
-            console.log('No enhanced products, loading regular menus');
-            // Fallback to regular menu system
-            await openCategoryPage(categoryId, buttonId);
+        // Check if we have enhanced products AND no critical errors
+        if (enhancedProducts && enhancedProducts.length > 0 && !productsError) {
+            console.log(`✅ Found ${enhancedProducts.length} enhanced products`);
+            
+            // Load other enhanced content in parallel
+            const [
+                { data: productBanners },
+                { data: productDescriptions },
+                { data: ads }
+            ] = await Promise.all([
+                supabase.from('product_banners').select('*').eq('category_id', categoryId).eq('button_id', buttonId).order('created_at', { ascending: true }),
+                supabase.from('product_descriptions').select('*').eq('category_id', categoryId).eq('button_id', buttonId).order('created_at', { ascending: true }),
+                supabase.from('category_ads').select('*').eq('category_id', categoryId).eq('button_id', buttonId).order('created_at', { ascending: true })
+            ]);
+
+            // Store in state
+            window.appState.enhancedProducts = enhancedProducts;
+            window.appState.productBanners = productBanners || [];
+            window.appState.productDescriptions = productDescriptions || [];
+            window.appState.categoryAds = ads || [];
+
+            hideLoading();
+            showEnhancedProductsPage();
             return;
         }
 
-        // Load product banners
-        const { data: productBanners } = await supabase
-            .from('product_banners')
-            .select('*')
-            .eq('category_id', categoryId)
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
-
-        // Load product descriptions
-        const { data: productDescriptions } = await supabase
-            .from('product_descriptions')
-            .select('*')
-            .eq('category_id', categoryId)
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
-
-        // Load ads for this category/button
-        const { data: ads } = await supabase
-            .from('category_ads')
-            .select('*')
-            .eq('category_id', categoryId)
-            .eq('button_id', buttonId)
-            .order('created_at', { ascending: true });
-
-        // Store in state
-        window.appState.enhancedProducts = enhancedProducts || [];
-        window.appState.productBanners = productBanners || [];
-        window.appState.productDescriptions = productDescriptions || [];
-        window.appState.categoryAds = ads || [];
-
-        hideLoading();
-
-        // Show enhanced products page
-        showEnhancedProductsPage();
+        // If no enhanced products or error, fall back to legacy system
+        console.log('⚠️ No enhanced products found or error occurred, using legacy menu system');
+        if (productsError) {
+            console.log('Enhanced products error:', productsError);
+        }
+        
+        await openCategoryPage(categoryId, buttonId);
 
     } catch (error) {
         hideLoading();
-        console.error('❌ Error loading enhanced category:', error);
-        showToast('Error loading products. Please try again.', 'error');
+        console.error('❌ Error in enhanced category system:', error);
+        
+        // Final fallback: try legacy system
+        console.log('🔄 Trying legacy system as final fallback');
+        try {
+            await openCategoryPage(categoryId, buttonId);
+        } catch (legacyError) {
+            console.error('❌ Legacy system also failed:', legacyError);
+            showToast('Error loading products. Please try again later.', 'error');
+        }
     }
 }
 
-function showEnhancedProductsPage() {
-    // Hide home page and show products page
-    switchPage('products');
-
-    // Update header
-    const categoryIcon = document.getElementById('currentCategoryIcon');
-    const categoryName = document.getElementById('currentCategoryName');
+// Improved legacy openCategoryPage function with better error handling
+async function openCategoryPage(categoryId, buttonId) {
+    console.log('🎮 Opening Legacy Category Page:', categoryId, buttonId);
     
-    if (window.appState.currentButtonData) {
-        categoryIcon.src = window.appState.currentButtonData.icon_url;
-        categoryName.textContent = window.appState.currentButtonData.name;
+    showLoading();
+
+    try {
+        // Reset state
+        window.appState.currentButtonId = buttonId;
+        window.appState.selectedMenuItem = null;
+        window.appState.currentMenu = null;
+        window.appState.currentTableData = {};
+        window.appState.allMenus = [];
+        window.appState.currentTables = [];
+        
+        // Load legacy data with better error handling
+        const [tablesResult, menusResult, videosResult] = await Promise.all([
+            supabase.from('input_tables').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('menus').select('*').eq('button_id', buttonId).order('created_at', { ascending: true }),
+            supabase.from('youtube_videos').select('*').eq('button_id', buttonId).order('created_at', { ascending: true })
+        ]);
+
+        // Check for errors
+        if (menusResult.error) {
+            console.error('❌ Menus query error:', menusResult.error);
+            throw new Error('Failed to load menu items: ' + menusResult.error.message);
+        }
+        
+        if (tablesResult.error) {
+            console.error('❌ Tables query error:', tablesResult.error);
+            // Tables error is not critical, continue
+        }
+        
+        if (videosResult.error) {
+            console.error('❌ Videos query error:', videosResult.error);
+            // Videos error is not critical, continue
+        }
+
+        const tables = tablesResult.data || [];
+        const menus = menusResult.data || [];
+        const videos = videosResult.data || [];
+
+        console.log(`📊 Legacy data loaded: ${menus.length} menus, ${tables.length} tables, ${videos.length} videos`);
+
+        // Store in global state
+        window.appState.allMenus = menus;
+        window.appState.currentTables = tables;
+
+        hideLoading();
+
+        if (menus.length === 0) {
+            showToast('No products available for this category', 'warning');
+            return;
+        }
+
+        showPurchaseModal(tables, menus, videos);
+
+    } catch (error) {
+        hideLoading();
+        console.error('❌ Error loading legacy category data:', error);
+        showToast('Error loading products: ' + error.message, 'error');
     }
-
-    // Display product banners
-    displayProductBanners();
-
-    // Display product descriptions
-    displayProductDescriptions();
-
-    // Display enhanced products
-    displayEnhancedProducts();
-
-    // Display ads
-    displayCategoryAds();
 }
 
 // ========== PRODUCT BANNERS SYSTEM ==========
