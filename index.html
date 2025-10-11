@@ -100,14 +100,48 @@
                     </div>
                 </div>
 
-                <!-- Ads Section -->
-                <div id="adsSection" class="ads-container">
-                    <!-- Active ads will be loaded here -->
-                </div>
-
                 <!-- Categories -->
                 <div id="categoriesContainer" class="categories-container">
                     <!-- Categories will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Products Page (Enhanced System) -->
+            <div id="productsPage" class="page">
+                <div class="products-header">
+                    <button class="back-btn" onclick="goBackToHome()">
+                        <span class="back-icon">◀</span>
+                        <span>Back</span>
+                    </button>
+                    <div class="current-category-info">
+                        <img id="currentCategoryIcon" src="" alt="Category">
+                        <h2 id="currentCategoryName">Products</h2>
+                    </div>
+                </div>
+
+                <!-- Product Page Banners -->
+                <div class="product-banners" id="productBanners">
+                    <div class="product-banner-container" id="productBannerContainer">
+                        <!-- Product page specific banners -->
+                    </div>
+                    <div class="product-banner-pagination" id="productBannerPagination">
+                        <!-- Pagination for product banners -->
+                    </div>
+                </div>
+
+                <!-- Product Description Section -->
+                <div class="product-descriptions" id="productDescriptions">
+                    <!-- Rich text descriptions for this category -->
+                </div>
+
+                <!-- Products Grid -->
+                <div class="products-grid" id="productsGrid">
+                    <!-- Enhanced products will be loaded here -->
+                </div>
+
+                <!-- Ads Section -->
+                <div class="ads-section" id="adsSection">
+                    <!-- Admin-configured ads will be displayed here -->
                 </div>
             </div>
 
@@ -127,7 +161,7 @@
                 </div>
             </div>
 
-            <!-- Mi Page (Profile) -->
+            <!-- Mi Page -->
             <div id="miPage" class="page">
                 <h2 class="page-title">My Account</h2>
                 <div class="profile-container">
@@ -183,7 +217,17 @@
         </nav>
     </div>
 
-    <!-- Purchase Modal -->
+    <!-- Enhanced Product Details Modal -->
+    <div id="productDetailsModal" class="modal">
+        <div class="modal-content product-modal">
+            <span class="close-modal" onclick="closeProductDetails()">&times;</span>
+            <div id="productDetailsContent">
+                <!-- Enhanced product details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Purchase Modal (Updated) -->
     <div id="purchaseModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closePurchaseModal()">&times;</span>
@@ -194,81 +238,13 @@
         </div>
     </div>
 
-    <!-- Payment Modal -->
+    <!-- Payment Modal (Enhanced) -->
     <div id="paymentModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closePaymentModal()">&times;</span>
             <h2>Select Payment Method</h2>
             <div id="paymentContent">
                 <!-- Payment methods will be loaded here -->
-            </div>
-            <div id="paymentDetails" class="payment-details" style="display: none;">
-                <!-- Payment details will be shown here -->
-            </div>
-            <div class="order-summary" id="orderSummary" style="display: none;">
-                <!-- Order summary will be shown here -->
-            </div>
-            <div class="form-group" id="transactionIdGroup" style="display: none;">
-                <label>Transaction ID (Screenshot/Receipt)</label>
-                <input type="text" id="transactionId" placeholder="Enter transaction ID or upload receipt">
-            </div>
-            <button id="submitOrderBtn" class="btn-primary" onclick="submitOrder()" style="display: none;">Submit Order</button>
-        </div>
-    </div>
-
-    <!-- Enhanced Product Modal -->
-    <div id="enhancedProductModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeEnhancedProductModal()">&times;</span>
-            <h2>Product Details</h2>
-            <div id="enhancedProductContent">
-                <!-- Enhanced product details will be loaded here -->
-                <div class="enhanced-product-gallery" id="productGallery">
-                    <!-- Media gallery will be loaded here -->
-                </div>
-                <div class="enhanced-product-navigation" id="productNavigation">
-                    <!-- Navigation controls will be loaded here -->
-                </div>
-                <div class="enhanced-product-info" id="productInfo">
-                    <!-- Product information will be loaded here -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Order Details Modal -->
-    <div id="orderModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeOrderModal()">&times;</span>
-            <h2>Order Details</h2>
-            <div id="orderContent">
-                <!-- Order details will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Video Tutorial Modal -->
-    <div id="videoModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeVideoModal()">&times;</span>
-            <h2>Tutorial Video</h2>
-            <div id="videoContent">
-                <!-- Video content will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div id="confirmationModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closeConfirmationModal()">&times;</span>
-            <h2>Confirm Action</h2>
-            <div id="confirmationContent">
-                <p id="confirmationMessage">Are you sure you want to perform this action?</p>
-                <div class="modal-actions">
-                    <button id="confirmYes" class="btn-primary">Yes</button>
-                    <button id="confirmNo" class="btn-secondary" onclick="closeConfirmationModal()">No</button>
-                </div>
             </div>
         </div>
     </div>
@@ -278,11 +254,6 @@
 
     <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Main Application Script -->
     <script src="index.js"></script>
-    
-    <!-- Panel Functions (if needed) -->
-    <script src="panel.js"></script>
 </body>
 </html>
