@@ -1,258 +1,215 @@
-
 <!DOCTYPE html>
 <html lang="my">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gaming Store</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gaming Store - Your Premium Gaming Shop</title>
     <link rel="stylesheet" href="index.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Database Connection Status -->
-    <div id="connectionStatus" class="connection-status">
-        <div class="connection-indicator">
-            <span class="status-icon">⚡</span>
-            <span class="status-text">Connecting to database...</span>
-        </div>
-    </div>
-
-    <!-- Dynamic Background Container -->
-    <div id="dynamicBackground" class="dynamic-background"></div>
-
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
-        <div class="loading-animation" id="loadingAnimation">
-            <div class="spinner"></div>
-            <p>Loading...</p>
+        <div class="loading-content">
+            <div class="loading-animation">
+                <div class="spinner"></div>
+                <div class="loading-text">LOADING</div>
+            </div>
         </div>
     </div>
 
     <!-- Auth Container -->
-    <div id="authContainer" class="auth-container">
-        <div class="auth-box">
+    <div id="authContainer" class="auth-container hidden">
+        <!-- Login Form -->
+        <div id="loginForm" class="auth-form">
             <div class="auth-header">
-                <img id="authLogo" src="" alt="Logo" class="auth-logo" style="display:none;">
-                <h1 id="authWebsiteName">Gaming Store</h1>
+                <div class="logo-container">
+                    <img id="authLogo" src="" alt="Logo" class="auth-logo">
+                    <h1 id="authWebsiteName" class="website-name">GAMING STORE</h1>
+                </div>
+                <h2 class="auth-title">SIGN IN</h2>
+                <p class="auth-subtitle">Access your gaming account</p>
             </div>
-
-            <!-- Login Form -->
-            <div id="loginForm" class="auth-form active">
-                <h2>Login</h2>
-                <div class="form-group">
-                    <input type="email" id="loginEmail" placeholder="Gmail" required>
+            <div class="auth-body">
+                <div class="input-group">
+                    <label for="loginEmail">EMAIL</label>
+                    <input type="email" id="loginEmail" placeholder="Enter your email" required>
                 </div>
-                <div class="form-group">
-                    <input type="password" id="loginPassword" placeholder="Password" required>
+                <div class="input-group">
+                    <label for="loginPassword">PASSWORD</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password" required>
                 </div>
-                <div class="error-message" id="loginError"></div>
-                <button onclick="handleLogin()" class="btn-primary">Login</button>
-                <p class="auth-switch">Don't have an account? <span onclick="showSignup()">Sign Up</span></p>
+                <button id="loginBtn" class="btn-primary">LOGIN</button>
+                <p class="auth-switch">Don't have an account? <span id="showSignup">Sign Up</span></p>
             </div>
+        </div>
 
-            <!-- Signup Form -->
-            <div id="signupForm" class="auth-form">
-                <h2>Sign Up</h2>
-                <div class="form-group">
-                    <input type="text" id="signupName" placeholder="Full Name" required>
+        <!-- Signup Form -->
+        <div id="signupForm" class="auth-form hidden">
+            <div class="auth-header">
+                <div class="logo-container">
+                    <img id="authLogoSignup" src="" alt="Logo" class="auth-logo">
+                    <h1 id="authWebsiteNameSignup" class="website-name">GAMING STORE</h1>
                 </div>
-                <div class="form-group">
-                    <input type="text" id="signupUsername" placeholder="Username" required>
+                <h2 class="auth-title">CREATE ACCOUNT</h2>
+                <p class="auth-subtitle">Join the gaming community</p>
+            </div>
+            <div class="auth-body">
+                <div class="input-group">
+                    <label for="signupName">NAME</label>
+                    <input type="text" id="signupName" placeholder="Enter your name" required>
                 </div>
-                <div class="form-group">
-                    <input type="email" id="signupEmail" placeholder="Gmail" required>
+                <div class="input-group">
+                    <label for="signupUsername">USERNAME</label>
+                    <input type="text" id="signupUsername" placeholder="Choose a username" required>
                 </div>
-                <div class="form-group">
-                    <input type="password" id="signupPassword" placeholder="Password" required>
+                <div class="input-group">
+                    <label for="signupEmail">EMAIL</label>
+                    <input type="email" id="signupEmail" placeholder="Enter your email" required>
                 </div>
-                <div class="form-group checkbox-group">
-                    <input type="checkbox" id="termsCheckbox" required>
-                    <label for="termsCheckbox">I agree to the Terms and Conditions</label>
+                <div class="input-group">
+                    <label for="signupPassword">PASSWORD</label>
+                    <input type="password" id="signupPassword" placeholder="Create a password" required>
                 </div>
-                <div class="error-message" id="signupError"></div>
-                <button onclick="handleSignup()" class="btn-primary">Sign Up</button>
-                <p class="auth-switch">Already have an account? <span onclick="showLogin()">Login</span></p>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="agreeTerms">
+                    <label for="agreeTerms">I agree to the Terms and Conditions</label>
+                </div>
+                <button id="signupBtn" class="btn-primary">CREATE ACCOUNT</button>
+                <p class="auth-switch">Already have an account? <span id="showLogin">Sign In</span></p>
             </div>
         </div>
     </div>
 
     <!-- Main App Container -->
-    <div id="appContainer" class="app-container" style="display: none;">
-        <!-- Header -->
-        <header class="app-header">
-            <img id="appLogo" src="" alt="Logo" class="header-logo" style="display:none;">
-            <h1 id="appWebsiteName">Gaming Store</h1>
-        </header>
+    <div id="appContainer" class="app-container hidden">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <img id="appLogo" src="" alt="Logo" class="app-logo">
+            <h1 id="appWebsiteName" class="app-name">GAMING STORE</h1>
+        </div>
 
         <!-- Content Pages -->
-        <div class="content-wrapper">
+        <div class="content-container">
             <!-- Home Page -->
             <div id="homePage" class="page active">
                 <!-- Banners -->
-                <div class="banner-section" id="bannerSection">
-                    <div class="banner-container" id="bannerContainer">
-                        <!-- Banners will be loaded here -->
-                    </div>
-                    <div class="banner-pagination" id="bannerPagination">
-                        <!-- Pagination dots will be loaded here -->
-                    </div>
-                </div>
-
+                <div id="bannersContainer" class="banners-container"></div>
+                
                 <!-- Categories -->
-                <div id="categoriesContainer" class="categories-container">
-                    <!-- Categories will be loaded here -->
-                </div>
-            </div>
-
-            <!-- Products Page (Enhanced System) -->
-            <div id="productsPage" class="page">
-                <div class="products-header">
-                    <button class="back-btn" onclick="goBackToHome()">
-                        <span class="back-icon">◀</span>
-                        <span>Back</span>
-                    </button>
-                    <div class="current-category-info">
-                        <img id="currentCategoryIcon" src="" alt="Category">
-                        <h2 id="currentCategoryName">Products</h2>
-                    </div>
-                </div>
-
-                <!-- Product Page Banners -->
-                <div class="product-banners" id="productBanners">
-                    <div class="product-banner-container" id="productBannerContainer">
-                        <!-- Product page specific banners -->
-                    </div>
-                    <div class="product-banner-pagination" id="productBannerPagination">
-                        <!-- Pagination for product banners -->
-                    </div>
-                </div>
-
-                <!-- Product Description Section -->
-                <div class="product-descriptions" id="productDescriptions">
-                    <!-- Rich text descriptions for this category -->
-                </div>
-
-                <!-- Products Grid -->
-                <div class="products-grid" id="productsGrid">
-                    <!-- Enhanced products will be loaded here -->
-                </div>
-
-                <!-- Ads Section -->
-                <div class="ads-section" id="adsSection">
-                    <!-- Admin-configured ads will be displayed here -->
-                </div>
+                <div id="categoriesContainer" class="categories-container"></div>
             </div>
 
             <!-- History Page -->
             <div id="historyPage" class="page">
-                <h2 class="page-title">Order History</h2>
-                <div id="historyContainer" class="history-container">
-                    <!-- Orders will be loaded here -->
+                <div class="page-header">
+                    <h2>ORDER HISTORY</h2>
                 </div>
+                <div id="ordersContainer" class="orders-container"></div>
             </div>
 
             <!-- Contacts Page -->
             <div id="contactsPage" class="page">
-                <h2 class="page-title">Contact Us</h2>
-                <div id="contactsContainer" class="contacts-container">
-                    <!-- Contacts will be loaded here -->
+                <div class="page-header">
+                    <h2>CONTACTS</h2>
                 </div>
+                <div id="contactsContainer" class="contacts-container"></div>
             </div>
 
             <!-- Mi Page -->
             <div id="miPage" class="page">
-                <h2 class="page-title">My Account</h2>
+                <div class="page-header">
+                    <h2>MY PROFILE</h2>
+                </div>
                 <div class="profile-container">
-                    <div class="profile-avatar" id="profileAvatar"></div>
+                    <div class="profile-image-container">
+                        <img id="profileImage" src="" alt="Profile">
+                    </div>
                     <div class="profile-info">
-                        <div class="form-group">
-                            <label>Name</label>
+                        <div class="input-group">
+                            <label>NAME</label>
                             <input type="text" id="profileName" readonly>
+                            <button class="btn-edit" onclick="editField('name')">EDIT</button>
                         </div>
-                        <div class="form-group">
-                            <label>Username</label>
+                        <div class="input-group">
+                            <label>USERNAME</label>
                             <input type="text" id="profileUsername" readonly>
+                            <button class="btn-edit" onclick="editField('username')">EDIT</button>
                         </div>
-                        <div class="form-group">
-                            <label>Gmail</label>
+                        <div class="input-group">
+                            <label>EMAIL</label>
                             <input type="email" id="profileEmail" readonly>
+                            <button class="btn-edit" onclick="editField('email')">EDIT</button>
                         </div>
-                        <div class="form-group">
-                            <label>Current Password</label>
-                            <input type="password" id="currentPassword" placeholder="Enter current password">
+                        <div class="input-group">
+                            <label>CHANGE PASSWORD</label>
+                            <input type="password" id="currentPassword" placeholder="Current Password">
+                            <input type="password" id="newPassword" placeholder="New Password">
+                            <button class="btn-primary" onclick="changePassword()">UPDATE PASSWORD</button>
                         </div>
-                        <div class="form-group">
-                            <label>New Password</label>
-                            <input type="password" id="newPassword" placeholder="Enter new password">
-                        </div>
-                        <div class="error-message" id="profileError"></div>
-                        <div class="success-message" id="profileSuccess"></div>
-                        <button onclick="updateProfile()" class="btn-primary">Save Changes</button>
-                        <button onclick="handleLogout()" class="btn-secondary">Logout</button>
+                        <button class="btn-logout" onclick="logout()">LOGOUT</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- Category Detail Page -->
+            <div id="categoryDetailPage" class="page">
+                <div class="page-header">
+                    <button class="btn-back" onclick="goBack()">← BACK</button>
+                    <h2 id="categoryDetailTitle"></h2>
+                </div>
+                <div id="categoryBannersContainer" class="banners-container"></div>
+                <div id="productTablesContainer" class="product-tables-container"></div>
+                <div id="menuItemsContainer" class="menu-items-container"></div>
+                <div id="productsContainer" class="products-container"></div>
+                <div id="youtubeVideosContainer" class="youtube-videos-container"></div>
+            </div>
+
+            <!-- Product Detail Page -->
+            <div id="productDetailPage" class="page">
+                <div class="page-header">
+                    <button class="btn-back" onclick="goBackToCategory()">← BACK</button>
+                    <h2 id="productDetailTitle"></h2>
+                </div>
+                <div id="productDetailContainer" class="product-detail-container"></div>
+            </div>
+
+            <!-- Checkout Page -->
+            <div id="checkoutPage" class="page">
+                <div class="page-header">
+                    <button class="btn-back" onclick="goBackToProduct()">← BACK</button>
+                    <h2>CHECKOUT</h2>
+                </div>
+                <div id="checkoutContainer" class="checkout-container"></div>
             </div>
         </div>
 
         <!-- Bottom Navigation -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" data-page="home" onclick="switchPage('home')">
-                <img src="https://spurpwnaeacgwojfpaem.supabase.co/storage/v1/object/public/website-assets/logos/home.png" alt="Home">
+        <div class="bottom-nav">
+            <div class="nav-item active" data-page="homePage">
+                <img src="https://qcbzxalqpcppiorffpas.supabase.co/storage/v1/object/public/website-assets/logos/home.png" alt="Home">
                 <span>Home</span>
-            </button>
-            <button class="nav-item" data-page="history" onclick="switchPage('history')">
-                <img src="https://spurpwnaeacgwojfpaem.supabase.co/storage/v1/object/public/website-assets/logos/history.png" alt="History">
+            </div>
+            <div class="nav-item" data-page="historyPage">
+                <img src="https://qcbzxalqpcppiorffpas.supabase.co/storage/v1/object/public/website-assets/logos/history.png" alt="History">
                 <span>History</span>
-            </button>
-            <button class="nav-item" data-page="contacts" onclick="switchPage('contacts')">
-                <img src="https://spurpwnaeacgwojfpaem.supabase.co/storage/v1/object/public/website-assets/logos/contacts.png" alt="Contacts">
+            </div>
+            <div class="nav-item" data-page="contactsPage">
+                <img src="https://qcbzxalqpcppiorffpas.supabase.co/storage/v1/object/public/website-assets/logos/contacts.png" alt="Contacts">
                 <span>Contacts</span>
-            </button>
-            <button class="nav-item" data-page="mi" onclick="switchPage('mi')">
-                <img src="https://spurpwnaeacgwojfpaem.supabase.co/storage/v1/object/public/website-assets/logos/mi.png" alt="Mi">
+            </div>
+            <div class="nav-item" data-page="miPage">
+                <img src="https://qcbzxalqpcppiorffpas.supabase.co/storage/v1/object/public/website-assets/logos/mi.png" alt="Mi">
                 <span>Mi</span>
-            </button>
-        </nav>
-    </div>
-
-    <!-- Enhanced Product Details Modal -->
-    <div id="productDetailsModal" class="modal">
-        <div class="modal-content product-modal">
-            <span class="close-modal" onclick="closeProductDetails()">&times;</span>
-            <div id="productDetailsContent">
-                <!-- Enhanced product details will be loaded here -->
             </div>
         </div>
     </div>
 
-    <!-- Purchase Modal (Updated) -->
-    <div id="purchaseModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closePurchaseModal()">&times;</span>
-            <h2>Purchase Item</h2>
-            <div id="purchaseContent">
-                <!-- Purchase form will be loaded here -->
-            </div>
-        </div>
-    </div>
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 
-    <!-- Payment Modal (Enhanced) -->
-    <div id="paymentModal" class="modal">
-        <div class="modal-content">
-            <span class="close-modal" onclick="closePaymentModal()">&times;</span>
-            <h2>Select Payment Method</h2>
-            <div id="paymentContent">
-                <!-- Payment methods will be loaded here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notifications Container -->
-    <div id="toastContainer" class="toast-container"></div>
-
-    <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="index.js"></script>
 </body>
