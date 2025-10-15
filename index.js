@@ -91,7 +91,6 @@ async function handleLogin() {
     
     showLoading();
     
-    // Check if user exists
     const { data: user, error } = await supabase
         .from('users')
         .select('*')
@@ -104,7 +103,6 @@ async function handleLogin() {
         return;
     }
     
-    // Check password (plain text comparison)
     if (user.password !== password) {
         hideLoading();
         showToast('စကားဝှက် မှားယွင်းနေပါတယ်', 'error');
@@ -164,17 +162,15 @@ async function handleSignup() {
         return;
     }
     
-    // Generate unique profile image
     const profileImage = `https://api.dicebear.com/7.x/avataaars/svg?seed=${username}${Date.now()}`;
     
-    // Create user (password stored as plain text)
     const { data: newUser, error } = await supabase
         .from('users')
         .insert([{
             name,
             username,
             email,
-            password, // Plain text password
+            password,
             profile_image: profileImage
         }])
         .select()
@@ -233,7 +229,6 @@ async function loadSettings() {
     if (settings) {
         websiteSettings = settings;
         
-        // Update logos and names
         const logos = document.querySelectorAll('#authLogo, #authLogoSignup, #appLogo');
         logos.forEach(logo => {
             if (settings.website_logo) {
@@ -246,7 +241,6 @@ async function loadSettings() {
             name.textContent = settings.website_name || 'GAMING STORE';
         });
         
-        // Update background
         if (settings.background_image) {
             document.querySelector('.app-container').style.backgroundImage = `url(${settings.background_image})`;
             document.querySelector('.app-container').style.backgroundSize = 'cover';
@@ -310,7 +304,6 @@ async function loadBanners() {
         container.innerHTML = '';
         container.appendChild(slider);
         
-        // Auto-scroll every 5 seconds
         setInterval(() => {
             currentIndex = (currentIndex + 1) % banners.length;
             slider.style.transform = `translateX(-${currentIndex * 100}%)`;
@@ -416,7 +409,7 @@ async function openCategory(buttonCategoryId, categoryTitle) {
         bannersContainer.innerHTML = '';
     }
     
-    // Load product tables (input fields)
+    // Load product tables
     const { data: tables } = await supabase
         .from('product_tables')
         .select('*')
@@ -459,7 +452,6 @@ async function openCategory(buttonCategoryId, categoryTitle) {
                 `;
             }).join('');
         
-        // Add buy button for menu items
         menuContainer.innerHTML += `
             <div class="buy-button-container">
                 <button class="btn-buy" onclick="proceedToCheckoutMenuItem()">ဝယ်ယူမည်</button>
@@ -547,7 +539,6 @@ async function selectMenuItem(itemId) {
     
     if (item) {
         selectedMenuItem = item;
-        // Refresh menu items display
         await openCategory(currentButtonCategory, document.getElementById('categoryDetailTitle').textContent);
     }
 }
@@ -686,7 +677,7 @@ async function proceedToCheckoutProduct() {
 }
 
 // ============================================
-// CHECKOUT PROCESS
+// CHECKOUT PROCESS (FIXED)
 // ============================================
 
 async function showCheckout() {
@@ -696,14 +687,17 @@ async function showCheckout() {
         ? currentProduct.price - (currentProduct.price * (currentProduct.discount_percentage / 100))
         : currentProduct.price;
     
-    // Get payment methods for this product
+    // Parse payment method IDs from product
     let paymentMethodIds = [];
     try {
-        paymentMethodIds = JSON.parse(currentProduct.payment_methods || '[]');
+        const parsed = JSON.parse(currentProduct.payment_methods || '[]');
+        paymentMethodIds = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
+        console.error('Error parsing payment methods:', e);
         paymentMethodIds = [];
     }
     
+    // Get ONLY the payment methods that admin selected for this product
     let paymentMethods = [];
     if (paymentMethodIds.length > 0) {
         const { data } = await supabase
@@ -713,10 +707,31 @@ async function showCheckout() {
         paymentMethods = data || [];
     }
     
+    // Get contacts if this is a detailed product
+    let contactMethods = [];
+    if (currentProduct.type === 'product' && currentProduct.contacts) {
+        let contactIds = [];
+        try {
+            const parsed = JSON.parse(currentProduct.contacts || '[]');
+            contactIds = Array.isArray(parsed) ? parsed : [];
+        } catch (e) {
+            console.error('Error parsing contacts:', e);
+        }
+        
+        if (contactIds.length > 0) {
+            const { data } = await supabase
+                .from('contacts')
+                .select('*')
+                .in('id', contactIds);
+            contactMethods = data || [];
+        }
+    }
+    
     const container = document.getElementById('checkoutContainer');
     
     container.innerHTML = `
         <div class="checkout">
+            <!-- Order Summary -->
             <div class="checkout-summary">
                 <h3>အော်ဒါ အချက်အလက်များ</h3>
                 <div class="summary-item">
@@ -725,7 +740,7 @@ async function showCheckout() {
                 </div>
                 <div class="summary-item">
                     <span>စျေးနှုန်း:</span>
-                    <span>${price.toFixed(0)} ${currentProduct.currency}</span>
+                    <span class="highlight-price">${price.toFixed(0)} ${currentProduct.currency}</span>
                 </div>
                 ${Object.keys(tableData).length > 0 ? `
                     <div class="summary-section">
@@ -740,14 +755,34 @@ async function showCheckout() {
                 ` : ''}
             </div>
             
+            <!-- Contact Methods (if available) -->
+            ${contactMethods.length > 0 ? `
+                <div class="contact-methods-section">
+                    <h3>🔗 ဆက်သွယ်ရန်</h3>
+                    <p class="help-text">လိုအပ်ပါက အောက်ပါနည်းလမ်းများဖြင့် ဆက်သွယ်နိုင်ပါသည်</p>
+                    <div class="contact-methods-grid">
+                        ${contactMethods.map(contact => `
+                            <div class="contact-method-card" ${contact.link ? `onclick="window.open('${contact.link}', '_blank')"` : ''}>
+                                ${contact.icon_url ? `<img src="${contact.icon_url}" alt="${contact.name}" class="contact-method-icon">` : ''}
+                                <div class="contact-method-name">${contact.name}</div>
+                                ${contact.description ? `<div class="contact-method-desc">${contact.description}</div>` : ''}
+                                ${contact.link ? `<div class="contact-method-action">ဆက်သွယ်ရန် →</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Payment Methods -->
             <div class="payment-section">
-                <h3>ငွေပေးချေမှု နည်းလမ်း ရွေးချယ်ပါ</h3>
+                <h3>💳 ငွေပေးချေမှု နည်းလမ်း ရွေးချယ်ပါ</h3>
                 ${paymentMethods.length > 0 ? `
+                    <p class="help-text">Admin က ခွင့်ပြုထားသော ငွေပေးချေမှု နည်းလမ်းများ</p>
                     <div class="payment-methods-list">
                         ${paymentMethods.map(pm => `
-                            <div class="payment-method-item" onclick="selectPaymentMethod('${pm.id}')">
+                            <div class="payment-method-item" onclick="selectPaymentMethod('${pm.id}', '${pm.name}', '${pm.address}', '${pm.instructions || ''}', '${pm.icon_url || ''}')">
                                 <input type="radio" name="payment" id="payment-${pm.id}">
-                                ${pm.icon_url ? `<img src="${pm.icon_url}" alt="${pm.name}">` : ''}
+                                ${pm.icon_url ? `<img src="${pm.icon_url}" alt="${pm.name}" class="payment-method-icon">` : ''}
                                 <div class="payment-info">
                                     <strong>${pm.name}</strong>
                                 </div>
@@ -755,21 +790,31 @@ async function showCheckout() {
                         `).join('')}
                     </div>
                     
+                    <!-- Payment Details (shown when payment method selected) -->
                     <div id="paymentDetails" class="payment-details hidden">
-                        <!-- Payment details will be shown here -->
+                        <!-- Will be populated when payment method is selected -->
                     </div>
                     
+                    <!-- Transaction Code Input -->
                     <div class="transaction-input hidden" id="transactionInput">
-                        <h4>လုပ်ငန်းစဥ် အမှတ် (နောက်ဆုံး ဂဏန်း 6 လုံး)</h4>
-                        <input type="text" id="transactionCode" placeholder="xxxxxx" maxlength="6" pattern="[0-9]{6}">
-                        <small>ငွေလွဲပြီးနောက် လုပ်ငန်းစဥ်အမှတ်၏ နောက်ဆုံး ဂဏန်း 6 လုံးကို ရိုက်ထည့်ပါ</small>
+                        <h4>📝 လုပ်ငန်းစဥ် အမှတ် (နောက်ဆုံး ဂဏန်း 6 လုံး)</h4>
+                        <input type="text" id="transactionCode" placeholder="XXXXXX" maxlength="6" pattern="[0-9]{6}">
+                        <small>💡 ငွေလွဲပြီးနောက် Transaction ID ၏ နောက်ဆုံး ဂဏန်း 6 လုံးကို ရိုက်ထည့်ပါ</small>
+                        <div class="transaction-example">
+                            <strong>ဥပမာ:</strong> Transaction ID: 1234567890123456 → <span class="example-code">123456</span> ဟု ရိုက်ထည့်ပါ
+                        </div>
                     </div>
                     
+                    <!-- Submit Button -->
                     <button class="btn-submit-order hidden" id="submitOrderBtn" onclick="submitOrder()">
-                        မှာယူမှု အတည်ပြုမည်
+                        ✅ မှာယူမှု အတည်ပြုမည်
                     </button>
                 ` : `
-                    <p class="no-payment-methods">ငွေပေးချေမှု နည်းလမ်းများ မရှိသေးပါ</p>
+                    <div class="no-payment-methods">
+                        <div class="alert-icon">⚠️</div>
+                        <p>ဤပစ္စည်းအတွက် ငွေပေးချေမှု နည်းလမ်းများ မရှိသေးပါ</p>
+                        <p class="sub-text">Admin ထံ ဆက်သွယ်ပါ</p>
+                    </div>
                 `}
             </div>
         </div>
@@ -779,7 +824,8 @@ async function showCheckout() {
     navigateToPage('checkoutPage');
 }
 
-async function selectPaymentMethod(paymentId) {
+async function selectPaymentMethod(paymentId, name, address, instructions, iconUrl) {
+    // Get full payment method details
     const { data: payment } = await supabase
         .from('payment_methods')
         .select('*')
@@ -800,46 +846,97 @@ async function selectPaymentMethod(paymentId) {
     // Show payment details
     const detailsDiv = document.getElementById('paymentDetails');
     detailsDiv.classList.remove('hidden');
+    
+    const price = currentProduct.type === 'product' 
+        ? currentProduct.price - (currentProduct.price * (currentProduct.discount_percentage / 100))
+        : currentProduct.price;
+    
     detailsDiv.innerHTML = `
-        <h4>ငွေလွဲရမည့် အချက်အလက်များ</h4>
-        ${payment.icon_url ? `<img src="${payment.icon_url}" alt="${payment.name}" class="payment-detail-icon">` : ''}
-        <div class="payment-detail-item">
-            <strong>Payment Method:</strong>
-            <span>${payment.name}</span>
-        </div>
-        <div class="payment-detail-item">
-            <strong>လိပ်စာ/နံပါတ်:</strong>
-            <span class="payment-address">${payment.address}</span>
-        </div>
-        ${payment.instructions ? `
-            <div class="payment-instructions">
-                <strong>လမ်းညွှန်ချက်:</strong>
-                <p>${payment.instructions}</p>
+        <div class="payment-details-card">
+            <h4>💰 ငွေလွဲရမည့် အချက်အလက်များ</h4>
+            
+            ${payment.icon_url ? `
+                <div class="payment-detail-icon-wrapper">
+                    <img src="${payment.icon_url}" alt="${payment.name}" class="payment-detail-icon">
+                </div>
+            ` : ''}
+            
+            <div class="payment-detail-item">
+                <strong>Payment Method:</strong>
+                <span class="payment-method-name">${payment.name}</span>
             </div>
-        ` : ''}
-        <div class="payment-amount">
-            <strong>ပေးချေရမည့် ပမာဏ:</strong>
-            <span class="amount">${currentProduct.type === 'product' 
-                ? (currentProduct.price - (currentProduct.price * (currentProduct.discount_percentage / 100))).toFixed(0)
-                : currentProduct.price} ${currentProduct.currency}</span>
+            
+            <div class="payment-detail-item highlight">
+                <strong>📱 လိပ်စာ/နံပါတ်:</strong>
+                <span class="payment-address">${payment.address}</span>
+                <button class="btn-copy" onclick="copyToClipboard('${payment.address}')">📋 Copy</button>
+            </div>
+            
+            ${payment.instructions ? `
+                <div class="payment-instructions">
+                    <strong>📌 လမ်းညွှန်ချက်:</strong>
+                    <p>${payment.instructions}</p>
+                </div>
+            ` : ''}
+            
+            <div class="payment-amount">
+                <strong>ပေးချေရမည့် ပမာဏ:</strong>
+                <span class="amount">${price.toFixed(0)} ${currentProduct.currency}</span>
+            </div>
+            
+            <div class="payment-steps">
+                <h5>📋 လုပ်ဆောင်ရမည့် အဆင့်များ:</h5>
+                <ol>
+                    <li>အထက်ပါ <strong>${payment.name}</strong> အကောင့်သို့ <strong>${price.toFixed(0)} ${currentProduct.currency}</strong> လွဲပါ</li>
+                    <li>ငွေလွဲပြီးသောအခါ Transaction ID ရရှိပါမည်</li>
+                    <li>Transaction ID ၏ နောက်ဆုံး ဂဏန်း 6 လုံးကို အောက်တွင် ရိုက်ထည့်ပါ</li>
+                    <li>"မှာယူမှု အတည်ပြုမည်" ခလုတ်ကို နှိပ်ပါ</li>
+                </ol>
+            </div>
         </div>
     `;
     
-    // Show transaction input
+    // Show transaction input and submit button
     document.getElementById('transactionInput').classList.remove('hidden');
     document.getElementById('submitOrderBtn').classList.remove('hidden');
+    
+    // Focus on transaction input
+    setTimeout(() => {
+        document.getElementById('transactionCode').focus();
+    }, 300);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 Copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
 }
 
 async function submitOrder() {
     if (!selectedPaymentMethod) {
-        showToast('ငွေပေးချေမှု နည်းလမ်း ရွေးချယ်ပါ', 'error');
+        showToast('❌ ငွေပေးချေမှု နည်းလမ်း ရွေးချယ်ပါ', 'error');
         return;
     }
     
     const transactionCode = document.getElementById('transactionCode').value.trim();
     
-    if (!transactionCode || transactionCode.length !== 6) {
-        showToast('လုပ်ငန်းစဥ်အမှတ် ဂဏန်း 6 လုံး ရိုက်ထည့်ပါ', 'error');
+    if (!transactionCode) {
+        showToast('❌ လုပ်ငန်းစဥ်အမှတ် ရိုက်ထည့်ပါ', 'error');
+        document.getElementById('transactionCode').focus();
+        return;
+    }
+    
+    if (transactionCode.length !== 6) {
+        showToast('❌ လုပ်ငန်းစဥ်အမှတ် ဂဏန်း 6 လုံး ရိုက်ထည့်ပါ', 'error');
+        document.getElementById('transactionCode').focus();
+        return;
+    }
+    
+    if (!/^\d{6}$/.test(transactionCode)) {
+        showToast('❌ ဂဏန်းများသာ ရိုက်ထည့်ပါ', 'error');
+        document.getElementById('transactionCode').focus();
         return;
     }
     
@@ -876,7 +973,7 @@ async function submitOrder() {
     
     if (error) {
         console.error(error);
-        showToast('မှာယူမှု မအောင်မြင်ပါ', 'error');
+        showToast('❌ မှာယူမှု မအောင်မြင်ပါ', 'error');
         return;
     }
     
@@ -887,7 +984,7 @@ async function submitOrder() {
     tableData = {};
     
     // Show success message
-    showToast('Thinks You Order Please Wait 30 မိနစ်', 'success');
+    showToast('✅ Thanks You! Order Please Wait 30 မိနစ်', 'success');
     
     // Navigate to history
     await loadHistory();
@@ -919,8 +1016,8 @@ async function loadHistory() {
             <div class="order-card">
                 <span class="order-status ${order.status}">
                     ${order.status === 'pending' ? '⏳ စိစစ်နေဆဲ' : 
-                      order.status === 'approved' ? '✓ အတည်ပြုပြီး' : 
-                      '✗ ငြင်းဆိုခံရသည်'}
+                      order.status === 'approved' ? '✅ အတည်ပြုပြီး' : 
+                      '❌ ငြင်းဆိုခံရသည်'}
                 </span>
                 <div class="order-id">Order #${order.id.substring(0, 8).toUpperCase()}</div>
                 <div class="order-product-name">${order.product_name}</div>
@@ -928,23 +1025,24 @@ async function loadHistory() {
                 
                 ${Object.keys(tableData).length > 0 ? `
                     <div class="order-table-data">
+                        <strong>📝 ဖြည့်စွက်ထားသော အချက်အလက်:</strong>
                         ${Object.entries(tableData).map(([key, value]) => `
-                            <div><strong>${key}:</strong> ${value}</div>
+                            <div>• <strong>${key}:</strong> ${value}</div>
                         `).join('')}
                     </div>
                 ` : ''}
                 
                 <div class="order-payment">
-                    <strong>Payment:</strong> ${order.payment_address}
+                    <strong>💳 Payment:</strong> ${order.payment_address}
                 </div>
                 <div class="order-transaction">
-                    <strong>Transaction:</strong> ${order.transaction_code}
+                    <strong>🔢 Transaction:</strong> ${order.transaction_code}
                 </div>
-                <div class="order-date">${new Date(order.created_at).toLocaleString('my-MM')}</div>
+                <div class="order-date">📅 ${new Date(order.created_at).toLocaleString('my-MM')}</div>
                 
                 ${order.admin_note ? `
                     <div class="order-note">
-                        <strong>Admin မှတ်ချက်:</strong>
+                        <strong>📌 Admin မှတ်ချက်:</strong>
                         <p>${order.admin_note}</p>
                     </div>
                 ` : ''}
@@ -1004,7 +1102,6 @@ async function editField(field) {
             return;
         }
         
-        // Check for duplicates if username or email
         if (field === 'username') {
             const { data } = await supabase
                 .from('users')
@@ -1100,16 +1197,13 @@ async function changePassword() {
 // ============================================
 
 function navigateToPage(pageId) {
-    // Hide all pages
     document.querySelectorAll('.page').forEach(page => {
         page.classList.remove('active');
     });
     
-    // Show selected page with animation
     const targetPage = document.getElementById(pageId);
     targetPage.classList.add('active');
     
-    // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
         if (item.dataset.page === pageId) {
@@ -1117,7 +1211,6 @@ function navigateToPage(pageId) {
         }
     });
     
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1160,7 +1253,7 @@ function showToast(message, type = 'success') {
 }
 
 // ============================================
-// AUTO REFRESH ORDERS (Every 30 seconds)
+// AUTO REFRESH ORDERS
 // ============================================
 
 setInterval(async () => {
@@ -1170,7 +1263,7 @@ setInterval(async () => {
 }, 30000);
 
 // ============================================
-// PREVENT BACK BUTTON AFTER LOGOUT
+// PREVENT BACK AFTER LOGOUT
 // ============================================
 
 window.addEventListener('popstate', function(event) {
