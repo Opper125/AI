@@ -1,656 +1,758 @@
-
 <!DOCTYPE html>
 <html lang="my">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
+    <title>Admin Dashboard - Gaming Store</title>
     <link rel="stylesheet" href="admin.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Loading Screen -->
     <div id="loadingScreen" class="loading-screen">
-        <div class="loading-animation">
-            <div class="spinner"></div>
-            <p>Loading Admin Panel...</p>
-        </div>
-    </div>
-
-    <!-- IP Authorization Check Screen -->
-    <div id="ipCheckScreen" class="ip-check-screen" style="display: none;">
-        <div class="ip-check-box">
-            <div class="ip-check-header">
-                <div class="ip-icon">🔐</div>
-                <h1>IP Authorization Check</h1>
-                <p id="ipCheckMessage">Checking your IP address authorization...</p>
-            </div>
-            <div class="ip-info" id="ipInfo">
-                <p><strong>Your IP Address:</strong> <span id="clientIpDisplay">Detecting...</span></p>
-                <p><strong>Status:</strong> <span id="authStatus">Checking...</span></p>
-            </div>
-            <div class="ip-actions" id="ipActions" style="display: none;">
-                <button id="requestAccessBtn" class="btn-request" onclick="requestAccess()">
-                    Request Access
-                </button>
-                <button id="continueLoginBtn" class="btn-login" onclick="showLoginForm()" style="display: none;">
-                    Continue to Login
-                </button>
-            </div>
-            <div class="waiting-approval" id="waitingApproval" style="display: none;">
-                <div class="waiting-animation">
-                    <div class="pulse"></div>
-                </div>
-                <p>Access request sent. Waiting for admin approval...</p>
-                <button onclick="checkApprovalStatus()" class="btn-secondary">Check Status</button>
+        <div class="loading-content">
+            <div class="loading-animation">
+                <div class="spinner"></div>
+                <div class="loading-text">LOADING ADMIN PANEL</div>
             </div>
         </div>
     </div>
 
     <!-- Admin Login -->
-    <div id="adminLogin" class="admin-login" style="display: none;">
-        <div class="login-box">
+    <div id="adminLogin" class="admin-login">
+        <div class="login-panel">
             <div class="login-header">
-                <div class="login-icon">🔐</div>
-                <h1>Admin Dashboard</h1>
-                <p>Enter your credentials to access the admin panel</p>
-                <div class="authorized-ip">
-                    <span class="ip-badge">✅ Authorized IP</span>
-                    <span id="authorizedIpDisplay"></span>
-                </div>
+                <div class="admin-logo">⚡</div>
+                <h1>ADMIN ACCESS</h1>
+                <p>Secure Dashboard Login</p>
             </div>
-            <form class="login-form" onsubmit="adminLogin(event)">
-                <div class="form-group">
-                    <div class="input-group">
-                        <span class="input-icon">🔒</span>
-                        <input type="password" id="adminPassword" placeholder="Enter Admin Password" required>
-                    </div>
+            <div class="login-body">
+                <div class="input-group">
+                    <label>ADMIN PASSWORD</label>
+                    <input type="password" id="adminPassword" placeholder="Enter admin password">
                 </div>
-                <div class="error-message" id="loginError"></div>
-                <button type="submit" class="btn-login">
-                    <span class="btn-text">Login</span>
-                    <span class="btn-loader"></span>
-                </button>
-            </form>
-            <div class="login-footer">
-                <p>Secure admin access with IP-based authentication</p>
+                <button id="loginBtn" class="btn-primary">ACCESS DASHBOARD</button>
             </div>
         </div>
     </div>
 
     <!-- Admin Dashboard -->
-    <div id="adminDashboard" class="admin-dashboard" style="display: none;">
+    <div id="adminDashboard" class="admin-dashboard hidden">
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <div class="sidebar">
             <div class="sidebar-header">
-                <div class="logo-section">
-                    <div class="admin-avatar">👨‍💼</div>
-                    <div class="admin-info">
-                        <h2>Admin Panel</h2>
-                        <span class="admin-status">Online</span>
-                        <div class="session-info">
-                            <small>IP: <span id="sessionIp"></span></small>
-                        </div>
-                    </div>
-                </div>
-                <button onclick="adminLogout()" class="btn-logout">
-                    <span>🚪</span>
-                    Logout
-                </button>
+                <div class="admin-logo">⚡</div>
+                <h2>ADMIN PANEL</h2>
             </div>
             <nav class="sidebar-nav">
-                <button class="nav-btn active" data-section="website-settings" onclick="switchSection('website-settings')">
-                    <span class="nav-icon">🌐</span>
-                    <span class="nav-text">Website Settings</span>
-                </button>
-                <button class="nav-btn" data-section="admin-settings" onclick="switchSection('admin-settings')">
-                    <span class="nav-icon">⚙️</span>
-                    <span class="nav-text">Admin Settings</span>
-                </button>
-                <button class="nav-btn" data-section="ip-management" onclick="switchSection('ip-management')">
-                    <span class="nav-icon">🔒</span>
-                    <span class="nav-text">IP Management</span>
-                    <span class="notification-badge" id="pendingRequestsBadge" style="display: none;"></span>
-                </button>
-                <button class="nav-btn" data-section="banners" onclick="switchSection('banners')">
-                    <span class="nav-icon">🖼️</span>
-                    <span class="nav-text">Banners</span>
-                </button>
-                <button class="nav-btn" data-section="categories" onclick="switchSection('categories')">
-                    <span class="nav-icon">📂</span>
-                    <span class="nav-text">Categories</span>
-                </button>
-                <button class="nav-btn" data-section="buttons" onclick="switchSection('buttons')">
-                    <span class="nav-icon">🎮</span>
-                    <span class="nav-text">Category Buttons</span>
-                </button>
-                <button class="nav-btn" data-section="tables" onclick="switchSection('tables')">
-                    <span class="nav-icon">📝</span>
-                    <span class="nav-text">Input Tables</span>
-                </button>
-                <button class="nav-btn" data-section="menus" onclick="switchSection('menus')">
-                    <span class="nav-icon">🛒</span>
-                    <span class="nav-text">Products (Menus)</span>
-                </button>
-                <button class="nav-btn" data-section="enhanced-products" onclick="switchSection('enhanced-products')">
-                    <span class="nav-icon">⭐</span>
-                    <span class="nav-text">Enhanced Products</span>
-                </button>
-                <button class="nav-btn" data-section="product-banners" onclick="switchSection('product-banners')">
-                    <span class="nav-icon">🎨</span>
-                    <span class="nav-text">Product Banners</span>
-                </button>
-                <button class="nav-btn" data-section="product-descriptions" onclick="switchSection('product-descriptions')">
-                    <span class="nav-icon">📄</span>
-                    <span class="nav-text">Product Descriptions</span>
-                </button>
-                <button class="nav-btn" data-section="category-ads" onclick="switchSection('category-ads')">
-                    <span class="nav-icon">📺</span>
-                    <span class="nav-text">Category Ads</span>
-                </button>
-                <button class="nav-btn" data-section="payments" onclick="switchSection('payments')">
-                    <span class="nav-icon">💳</span>
-                    <span class="nav-text">Payment Methods</span>
-                </button>
-                <button class="nav-btn" data-section="contacts" onclick="switchSection('contacts')">
-                    <span class="nav-icon">📞</span>
-                    <span class="nav-text">Contacts</span>
-                </button>
-                <button class="nav-btn" data-section="videos" onclick="switchSection('videos')">
-                    <span class="nav-icon">🎥</span>
-                    <span class="nav-text">YouTube Videos</span>
-                </button>
-                <button class="nav-btn" data-section="animations" onclick="switchSection('animations')">
-                    <span class="nav-icon">✨</span>
-                    <span class="nav-text">Animations/Stickers</span>
-                </button>
-                <button class="nav-btn" data-section="orders" onclick="switchSection('orders')">
-                    <span class="nav-icon">📦</span>
-                    <span class="nav-text">Orders</span>
-                </button>
-                <button class="nav-btn" data-section="users" onclick="switchSection('users')">
-                    <span class="nav-icon">👥</span>
-                    <span class="nav-text">Users</span>
-                </button>
+                <a href="#" class="nav-link active" data-section="dashboard">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-link" data-section="settings">
+                    <span class="icon">⚙️</span>
+                    <span>Website Settings</span>
+                </a>
+                <a href="#" class="nav-link" data-section="banners">
+                    <span class="icon">🖼️</span>
+                    <span>Banner Management</span>
+                </a>
+                <a href="#" class="nav-link" data-section="categories">
+                    <span class="icon">📁</span>
+                    <span>Categories</span>
+                </a>
+                <a href="#" class="nav-link" data-section="products">
+                    <span class="icon">🎮</span>
+                    <span>Products</span>
+                </a>
+                <a href="#" class="nav-link" data-section="payments">
+                    <span class="icon">💳</span>
+                    <span>Payment Methods</span>
+                </a>
+                <a href="#" class="nav-link" data-section="contacts">
+                    <span class="icon">📞</span>
+                    <span>Contacts</span>
+                </a>
+                <a href="#" class="nav-link" data-section="orders">
+                    <span class="icon">📦</span>
+                    <span>Orders</span>
+                </a>
+                <a href="#" class="nav-link" data-section="youtube">
+                    <span class="icon">📺</span>
+                    <span>YouTube Videos</span>
+                </a>
+                <a href="#" class="nav-link" data-section="users">
+                    <span class="icon">👥</span>
+                    <span>Users</span>
+                </a>
             </nav>
-        </aside>
+            <div class="sidebar-footer">
+                <button id="logoutBtn" class="btn-logout">LOGOUT</button>
+            </div>
+        </div>
 
         <!-- Main Content -->
-        <main class="main-content">
-            <!-- Website Settings Section -->
-            <section id="website-settings" class="content-section active">
-                <div class="section-header">
-                    <h2>🌐 Website Settings</h2>
-                    <p>Manage your website's appearance and configuration</p>
+        <div class="main-content">
+            <div class="top-bar">
+                <h1 id="sectionTitle">Dashboard</h1>
+                <div class="admin-info">
+                    <span class="admin-badge">ADMIN</span>
                 </div>
-                
-                <div class="settings-grid">
-                    <div class="setting-card">
-                        <div class="card-header">
-                            <h3>Website Name</h3>
-                            <span class="card-badge">Essential</span>
+            </div>
+
+            <div class="content-area">
+                <!-- ============================================
+                     DASHBOARD SECTION
+                     ============================================ -->
+                <div id="dashboardSection" class="section active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalUsers">0</div>
+                                <div class="stat-label">Total Users</div>
+                            </div>
                         </div>
-                        <div class="input-with-emoji">
+                        <div class="stat-card">
+                            <div class="stat-icon">📦</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalOrders">0</div>
+                                <div class="stat-label">Total Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="pendingOrders">0</div>
+                                <div class="stat-label">Pending Orders</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🎮</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalProducts">0</div>
+                                <div class="stat-label">Total Products</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📁</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalCategories">0</div>
+                                <div class="stat-label">Categories</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💳</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="totalPayments">0</div>
+                                <div class="stat-label">Payment Methods</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="recent-orders">
+                        <h2>Recent Orders</h2>
+                        <div id="recentOrdersList" class="orders-list"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================
+                     SETTINGS SECTION
+                     ============================================ -->
+                <div id="settingsSection" class="section">
+                    <div class="panel">
+                        <h2>Website Settings</h2>
+                        
+                        <div class="form-group">
+                            <label>Website Name</label>
                             <input type="text" id="websiteName" placeholder="Enter website name">
-                            <button class="emoji-picker-btn" onclick="openEmojiPicker('websiteName')">😀</button>
+                            <small>This will appear on all pages</small>
                         </div>
-                        <button onclick="updateWebsiteName()" class="btn-primary">Save Changes</button>
-                    </div>
 
-                    <div class="setting-card">
-                        <div class="card-header">
-                            <h3>Website Logo</h3>
-                            <span class="card-badge">Branding</span>
-                        </div>
-                        <div class="image-preview" id="logoPreview"></div>
-                        <input type="file" id="logoFile" accept="image/*" onchange="previewLogo()">
-                        <button onclick="uploadLogo()" class="btn-primary">Upload Logo</button>
-                    </div>
-
-                    <div class="setting-card">
-                        <div class="card-header">
-                            <h3>Background Image</h3>
-                            <span class="card-badge">Design</span>
-                        </div>
-                        <div class="image-preview" id="bgPreview"></div>
-                        <input type="file" id="bgFile" accept="image/*" onchange="previewBackground()">
-                        <button onclick="uploadBackground()" class="btn-primary">Upload Background</button>
-                    </div>
-
-                    <div class="setting-card">
-                        <div class="card-header">
-                            <h3>Loading Animation</h3>
-                            <span class="card-badge">UX</span>
-                        </div>
-                        <div class="image-preview" id="loadingPreview"></div>
-                        <input type="file" id="loadingFile" accept="image/*,.json,.gif,.webm,video/*">
-                        <button onclick="uploadLoadingAnimation()" class="btn-primary">Upload Animation</button>
-                    </div>
-
-                    <div class="setting-card">
-                        <div class="card-header">
-                            <h3>Button Style</h3>
-                            <span class="card-badge">Theme</span>
-                        </div>
-                        <div class="image-preview" id="buttonPreview"></div>
-                        <input type="file" id="buttonFile" accept="image/*">
-                        <button onclick="uploadButtonStyle()" class="btn-primary">Upload Button Style</button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Admin Settings Section -->
-            <section id="admin-settings" class="content-section">
-                <div class="section-header">
-                    <h2>⚙️ Admin Settings</h2>
-                    <p>Manage admin panel configuration and security</p>
-                </div>
-                
-                <div class="settings-grid">
-                    <div class="setting-card security-card">
-                        <div class="card-header">
-                            <h3>Change Admin Password</h3>
-                            <span class="card-badge security">Security</span>
-                        </div>
-                        <div class="security-warning">
-                            <span class="warning-icon">⚠️</span>
-                            <p>Changing your password will require you to log in again with the new password.</p>
-                        </div>
                         <div class="form-group">
-                            <label>Current Password</label>
-                            <input type="password" id="currentPassword" placeholder="Enter current password">
+                            <label>Website Logo</label>
+                            <input type="file" id="websiteLogo" accept="image/*">
+                            <div id="logoPreview" class="image-preview"></div>
+                            <small>Recommended size: 200x200px (PNG with transparent background)</small>
                         </div>
+
                         <div class="form-group">
-                            <label>New Password</label>
-                            <input type="password" id="newPassword" placeholder="Enter new password">
+                            <label>Background Image (Full Screen)</label>
+                            <input type="file" id="backgroundImage" accept="image/*">
+                            <div id="backgroundPreview" class="image-preview"></div>
+                            <small>Recommended size: 1920x1080px or higher</small>
                         </div>
+
                         <div class="form-group">
-                            <label>Confirm New Password</label>
-                            <input type="password" id="confirmPassword" placeholder="Confirm new password">
+                            <label>Loading Animation (JSON/GIF/WEBM/Video)</label>
+                            <input type="file" id="loadingAnimation" accept=".json,.gif,.webm,video/*">
+                            <div id="loadingPreview" class="image-preview"></div>
+                            <small>Upload Lottie JSON, GIF, WEBM or video file for loading screen</small>
                         </div>
-                        <button onclick="changeAdminPassword()" class="btn-security">Change Password</button>
-                    </div>
-                </div>
-            </section>
 
-            <!-- IP Management Section -->
-            <section id="ip-management" class="content-section">
-                <div class="section-header">
-                    <h2>🔒 IP Address Management</h2>
-                    <p>Control access and manage authorized IP addresses</p>
-                </div>
+                        <div class="form-group">
+                            <label>Button Style/Background Image</label>
+                            <input type="file" id="buttonStyle" accept="image/*">
+                            <div id="buttonPreview" class="image-preview"></div>
+                            <small>Custom button background design (will be applied to all buttons)</small>
+                        </div>
 
-                <!-- Pending Requests -->
-                <div class="ip-card pending-requests-card">
-                    <div class="card-header">
-                        <h3>🔔 Pending Authorization Requests</h3>
-                        <button onclick="refreshPendingRequests()" class="btn-refresh">🔄 Refresh</button>
+                        <button id="saveSettings" class="btn-primary">SAVE ALL SETTINGS</button>
                     </div>
-                    <div id="pendingRequestsContainer">
-                        <p class="no-data">No pending requests</p>
-                    </div>
-                </div>
 
-                <!-- Create New Admin -->
-                <div class="ip-card">
-                    <div class="card-header">
-                        <h3>➕ Create New Admin Access</h3>
-                        <span class="card-badge">Manual</span>
-                    </div>
-                    <div class="form-group">
-                        <label>IP Address</label>
-                        <input type="text" id="newAdminIp" placeholder="e.g. 192.168.1.10 or fe80::1234:5678:abcd:ef00">
-                        <small>Enter the exact IP address of the device that should have admin access</small>
-                    </div>
-                    <div class="form-group">
-                        <label>Password</label>
-                        <input type="text" id="newAdminPassword" placeholder="Enter password for this IP">
-                    </div>
-                    <div class="form-group">
-                        <label>Device Info (Optional)</label>
-                        <input type="text" id="newAdminDevice" placeholder="e.g. John's iPhone, Office Computer">
-                    </div>
-                    <button onclick="createNewAdmin()" class="btn-primary">Create Admin Access</button>
-                </div>
-
-                <!-- Active Sessions -->
-                <div class="ip-card">
-                    <div class="card-header">
-                        <h3>👥 Active Admin Sessions</h3>
-                        <button onclick="loadAdminSessions()" class="btn-refresh">🔄 Refresh</button>
-                    </div>
-                    <div id="adminSessionsContainer">
-                        <p class="no-data">Loading sessions...</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- All other sections remain the same as original -->
-            <!-- Banners Section -->
-            <section id="banners" class="content-section">
-                <div class="section-header">
-                    <h2>🖼️ Banners Management</h2>
-                    <p>Add and manage promotional banners for your website</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add New Banner</h3>
-                    <input type="file" id="bannerFile" accept="image/*">
-                    <button onclick="addBanner()" class="btn-primary">Add Banner</button>
-                </div>
-
-                <div class="items-grid" id="bannersContainer"></div>
-            </section>
-
-            <!-- Categories Section -->
-            <section id="categories" class="content-section">
-                <div class="section-header">
-                    <h2>📂 Categories Management</h2>
-                    <p>Organize your products into categories</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add New Category</h3>
-                    <div class="input-with-emoji">
-                        <input type="text" id="categoryTitle" placeholder="Category Title">
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('categoryTitle')">😀</button>
-                    </div>
-                    <button onclick="addCategory()" class="btn-primary">Add Category</button>
-                </div>
-
-                <div class="items-list" id="categoriesContainer"></div>
-            </section>
-
-            <!-- Category Buttons Section -->
-            <section id="buttons" class="content-section">
-                <div class="section-header">
-                    <h2>🎮 Category Buttons Management</h2>
-                    <p>Create interactive buttons for your categories</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add New Button</h3>
-                    <select id="buttonCategorySelect" class="form-select">
-                        <option value="">Select Category</option>
-                    </select>
-                    <div class="input-with-emoji">
-                        <input type="text" id="buttonName" placeholder="Button Name">
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('buttonName')">😀</button>
-                    </div>
-                    <input type="file" id="buttonIconFile" accept="image/*">
-                    <button onclick="addCategoryButton()" class="btn-primary">Add Button</button>
-                </div>
-
-                <div class="items-grid" id="buttonsContainer"></div>
-            </section>
-
-            <!-- Input Tables Section -->
-            <section id="tables" class="content-section">
-                <div class="section-header">
-                    <h2>📝 Input Tables Management</h2>
-                    <p>Create form fields for user data collection</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add Input Tables</h3>
-                    <select id="tableCategorySelect" class="form-select" onchange="loadButtonsForTables()">
-                        <option value="">Select Category</option>
-                    </select>
-                    <select id="tableButtonSelect" class="form-select">
-                        <option value="">Select Button</option>
-                    </select>
-                    
-                    <div id="tablesInputContainer">
-                        <div class="table-input-group">
-                            <div class="input-with-emoji">
-                                <input type="text" class="table-name" placeholder="Table Name">
-                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-name')">😀</button>
+                    <!-- Current Settings Display -->
+                    <div class="panel">
+                        <h2>Current Settings Preview</h2>
+                        <div class="settings-preview">
+                            <div class="preview-item">
+                                <strong>Website Name:</strong>
+                                <span id="currentWebsiteName">Not set</span>
                             </div>
-                            <div class="input-with-emoji">
-                                <input type="text" class="table-instruction" placeholder="Instruction">
-                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'table-instruction')">😀</button>
+                            <div class="preview-item">
+                                <strong>Logo:</strong>
+                                <div id="currentLogo">Not uploaded</div>
+                            </div>
+                            <div class="preview-item">
+                                <strong>Background:</strong>
+                                <div id="currentBackground">Not uploaded</div>
                             </div>
                         </div>
                     </div>
-                    
-                    <button onclick="addTableInput()" class="btn-secondary">+ Add More Table</button>
-                    <button onclick="saveTables()" class="btn-primary">Save All Tables</button>
                 </div>
 
-                <div class="items-list" id="tablesContainer"></div>
-            </section>
+                <!-- ============================================
+                     BANNERS SECTION
+                     ============================================ -->
+                <div id="bannersSection" class="section">
+                    <div class="panel">
+                        <h2>Add New Banner</h2>
+                        
+                        <div class="form-group">
+                            <label>Banner Type</label>
+                            <select id="bannerType">
+                                <option value="home">Home Page Banner</option>
+                                <option value="category">Category Page Banner</option>
+                            </select>
+                            <small>Home banners appear on main page, Category banners on specific categories</small>
+                        </div>
 
-            <!-- Menus Section -->
-            <section id="menus" class="content-section">
-                <div class="section-header">
-                    <h2>🛒 Products (Menus) Management</h2>
-                    <p>Add and manage your products/services</p>
+                        <div class="form-group hidden" id="bannerCategoryGroup">
+                            <label>Select Category</label>
+                            <select id="bannerCategoryId"></select>
+                        </div>
+
+                        <div class="form-group hidden" id="bannerButtonCategoryGroup">
+                            <label>Select Button Category</label>
+                            <select id="bannerButtonCategoryId"></select>
+                            <small>The banner will appear in this specific button category page</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Banner Image</label>
+                            <input type="file" id="bannerImage" accept="image/*">
+                            <div id="bannerImagePreview" class="image-preview"></div>
+                            <small>Recommended: 1200x400px (landscape format)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Display Order (Optional)</label>
+                            <input type="number" id="bannerOrder" placeholder="0" value="0" min="0">
+                            <small>Lower numbers appear first (0 = highest priority)</small>
+                        </div>
+
+                        <button id="addBanner" class="btn-primary">ADD BANNER</button>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Manage Banners</h2>
+                        <div class="filter-tabs">
+                            <button class="filter-tab active" data-filter="all">All Banners</button>
+                            <button class="filter-tab" data-filter="home">Home Banners</button>
+                            <button class="filter-tab" data-filter="category">Category Banners</button>
+                        </div>
+                        <div id="bannersList" class="items-list"></div>
+                    </div>
                 </div>
-                
-                <div class="action-card">
-                    <h3>Add Products/Menus</h3>
-                    <select id="menuCategorySelect" class="form-select" onchange="loadButtonsForMenus()">
-                        <option value="">Select Category</option>
-                    </select>
-                    <select id="menuButtonSelect" class="form-select">
-                        <option value="">Select Button</option>
-                    </select>
-                    
-                    <div id="menusInputContainer">
-                        <div class="menu-input-group">
-                            <div class="input-with-emoji">
-                                <input type="text" class="menu-name" placeholder="Product Name">
-                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-name')">😀</button>
+
+                <!-- ============================================
+                     CATEGORIES SECTION
+                     ============================================ -->
+                <div id="categoriesSection" class="section">
+                    <!-- Add Category -->
+                    <div class="panel">
+                        <h2>Add New Category</h2>
+                        
+                        <div class="form-group">
+                            <label>Category Title</label>
+                            <input type="text" id="categoryTitle" placeholder="e.g., PUBG MOBILE, Free Fire, COD Mobile">
+                            <small>This is the main category heading that will appear on homepage</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Display Order</label>
+                            <input type="number" id="categoryOrder" placeholder="0" value="0" min="0">
+                            <small>Lower numbers appear first</small>
+                        </div>
+
+                        <button id="addCategory" class="btn-primary">ADD CATEGORY</button>
+                    </div>
+
+                    <!-- Manage Categories -->
+                    <div class="panel">
+                        <h2>Manage Categories</h2>
+                        <div id="categoriesList" class="items-list"></div>
+                    </div>
+
+                    <!-- Add Button Category -->
+                    <div class="panel">
+                        <h2>Add Button Category (Sub-Category)</h2>
+                        
+                        <div class="form-group">
+                            <label>Select Parent Category</label>
+                            <select id="buttonCategoryParent"></select>
+                            <small>This button will appear under the selected category</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Button Icon/Image</label>
+                            <input type="file" id="buttonCategoryIcon" accept="image/*">
+                            <div id="buttonIconPreview" class="image-preview"></div>
+                            <small>Recommended: 200x200px (PNG with transparent background preferred)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Display Order</label>
+                            <input type="number" id="buttonCategoryOrder" placeholder="0" value="0" min="0">
+                        </div>
+
+                        <button id="addButtonCategory" class="btn-primary">ADD BUTTON CATEGORY</button>
+                    </div>
+
+                    <!-- Manage Button Categories -->
+                    <div class="panel">
+                        <h2>Manage Button Categories</h2>
+                        <div id="buttonCategoriesList" class="items-list"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================
+                     PRODUCTS SECTION
+                     ============================================ -->
+                <div id="productsSection" class="section">
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="menuItems">Menu Items (Simple)</button>
+                        <button class="tab-btn" data-tab="detailedProducts">Detailed Products</button>
+                        <button class="tab-btn" data-tab="productTables">Input Fields/Tables</button>
+                    </div>
+
+                    <!-- ========== MENU ITEMS TAB ========== -->
+                    <div id="menuItemsTab" class="tab-content active">
+                        <div class="panel">
+                            <h2>Add Menu Items (For UC, Diamonds, etc.)</h2>
+                            <p class="helper-text">Use this for simple products like game currency (UC, Diamonds, CP, etc.)</p>
+                            
+                            <div class="form-group">
+                                <label>Select Category</label>
+                                <select id="menuCategoryId"></select>
                             </div>
-                            <div class="input-with-emoji">
-                                <input type="text" class="menu-amount" placeholder="Amount/Details">
-                                <button class="emoji-picker-btn" onclick="openEmojiPickerForClass(this, 'menu-amount')">😀</button>
+
+                            <div class="form-group">
+                                <label>Select Button Category</label>
+                                <select id="menuButtonCategoryId"></select>
+                                <small>The menu items will appear in this button category</small>
                             </div>
-                            <input type="number" class="menu-price" placeholder="Price">
-                            <input type="file" class="menu-icon" accept="image/*">
+
+                            <div id="menuItemsForm">
+                                <div class="menu-item-form">
+                                    <h3>Menu Item #1</h3>
+                                    
+                                    <div class="form-group">
+                                        <label>Icon (Upload for first item only - will apply to all)</label>
+                                        <input type="file" class="menuIcon" accept="image/*">
+                                        <div class="menuIconPreview image-preview"></div>
+                                        <small>This icon will be used for all items in this set</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Name *</label>
+                                        <input type="text" class="menuName" placeholder="e.g., 60 UC, 100 Diamonds">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Amount/Description (Optional)</label>
+                                        <input type="text" class="menuAmount" placeholder="e.g., 60 Unknown Cash, 100 + 10 Bonus">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Price *</label>
+                                        <input type="number" class="menuPrice" placeholder="e.g., 1000">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Currency *</label>
+                                        <input type="text" class="menuCurrency" placeholder="e.g., MMK, USD, THB" value="MMK">
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Accepted Payment Methods</label>
+                                        <select class="menuPayments" multiple></select>
+                                        <small>Hold Ctrl/Cmd to select multiple payment methods</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button id="addMenuItemField" class="btn-secondary">+ ADD MORE MENU ITEM</button>
+                            <button id="saveMenuItems" class="btn-primary">SAVE ALL MENU ITEMS</button>
+                        </div>
+
+                        <div class="panel">
+                            <h2>Manage Menu Items</h2>
+                            <div id="menuItemsList" class="items-list"></div>
                         </div>
                     </div>
-                    
-                    <button onclick="addMenuInput()" class="btn-secondary">+ Add More Product</button>
-                    <button onclick="saveMenus()" class="btn-primary">Save All Products</button>
-                </div>
 
-                <div class="items-grid" id="menusContainer"></div>
-            </section>
+                    <!-- ========== DETAILED PRODUCTS TAB ========== -->
+                    <div id="detailedProductsTab" class="tab-content">
+                        <div class="panel">
+                            <h2>Add Detailed Product (Accounts, Premium Items, etc.)</h2>
+                            <p class="helper-text">Use this for complex products like game accounts, rare items, premium services</p>
+                            
+                            <div class="form-group">
+                                <label>Select Category</label>
+                                <select id="productCategoryId"></select>
+                            </div>
 
-            <!-- Payment Methods Section -->
-            <section id="payments" class="content-section">
-                <div class="section-header">
-                    <h2>💳 Payment Methods Management</h2>
-                    <p>Configure payment options for your customers</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add Payment Method</h3>
-                    <div class="input-with-emoji">
-                        <input type="text" id="paymentName" placeholder="Payment Name">
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('paymentName')">😀</button>
-                    </div>
-                    <input type="text" id="paymentAddress" placeholder="Payment Address">
-                    <div class="textarea-with-emoji">
-                        <textarea id="paymentInstructions" placeholder="Instructions" rows="3"></textarea>
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('paymentInstructions')">😀</button>
-                    </div>
-                    <input type="file" id="paymentIconFile" accept="image/*">
-                    <button onclick="addPaymentMethod()" class="btn-primary">Add Payment</button>
-                </div>
+                            <div class="form-group">
+                                <label>Select Button Category</label>
+                                <select id="productButtonCategoryId"></select>
+                            </div>
 
-                <div class="items-grid" id="paymentsContainer"></div>
-            </section>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Product Name *</label>
+                                    <input type="text" id="productName" placeholder="e.g., Legendary Account, Premium Pass">
+                                </div>
 
-            <!-- Contacts Section -->
-            <section id="contacts" class="content-section">
-                <div class="section-header">
-                    <h2>📞 Contacts Management</h2>
-                    <p>Manage contact information and social links</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add Contact</h3>
-                    <div class="input-with-emoji">
-                        <input type="text" id="contactName" placeholder="Contact Name">
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('contactName')">😀</button>
-                    </div>
-                    <div class="textarea-with-emoji">
-                        <textarea id="contactDescription" placeholder="Description" rows="2"></textarea>
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('contactDescription')">😀</button>
-                    </div>
-                    <input type="text" id="contactLink" placeholder="Link (optional)">
-                    <input type="text" id="contactAddress" placeholder="Address (optional)">
-                    <input type="file" id="contactIconFile" accept="image/*">
-                    <button onclick="addContact()" class="btn-primary">Add Contact</button>
-                </div>
+                                <div class="form-group">
+                                    <label>Product Type</label>
+                                    <input type="text" id="productType" placeholder="e.g., Account, Item, Service">
+                                </div>
+                            </div>
 
-                <div class="items-grid" id="contactsContainer"></div>
-            </section>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea id="productDescription" rows="4" placeholder="Detailed product description..."></textarea>
+                            </div>
 
-            <!-- YouTube Videos Section -->
-            <section id="videos" class="content-section">
-                <div class="section-header">
-                    <h2>🎥 YouTube Videos Management</h2>
-                    <p>Embed and manage YouTube videos</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Add YouTube Video</h3>
-                    <select id="videoCategorySelect" class="form-select" onchange="loadButtonsForVideos()">
-                        <option value="">Select Category</option>
-                    </select>
-                    <select id="videoButtonSelect" class="form-select">
-                        <option value="">Select Button</option>
-                    </select>
-                    <input type="file" id="videoBannerFile" accept="image/*">
-                    <input type="text" id="videoUrl" placeholder="YouTube Video URL">
-                    <div class="textarea-with-emoji">
-                        <textarea id="videoDescription" placeholder="Description" rows="2"></textarea>
-                        <button class="emoji-picker-btn" onclick="openEmojiPicker('videoDescription')">😀</button>
-                    </div>
-                    <button onclick="addVideo()" class="btn-primary">Add Video</button>
-                </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Level/Tier</label>
+                                    <input type="text" id="productLevel" placeholder="e.g., Level 60, Tier 5, Mythic">
+                                </div>
 
-                <div class="items-grid" id="videosContainer"></div>
-            </section>
+                                <div class="form-group">
+                                    <label>Stock Quantity *</label>
+                                    <input type="number" id="productStock" placeholder="Available quantity" value="1" min="0">
+                                </div>
+                            </div>
 
-            <!-- Animations/Stickers Section -->
-            <section id="animations" class="content-section">
-                <div class="section-header">
-                    <h2>✨ Animations & Stickers Management</h2>
-                    <p>Upload and manage animated content for your website</p>
-                </div>
-                
-                <div class="action-card">
-                    <h3>Upload Animation/Sticker</h3>
-                    <input type="text" id="animationName" placeholder="Animation Name">
-                    <input type="file" id="animationFile" accept="image/*,video/*,.gif,.webm,.json">
-                    <div class="file-info" id="animationFileInfo"></div>
-                    <button onclick="uploadAnimation()" class="btn-primary">Upload Animation</button>
-                    <p class="file-format-info">
-                        📁 Supported: GIF, Video (MP4, WebM), Images (PNG, JPG), JSON (Lottie)
-                    </p>
-                </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Price *</label>
+                                    <input type="number" id="productPrice" placeholder="e.g., 50000">
+                                </div>
 
-                <div class="animations-grid" id="animationsContainer"></div>
-            </section>
+                                <div class="form-group">
+                                    <label>Currency *</label>
+                                    <input type="text" id="productCurrency" placeholder="MMK, USD, etc." value="MMK">
+                                </div>
 
-            <!-- Orders Section -->
-            <section id="orders" class="content-section">
-                <div class="section-header">
-                    <h2>📦 Orders Management</h2>
-                    <p>Review and manage customer orders</p>
-                </div>
-                
-                <div class="orders-filter">
-                    <button class="filter-btn active" onclick="filterOrders('all')">All Orders</button>
-                    <button class="filter-btn" onclick="filterOrders('pending')">Pending</button>
-                    <button class="filter-btn" onclick="filterOrders('approved')">Approved</button>
-                    <button class="filter-btn" onclick="filterOrders('rejected')">Rejected</button>
-                </div>
+                                <div class="form-group">
+                                    <label>Discount % (Optional)</label>
+                                    <input type="number" id="productDiscount" placeholder="e.g., 10" min="0" max="100">
+                                </div>
+                            </div>
 
-                <div class="orders-list" id="ordersContainer"></div>
-            </section>
+                            <div class="form-group">
+                                <label>Product Image/Icon *</label>
+                                <input type="file" id="productImage" accept="image/*">
+                                <div id="productImagePreview" class="image-preview"></div>
+                                <small>Main product image (Recommended: 600x600px)</small>
+                            </div>
 
-            <!-- Users Section -->
-            <section id="users" class="content-section">
-                <div class="section-header">
-                    <h2>👥 Users Management</h2>
-                    <p>View and manage registered users</p>
-                </div>
-                
-                <div class="users-stats">
-                    <div class="stat-card">
-                        <div class="stat-icon">👥</div>
-                        <div class="stat-content">
-                            <h3 id="totalUsers">0</h3>
-                            <p>Total Users</p>
+                            <div class="form-group">
+                                <label>YouTube Video URL (Optional - for demo/tutorial)</label>
+                                <input type="url" id="productVideoUrl" placeholder="https://youtube.com/watch?v=... or https://youtu.be/...">
+                                <small>YouTube video link (supports regular videos and Shorts)</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Accepted Payment Methods *</label>
+                                <select id="productPayments" multiple size="5"></select>
+                                <small>Hold Ctrl/Cmd to select multiple</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Contact Methods (Optional)</label>
+                                <select id="productContacts" multiple size="5"></select>
+                                <small>Select contact methods for customer support</small>
+                            </div>
+
+                            <button id="saveProduct" class="btn-primary">SAVE PRODUCT</button>
+                        </div>
+
+                        <div class="panel">
+                            <h2>Manage Detailed Products</h2>
+                            <div id="productsList" class="items-list"></div>
                         </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-icon">📈</div>
-                        <div class="stat-content">
-                            <h3 id="todayUsers">0</h3>
-                            <p>Today's Registrations</p>
+
+                    <!-- ========== PRODUCT TABLES TAB ========== -->
+                    <div id="productTablesTab" class="tab-content">
+                        <div class="panel">
+                            <h2>Add Input Fields/Tables (For Customer Data Collection)</h2>
+                            <p class="helper-text">Create input fields for collecting customer information (Game ID, Server, etc.)</p>
+                            
+                            <div class="form-group">
+                                <label>Select Category</label>
+                                <select id="tableCategoryId"></select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Select Button Category</label>
+                                <select id="tableButtonCategoryId"></select>
+                                <small>Input fields will appear when customers purchase from this category</small>
+                            </div>
+
+                            <div id="productTablesForm">
+                                <div class="table-field-form">
+                                    <h3>Input Field #1</h3>
+                                    
+                                    <div class="form-group">
+                                        <label>Field Name/Label *</label>
+                                        <input type="text" class="tableName" placeholder="e.g., Game User ID, Server Name">
+                                        <small>This will be shown as the label for the input field</small>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Placeholder/Instructions *</label>
+                                        <input type="text" class="tablePlaceholder" placeholder="e.g., Enter your 10-digit game ID">
+                                        <small>Instructions shown inside the input field</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button id="addTableField" class="btn-secondary">+ ADD MORE FIELD</button>
+                            <button id="saveProductTables" class="btn-primary">SAVE ALL FIELDS</button>
+                        </div>
+
+                        <div class="panel">
+                            <h2>Manage Input Fields</h2>
+                            <div id="productTablesList" class="items-list"></div>
                         </div>
                     </div>
                 </div>
 
-                <div class="users-list" id="usersContainer"></div>
-            </section>
-        </main>
-    </div>
+                <!-- ============================================
+                     PAYMENT METHODS SECTION
+                     ============================================ -->
+                <div id="paymentsSection" class="section">
+                    <div class="panel">
+                        <h2>Add Payment Method</h2>
+                        
+                        <div class="form-group">
+                            <label>Payment Name *</label>
+                            <input type="text" id="paymentName" placeholder="e.g., KBZPay, WavePay, AYA Pay">
+                        </div>
 
-    <!-- Emoji Picker Modal -->
-    <div id="emojiPickerModal" class="modal">
-        <div class="modal-content emoji-picker-content">
-            <div class="modal-header">
-                <h2>Select Animation/Sticker</h2>
-                <span class="close-modal" onclick="closeEmojiPicker()">&times;</span>
+                        <div class="form-group">
+                            <label>Payment Address/Number *</label>
+                            <input type="text" id="paymentAddress" placeholder="e.g., 09123456789, wallet@email.com">
+                            <small>Phone number, wallet ID, or payment address</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Instructions/Notes</label>
+                            <textarea id="paymentInstructions" rows="3" placeholder="Payment instructions, important notes, etc."></textarea>
+                            <small>Additional instructions for customers</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Payment Icon/Logo</label>
+                            <input type="file" id="paymentIcon" accept="image/*">
+                            <div id="paymentIconPreview" class="image-preview"></div>
+                            <small>Payment method logo (Recommended: 100x100px)</small>
+                        </div>
+
+                        <button id="addPayment" class="btn-primary">ADD PAYMENT METHOD</button>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Manage Payment Methods</h2>
+                        <div id="paymentsList" class="items-list"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================
+                     CONTACTS SECTION
+                     ============================================ -->
+                <div id="contactsSection" class="section">
+                    <div class="panel">
+                        <h2>Add Contact Method</h2>
+                        
+                        <div class="form-group">
+                            <label>Contact Name *</label>
+                            <input type="text" id="contactName" placeholder="e.g., Facebook Page, Telegram, WhatsApp">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="contactDescription" rows="2" placeholder="Brief description..."></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Link/URL/Address</label>
+                            <input type="text" id="contactLink" placeholder="e.g., https://facebook.com/..., https://t.me/...">
+                            <small>Social media link, phone number, or contact address</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Contact Icon</label>
+                            <input type="file" id="contactIcon" accept="image/*">
+                            <div id="contactIconPreview" class="image-preview"></div>
+                            <small>Contact method icon (Recommended: 100x100px)</small>
+                        </div>
+
+                        <button id="addContact" class="btn-primary">ADD CONTACT</button>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Manage Contacts</h2>
+                        <div id="contactsList" class="items-list"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================
+                     ORDERS SECTION
+                     ============================================ -->
+                <div id="ordersSection" class="section">
+                    <div class="panel">
+                        <h2>Orders Management</h2>
+                        
+                        <div class="filter-group">
+                            <button class="filter-btn active" data-status="all">All Orders</button>
+                            <button class="filter-btn" data-status="pending">Pending</button>
+                            <button class="filter-btn" data-status="approved">Approved</button>
+                            <button class="filter-btn" data-status="rejected">Rejected</button>
+                        </div>
+
+                        <div class="orders-stats">
+                            <div class="stat-mini">
+                                <span class="stat-mini-label">Total Orders:</span>
+                                <span class="stat-mini-value" id="ordersTotal">0</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-mini-label">Pending:</span>
+                                <span class="stat-mini-value pending" id="ordersPending">0</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-mini-label">Approved:</span>
+                                <span class="stat-mini-value approved" id="ordersApproved">0</span>
+                            </div>
+                            <div class="stat-mini">
+                                <span class="stat-mini-label">Rejected:</span>
+                                <span class="stat-mini-value rejected" id="ordersRejected">0</span>
+                            </div>
+                        </div>
+
+                        <div id="ordersList" class="orders-list"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================
+                     YOUTUBE VIDEOS SECTION
+                     ============================================ -->
+                <div id="youtubeSection" class="section">
+                    <div class="panel">
+                        <h2>Add YouTube Video/Tutorial</h2>
+                        <p class="helper-text">Add tutorial videos or product demonstrations</p>
+                        
+                        <div class="form-group">
+                            <label>Select Category</label>
+                            <select id="youtubeCategoryId"></select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Select Button Category</label>
+                            <select id="youtubeButtonCategoryId"></select>
+                            <small>Video will appear in this category page</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Video Thumbnail/Banner *</label>
+                            <input type="file" id="youtubeBanner" accept="image/*">
+                            <div id="youtubeBannerPreview" class="image-preview"></div>
+                            <small>Custom thumbnail (Recommended: 1280x720px)</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>YouTube Video URL *</label>
+                            <input type="url" id="youtubeVideoUrl" placeholder="https://youtube.com/watch?v=... or https://youtu.be/...">
+                            <small>Supports: Regular videos, Shorts, Live streams</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Description</label>
+                            <textarea id="youtubeDescription" rows="3" placeholder="Video description..."></textarea>
+                        </div>
+
+                        <button id="addYoutubeVideo" class="btn-primary">ADD VIDEO</button>
+                    </div>
+
+                    <div class="panel">
+                        <h2>Manage Videos</h2>
+                        <div id="youtubeVideosList" class="items-list"></div>
+                    </div>
+                </div>
+
+                <!-- ============================================
+                     USERS SECTION
+                     ============================================ -->
+                <div id="usersSection" class="section">
+                    <div class="panel">
+                        <h2>Users Management</h2>
+                        
+                        <div class="search-bar">
+                            <input type="text" id="userSearch" placeholder="Search users by name, email, username...">
+                            <button class="btn-secondary" onclick="searchUsers()">SEARCH</button>
+                        </div>
+
+                        <div id="usersList" class="items-list"></div>
+                    </div>
+                </div>
             </div>
-            <div class="emoji-search">
-                <input type="text" id="emojiSearch" placeholder="Search animations..." onkeyup="filterEmojis()">
-            </div>
-            <div class="emoji-grid" id="emojiGrid"></div>
         </div>
     </div>
 
     <!-- Edit Modal -->
     <div id="editModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Edit Item</h2>
-                <span class="close-modal" onclick="closeEditModal()">&times;</span>
-            </div>
+            <span class="modal-close">&times;</span>
+            <h2 id="modalTitle">Edit Item</h2>
             <div id="modalBody"></div>
+            <div class="modal-actions">
+                <button id="modalSave" class="btn-primary">SAVE CHANGES</button>
+                <button id="modalCancel" class="btn-secondary">CANCEL</button>
+            </div>
         </div>
     </div>
 
-    <!-- Order Details Modal -->
-    <div id="orderModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Order Details</h2>
-                <span class="close-modal" onclick="closeOrderModal()">&times;</span>
-            </div>
-            <div id="orderModalBody"></div>
-        </div>
-    </div>
-
-    <!-- IP Request Details Modal -->
-    <div id="ipRequestModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Authorization Request Details</h2>
-                <span class="close-modal" onclick="closeIpRequestModal()">&times;</span>
-            </div>
-            <div id="ipRequestModalBody"></div>
-        </div>
-    </div>
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="admin.js"></script>
-    <script src="panel.js"></script>
 </body>
 </html>
