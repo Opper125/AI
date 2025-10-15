@@ -1,19 +1,17 @@
 // ============================================
-// ADMIN DASHBOARD - JAVASCRIPT
+// ADMIN DASHBOARD - COMPLETE JAVASCRIPT
 // ============================================
 
-// Supabase Configuration
 const SUPABASE_URL = 'https://eynbcpkpwzikwtlrdlza.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV5bmJjcGtwd3ppa3d0bHJkbHphIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNDI3MzgsImV4cCI6MjA3NDYxODczOH0.D8MzC7QSinkiGECeDW9VAr_1XNUral5FnXGHyjD_eQ4';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Admin Password (Change this!)
-const ADMIN_PASSWORD = 'admin123';
+const ADMIN_PASSWORD = 'admin123'; // CHANGE THIS!
 
-// Global State
 let currentSection = 'dashboard';
 let editingItem = null;
+let currentOrderFilter = 'all';
 
 // ============================================
 // INITIALIZATION
@@ -31,16 +29,13 @@ function setupEventListeners() {
     document.getElementById('adminPassword')?.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') handleAdminLogin();
     });
-
-    // Logout
     document.getElementById('logoutBtn')?.addEventListener('click', handleLogout);
 
     // Navigation
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            const section = e.currentTarget.dataset.section;
-            navigateToSection(section);
+            navigateToSection(e.currentTarget.dataset.section);
         });
     });
 
@@ -78,7 +73,7 @@ function setupEventListeners() {
     // File previews
     setupFilePreviews();
 
-    // Category cascading selects
+    // Cascading selects
     setupCascadingSelects();
 }
 
@@ -88,7 +83,6 @@ function setupEventListeners() {
 
 function checkAdminAuth() {
     const isAuthenticated = localStorage.getItem('adminAuth') === 'true';
-    
     if (isAuthenticated) {
         showDashboard();
     } else {
@@ -98,7 +92,6 @@ function checkAdminAuth() {
 
 function handleAdminLogin() {
     const password = document.getElementById('adminPassword').value;
-    
     if (password === ADMIN_PASSWORD) {
         localStorage.setItem('adminAuth', 'true');
         showDashboard();
@@ -131,21 +124,14 @@ function showDashboard() {
 function navigateToSection(section) {
     currentSection = section;
     
-    // Update nav links
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
-        if (link.dataset.section === section) {
-            link.classList.add('active');
-        }
+        if (link.dataset.section === section) link.classList.add('active');
     });
     
-    // Update sections
-    document.querySelectorAll('.section').forEach(sec => {
-        sec.classList.remove('active');
-    });
+    document.querySelectorAll('.section').forEach(sec => sec.classList.remove('active'));
     document.getElementById(`${section}Section`).classList.add('active');
     
-    // Update title
     const titles = {
         dashboard: 'Dashboard',
         settings: 'Website Settings',
@@ -159,7 +145,6 @@ function navigateToSection(section) {
     };
     document.getElementById('sectionTitle').textContent = titles[section];
     
-    // Load section data
     loadSectionData(section);
 }
 
@@ -167,33 +152,15 @@ async function loadSectionData(section) {
     showLoading();
     
     switch(section) {
-        case 'dashboard':
-            await loadDashboardData();
-            break;
-        case 'settings':
-            await loadSettings();
-            break;
-        case 'banners':
-            await loadBannersData();
-            break;
-        case 'categories':
-            await loadCategoriesData();
-            break;
-        case 'products':
-            await loadProductsData();
-            break;
-        case 'payments':
-            await loadPaymentsData();
-            break;
-        case 'contacts':
-            await loadContactsData();
-            break;
-        case 'orders':
-            await loadOrdersData();
-            break;
-        case 'youtube':
-            await loadYoutubeData();
-            break;
+        case 'dashboard': await loadDashboardData(); break;
+        case 'settings': await loadSettings(); break;
+        case 'banners': await loadBannersData(); break;
+        case 'categories': await loadCategoriesData(); break;
+        case 'products': await loadProductsData(); break;
+        case 'payments': await loadPaymentsData(); break;
+        case 'contacts': await loadContactsData(); break;
+        case 'orders': await loadOrdersData(); break;
+        case 'youtube': await loadYoutubeData(); break;
     }
     
     hideLoading();
@@ -204,7 +171,6 @@ async function loadSectionData(section) {
 // ============================================
 
 async function loadDashboardData() {
-    // Load stats
     const { data: users } = await supabase.from('users').select('id');
     const { data: orders } = await supabase.from('orders').select('id, status');
     const { data: products } = await supabase.from('products').select('id');
@@ -215,7 +181,6 @@ async function loadDashboardData() {
     document.getElementById('pendingOrders').textContent = orders?.filter(o => o.status === 'pending').length || 0;
     document.getElementById('totalProducts').textContent = (products?.length || 0) + (menuItems?.length || 0);
     
-    // Load recent orders
     const { data: recentOrders } = await supabase
         .from('orders')
         .select('*, users(name, email)')
@@ -263,20 +228,21 @@ function displayRecentOrders(orders) {
 // ============================================
 
 async function loadSettings() {
-    const { data: settings } = await supabase
-        .from('settings')
-        .select('*')
-        .limit(1)
-        .single();
+    const { data: settings } = await supabase.from('settings').select('*').limit(1).single();
     
     if (settings) {
         document.getElementById('websiteName').value = settings.website_name || '';
-        
         if (settings.website_logo) {
-            document.getElementById('logoPreview').innerHTML = `<img src="${settings.website_logo}" alt="Logo">`;
+            document.getElementById('logoPreview').innerHTML = `<img src="${settings.website_logo}">`;
         }
         if (settings.background_image) {
-            document.getElementById('backgroundPreview').innerHTML = `<img src="${settings.background_image}" alt="Background">`;
+            document.getElementById('backgroundPreview').innerHTML = `<img src="${settings.background_image}">`;
+        }
+        if (settings.loading_animation) {
+            document.getElementById('loadingPreview').innerHTML = `<img src="${settings.loading_animation}">`;
+        }
+        if (settings.button_style) {
+            document.getElementById('buttonPreview').innerHTML = `<img src="${settings.button_style}">`;
         }
     }
 }
@@ -285,8 +251,6 @@ async function saveSettings() {
     showLoading();
     
     const websiteName = document.getElementById('websiteName').value;
-    
-    // Upload files
     const logoFile = document.getElementById('websiteLogo').files[0];
     const backgroundFile = document.getElementById('backgroundImage').files[0];
     const loadingFile = document.getElementById('loadingAnimation').files[0];
@@ -294,30 +258,14 @@ async function saveSettings() {
     
     let logoUrl = null, backgroundUrl = null, loadingUrl = null, buttonUrl = null;
     
-    if (logoFile) {
-        logoUrl = await uploadFile(logoFile, 'website-assets');
-    }
-    if (backgroundFile) {
-        backgroundUrl = await uploadFile(backgroundFile, 'website-assets');
-    }
-    if (loadingFile) {
-        loadingUrl = await uploadFile(loadingFile, 'website-assets');
-    }
-    if (buttonFile) {
-        buttonUrl = await uploadFile(buttonFile, 'website-assets');
-    }
+    if (logoFile) logoUrl = await uploadFile(logoFile, 'website-assets');
+    if (backgroundFile) backgroundUrl = await uploadFile(backgroundFile, 'website-assets');
+    if (loadingFile) loadingUrl = await uploadFile(loadingFile, 'website-assets');
+    if (buttonFile) buttonUrl = await uploadFile(buttonFile, 'website-assets');
     
-    // Get existing settings
-    const { data: existing } = await supabase
-        .from('settings')
-        .select('*')
-        .limit(1)
-        .single();
+    const { data: existing } = await supabase.from('settings').select('*').limit(1).single();
     
-    const updateData = {
-        website_name: websiteName
-    };
-    
+    const updateData = { website_name: websiteName };
     if (logoUrl) updateData.website_logo = logoUrl;
     if (backgroundUrl) updateData.background_image = backgroundUrl;
     if (loadingUrl) updateData.loading_animation = loadingUrl;
@@ -325,14 +273,9 @@ async function saveSettings() {
     
     let error;
     if (existing) {
-        ({ error } = await supabase
-            .from('settings')
-            .update(updateData)
-            .eq('id', existing.id));
+        ({ error } = await supabase.from('settings').update(updateData).eq('id', existing.id));
     } else {
-        ({ error } = await supabase
-            .from('settings')
-            .insert([updateData]));
+        ({ error } = await supabase.from('settings').insert([updateData]));
     }
     
     hideLoading();
@@ -352,21 +295,15 @@ async function saveSettings() {
 async function uploadFile(file, bucket = 'website-assets') {
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
-    const filePath = `${fileName}`;
     
-    const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(filePath, file);
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file);
     
     if (error) {
         console.error('Upload error:', error);
         return null;
     }
     
-    const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(filePath);
-    
+    const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(fileName);
     return publicUrl;
 }
 
@@ -383,23 +320,24 @@ async function displayBanners() {
     const { data: banners } = await supabase
         .from('banners')
         .select('*, button_categories(id)')
-        .order('created_at', { ascending: false });
+        .order('order_index');
     
     const container = document.getElementById('bannersList');
     
     if (!banners || banners.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No banners added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No banners</p>';
         return;
     }
     
     container.innerHTML = banners.map(banner => `
         <div class="list-item">
-            <img src="${banner.image_url}" alt="Banner" class="list-item-image">
+            <img src="${banner.image_url}" class="list-item-image">
             <div class="list-item-info">
-                <div class="list-item-title">Banner - ${banner.type}</div>
+                <div class="list-item-title">${banner.type === 'home' ? 'Home Banner' : 'Category Banner'}</div>
                 <div class="list-item-meta">Order: ${banner.order_index}</div>
             </div>
             <div class="list-item-actions">
+                <button class="btn-edit" onclick="editBanner('${banner.id}')">EDIT</button>
                 <button class="btn-delete" onclick="deleteBanner('${banner.id}')">DELETE</button>
             </div>
         </div>
@@ -430,7 +368,6 @@ async function addBanner() {
     }
     
     showLoading();
-    
     const imageUrl = await uploadFile(imageFile, 'website-assets');
     
     if (!imageUrl) {
@@ -447,14 +384,10 @@ async function addBanner() {
     
     if (type === 'category') {
         const buttonCategoryId = document.getElementById('bannerButtonCategoryId').value;
-        if (buttonCategoryId) {
-            insertData.button_category_id = buttonCategoryId;
-        }
+        if (buttonCategoryId) insertData.button_category_id = buttonCategoryId;
     }
     
-    const { error } = await supabase
-        .from('banners')
-        .insert([insertData]);
+    const { error } = await supabase.from('banners').insert([insertData]);
     
     hideLoading();
     
@@ -468,8 +401,27 @@ async function addBanner() {
     }
 }
 
+async function editBanner(id) {
+    const { data: banner } = await supabase.from('banners').select('*').eq('id', id).single();
+    if (!banner) return;
+    
+    const newOrder = prompt('Enter new order index:', banner.order_index);
+    if (newOrder === null) return;
+    
+    showLoading();
+    const { error } = await supabase.from('banners').update({ order_index: parseInt(newOrder) }).eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error updating banner', 'error');
+    } else {
+        showToast('Banner updated', 'success');
+        await displayBanners();
+    }
+}
+
 async function deleteBanner(id) {
-    if (!confirm('Are you sure you want to delete this banner?')) return;
+    if (!confirm('Delete this banner?')) return;
     
     showLoading();
     const { error } = await supabase.from('banners').delete().eq('id', id);
@@ -478,7 +430,7 @@ async function deleteBanner(id) {
     if (error) {
         showToast('Error deleting banner', 'error');
     } else {
-        showToast('Banner deleted successfully', 'success');
+        showToast('Banner deleted', 'success');
         await displayBanners();
     }
 }
@@ -494,15 +446,12 @@ async function loadCategoriesData() {
 }
 
 async function displayCategories() {
-    const { data: categories } = await supabase
-        .from('categories')
-        .select('*')
-        .order('order_index');
+    const { data: categories } = await supabase.from('categories').select('*').order('order_index');
     
     const container = document.getElementById('categoriesList');
     
     if (!categories || categories.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No categories added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No categories</p>';
         return;
     }
     
@@ -513,6 +462,7 @@ async function displayCategories() {
                 <div class="list-item-meta">Order: ${cat.order_index}</div>
             </div>
             <div class="list-item-actions">
+                <button class="btn-edit" onclick="editCategory('${cat.id}')">EDIT</button>
                 <button class="btn-delete" onclick="deleteCategory('${cat.id}')">DELETE</button>
             </div>
         </div>
@@ -521,29 +471,50 @@ async function displayCategories() {
 
 async function addCategory() {
     const title = document.getElementById('categoryTitle').value.trim();
-    
     if (!title) {
-        showToast('Please enter category title', 'error');
+        showToast('Enter category title', 'error');
         return;
     }
     
     showLoading();
-    const { error } = await supabase
-        .from('categories')
-        .insert([{ title, order_index: 0 }]);
+    const { error } = await supabase.from('categories').insert([{ title, order_index: 0 }]);
     hideLoading();
     
     if (error) {
         showToast('Error adding category', 'error');
     } else {
-        showToast('Category added successfully', 'success');
+        showToast('Category added', 'success');
         document.getElementById('categoryTitle').value = '';
         await loadCategoriesData();
     }
 }
 
+async function editCategory(id) {
+    const { data: cat } = await supabase.from('categories').select('*').eq('id', id).single();
+    if (!cat) return;
+    
+    const newTitle = prompt('Enter new title:', cat.title);
+    if (!newTitle) return;
+    
+    const newOrder = prompt('Enter order index:', cat.order_index);
+    if (newOrder === null) return;
+    
+    showLoading();
+    const { error } = await supabase.from('categories')
+        .update({ title: newTitle, order_index: parseInt(newOrder) })
+        .eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error updating category', 'error');
+    } else {
+        showToast('Category updated', 'success');
+        await loadCategoriesData();
+    }
+}
+
 async function deleteCategory(id) {
-    if (!confirm('Are you sure? This will delete all button categories under it!')) return;
+    if (!confirm('Delete category and all its items?')) return;
     
     showLoading();
     const { error } = await supabase.from('categories').delete().eq('id', id);
@@ -552,7 +523,7 @@ async function deleteCategory(id) {
     if (error) {
         showToast('Error deleting category', 'error');
     } else {
-        showToast('Category deleted successfully', 'success');
+        showToast('Category deleted', 'success');
         await loadCategoriesData();
     }
 }
@@ -566,18 +537,19 @@ async function displayButtonCategories() {
     const container = document.getElementById('buttonCategoriesList');
     
     if (!buttonCategories || buttonCategories.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No button categories added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No button categories</p>';
         return;
     }
     
     container.innerHTML = buttonCategories.map(btn => `
         <div class="list-item">
-            <img src="${btn.icon_url}" alt="Icon" class="list-item-image">
+            <img src="${btn.icon_url}" class="list-item-image">
             <div class="list-item-info">
                 <div class="list-item-title">${btn.categories?.title || 'N/A'}</div>
                 <div class="list-item-meta">Order: ${btn.order_index}</div>
             </div>
             <div class="list-item-actions">
+                <button class="btn-edit" onclick="editButtonCategory('${btn.id}')">EDIT</button>
                 <button class="btn-delete" onclick="deleteButtonCategory('${btn.id}')">DELETE</button>
             </div>
         </div>
@@ -589,7 +561,7 @@ async function addButtonCategory() {
     const iconFile = document.getElementById('buttonCategoryIcon').files[0];
     
     if (!categoryId || !iconFile) {
-        showToast('Please select category and icon', 'error');
+        showToast('Select category and icon', 'error');
         return;
     }
     
@@ -602,82 +574,71 @@ async function addButtonCategory() {
         return;
     }
     
-    const { error } = await supabase
-        .from('button_categories')
-        .insert([{
-            category_id: categoryId,
-            icon_url: iconUrl,
-            order_index: 0
-        }]);
+    const { error } = await supabase.from('button_categories').insert([{
+        category_id: categoryId,
+        icon_url: iconUrl,
+        order_index: 0
+    }]);
     
     hideLoading();
     
     if (error) {
         showToast('Error adding button category', 'error');
     } else {
-        showToast('Button category added successfully', 'success');
+        showToast('Button category added', 'success');
         document.getElementById('buttonCategoryIcon').value = '';
         document.getElementById('buttonIconPreview').innerHTML = '';
         await loadCategoriesData();
     }
 }
 
+async function editButtonCategory(id) {
+    const { data: btn } = await supabase.from('button_categories').select('*').eq('id', id).single();
+    if (!btn) return;
+    
+    const newOrder = prompt('Enter order index:', btn.order_index);
+    if (newOrder === null) return;
+    
+    showLoading();
+    const { error } = await supabase.from('button_categories')
+        .update({ order_index: parseInt(newOrder) })
+        .eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error updating', 'error');
+    } else {
+        showToast('Updated', 'success');
+        await loadCategoriesData();
+    }
+}
+
 async function deleteButtonCategory(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('button_categories').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting button category', 'error');
+        showToast('Error deleting', 'error');
     } else {
-        showToast('Button category deleted successfully', 'success');
+        showToast('Deleted', 'success');
         await loadCategoriesData();
     }
 }
 
 // ============================================
-// UTILITY FUNCTIONS
-// ============================================
-
-function showLoading() {
-    document.getElementById('loadingScreen').classList.remove('hidden');
-}
-
-function hideLoading() {
-    document.getElementById('loadingScreen').classList.add('hidden');
-}
-
-function showToast(message, type = 'success') {
-    const toast = document.getElementById('toast');
-    toast.textContent = message;
-    toast.className = `toast ${type} show`;
-    
-    setTimeout(() => {
-        toast.classList.remove('show');
-    }, 3000);
-}
-
-// ============================================
-// CATEGORY SELECTS (Cascading)
+// CASCADING SELECTS
 // ============================================
 
 async function loadCategorySelects() {
-    const { data: categories } = await supabase
-        .from('categories')
-        .select('*')
-        .order('title');
-    
+    const { data: categories } = await supabase.from('categories').select('*').order('title');
     if (!categories) return;
     
     const selects = [
-        'buttonCategoryParent',
-        'bannerCategoryId',
-        'menuCategoryId',
-        'productCategoryId',
-        'tableCategoryId',
-        'youtubeCategoryId'
+        'buttonCategoryParent', 'bannerCategoryId', 'menuCategoryId',
+        'productCategoryId', 'tableCategoryId', 'youtubeCategoryId'
     ];
     
     selects.forEach(selectId => {
@@ -690,32 +651,28 @@ async function loadCategorySelects() {
 }
 
 function setupCascadingSelects() {
-    // Banner category change
-    document.getElementById('bannerCategoryId')?.addEventListener('change', async (e) => {
-        await loadButtonCategorySelect(e.target.value, 'bannerButtonCategoryId');
+    const cascades = [
+        { category: 'bannerCategoryId', button: 'bannerButtonCategoryId' },
+        { category: 'menuCategoryId', button: 'menuButtonCategoryId' },
+        { category: 'productCategoryId', button: 'productButtonCategoryId' },
+        { category: 'tableCategoryId', button: 'tableButtonCategoryId' },
+        { category: 'youtubeCategoryId', button: 'youtubeButtonCategoryId' }
+    ];
+    
+    cascades.forEach(({ category, button }) => {
+        document.getElementById(category)?.addEventListener('change', async (e) => {
+            await loadButtonCategorySelect(e.target.value, button);
+        });
     });
     
-    // Menu category change
-    document.getElementById('menuCategoryId')?.addEventListener('change', async (e) => {
-        await loadButtonCategorySelect(e.target.value, 'menuButtonCategoryId');
-        await loadPaymentSelects('menuPayments');
-    });
-    
-    // Product category change
-    document.getElementById('productCategoryId')?.addEventListener('change', async (e) => {
-        await loadButtonCategorySelect(e.target.value, 'productButtonCategoryId');
+    // Load payments and contacts for product form
+    document.getElementById('productCategoryId')?.addEventListener('change', async () => {
         await loadPaymentSelects('productPayments');
         await loadContactSelects('productContacts');
     });
     
-    // Table category change
-    document.getElementById('tableCategoryId')?.addEventListener('change', async (e) => {
-        await loadButtonCategorySelect(e.target.value, 'tableButtonCategoryId');
-    });
-    
-    // YouTube category change
-    document.getElementById('youtubeCategoryId')?.addEventListener('change', async (e) => {
-        await loadButtonCategorySelect(e.target.value, 'youtubeButtonCategoryId');
+    document.getElementById('menuCategoryId')?.addEventListener('change', async () => {
+        await loadPaymentSelects('menuPayments');
     });
 }
 
@@ -741,47 +698,31 @@ async function loadButtonCategorySelect(categoryId, selectId) {
 }
 
 async function loadPaymentSelects(selectId) {
-    const { data: payments } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .order('name');
-    
+    const { data: payments } = await supabase.from('payment_methods').select('*').order('name');
     const select = document.getElementById(selectId);
     if (!select) return;
     
-    select.innerHTML = payments?.map(payment => 
-        `<option value="${payment.id}">${payment.name}</option>`
-    ).join('') || '';
+    select.innerHTML = payments?.map(p => `<option value="${p.id}">${p.name}</option>`).join('') || '';
 }
 
 async function loadContactSelects(selectId) {
-    const { data: contacts } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('name');
-    
+    const { data: contacts } = await supabase.from('contacts').select('*').order('name');
     const select = document.getElementById(selectId);
     if (!select) return;
     
-    select.innerHTML = contacts?.map(contact => 
-        `<option value="${contact.id}">${contact.name}</option>`
-    ).join('') || '';
+    select.innerHTML = contacts?.map(c => `<option value="${c.id}">${c.name}</option>`).join('') || '';
 }
 
 // ============================================
-// PRODUCTS - TABS
+// PRODUCTS TABS
 // ============================================
 
 function setupProductTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             const tab = e.target.dataset.tab;
-            
-            // Update buttons
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            
-            // Update content
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById(`${tab}Tab`).classList.add('active');
         });
@@ -801,42 +742,32 @@ async function loadProductsData() {
 
 function addMenuItemField() {
     const container = document.getElementById('menuItemsForm');
-    const existingForms = container.querySelectorAll('.menu-item-form');
-    
     const newForm = document.createElement('div');
     newForm.className = 'menu-item-form';
     newForm.innerHTML = `
         <button type="button" class="remove-field-btn" onclick="this.parentElement.remove()">×</button>
-        
         <div class="form-group">
             <label>Name</label>
             <input type="text" class="menuName" placeholder="e.g., 120 UC">
         </div>
-        
         <div class="form-group">
             <label>Amount (Optional)</label>
             <input type="text" class="menuAmount" placeholder="e.g., 120 Unknown Cash">
         </div>
-        
         <div class="form-group">
             <label>Price</label>
-            <input type="number" class="menuPrice" placeholder="e.g., 2000">
+            <input type="number" class="menuPrice" placeholder="2000">
         </div>
-        
         <div class="form-group">
             <label>Currency</label>
-            <input type="text" class="menuCurrency" placeholder="e.g., MMK" value="MMK">
+            <input type="text" class="menuCurrency" value="MMK">
         </div>
-        
         <div class="form-group">
             <label>Payment Methods</label>
             <select class="menuPayments" multiple></select>
         </div>
     `;
-    
     container.appendChild(newForm);
-    
-    // Load payment options for new form
     loadPaymentSelects(newForm.querySelector('.menuPayments').id = `menuPayments${Date.now()}`);
 }
 
@@ -845,7 +776,7 @@ async function saveMenuItems() {
     const buttonCategoryId = document.getElementById('menuButtonCategoryId').value;
     
     if (!categoryId || !buttonCategoryId) {
-        showToast('Please select category and button category', 'error');
+        showToast('Select category and button category', 'error');
         return;
     }
     
@@ -856,12 +787,9 @@ async function saveMenuItems() {
     for (let i = 0; i < forms.length; i++) {
         const form = forms[i];
         
-        // Get icon from first form only
         if (i === 0) {
             const iconFile = form.querySelector('.menuIcon')?.files[0];
-            if (iconFile) {
-                iconUrl = await uploadFile(iconFile, 'product-images');
-            }
+            if (iconFile) iconUrl = await uploadFile(iconFile, 'product-images');
         }
         
         const name = form.querySelector('.menuName').value.trim();
@@ -872,16 +800,14 @@ async function saveMenuItems() {
         const payments = Array.from(paymentSelect.selectedOptions).map(o => o.value);
         
         if (!name || !price) {
-            showToast('Please fill all required fields', 'error');
+            showToast('Fill all required fields', 'error');
             return;
         }
         
         items.push({
             button_category_id: buttonCategoryId,
-            name,
-            amount: amount || null,
-            price: parseFloat(price),
-            currency,
+            name, amount: amount || null,
+            price: parseFloat(price), currency,
             icon_url: iconUrl,
             payment_methods: JSON.stringify(payments),
             order_index: i
@@ -894,51 +820,48 @@ async function saveMenuItems() {
     }
     
     showLoading();
-    const { error } = await supabase
-        .from('menu_items')
-        .insert(items);
-    
+    const { error } = await supabase.from('menu_items').insert(items);
     hideLoading();
     
     if (error) {
-        console.error(error);
-        showToast('Error saving menu items', 'error');
+        showToast('Error saving', 'error');
     } else {
-        showToast('Menu items saved successfully', 'success');
-        
-        // Reset form
-        document.getElementById('menuItemsForm').innerHTML = `
-            <div class="menu-item-form">
-                <div class="form-group">
-                    <label>Icon (First Item Only)</label>
-                    <input type="file" class="menuIcon" accept="image/*">
-                    <div class="menuIconPreview image-preview"></div>
-                </div>
-                <div class="form-group">
-                    <label>Name</label>
-                    <input type="text" class="menuName" placeholder="e.g., 60 UC">
-                </div>
-                <div class="form-group">
-                    <label>Amount (Optional)</label>
-                    <input type="text" class="menuAmount" placeholder="e.g., 60 Unknown Cash">
-                </div>
-                <div class="form-group">
-                    <label>Price</label>
-                    <input type="number" class="menuPrice" placeholder="e.g., 1000">
-                </div>
-                <div class="form-group">
-                    <label>Currency</label>
-                    <input type="text" class="menuCurrency" placeholder="e.g., MMK" value="MMK">
-                </div>
-                <div class="form-group">
-                    <label>Payment Methods</label>
-                    <select class="menuPayments" multiple></select>
-                </div>
-            </div>
-        `;
-        
+        showToast('Saved successfully', 'success');
+        resetMenuItemsForm();
         await displayMenuItems();
     }
+}
+
+function resetMenuItemsForm() {
+    document.getElementById('menuItemsForm').innerHTML = `
+        <div class="menu-item-form">
+            <div class="form-group">
+                <label>Icon (First Item Only)</label>
+                <input type="file" class="menuIcon" accept="image/*">
+                <div class="menuIconPreview image-preview"></div>
+            </div>
+            <div class="form-group">
+                <label>Name</label>
+                <input type="text" class="menuName" placeholder="e.g., 60 UC">
+            </div>
+            <div class="form-group">
+                <label>Amount (Optional)</label>
+                <input type="text" class="menuAmount" placeholder="e.g., 60 Unknown Cash">
+            </div>
+            <div class="form-group">
+                <label>Price</label>
+                <input type="number" class="menuPrice" placeholder="1000">
+            </div>
+            <div class="form-group">
+                <label>Currency</label>
+                <input type="text" class="menuCurrency" value="MMK">
+            </div>
+            <div class="form-group">
+                <label>Payment Methods</label>
+                <select class="menuPayments" multiple></select>
+            </div>
+        </div>
+    `;
 }
 
 async function displayMenuItems() {
@@ -950,35 +873,55 @@ async function displayMenuItems() {
     const container = document.getElementById('menuItemsList');
     
     if (!items || items.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No menu items added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No menu items</p>';
         return;
     }
     
     container.innerHTML = items.map(item => `
         <div class="list-item">
-            ${item.icon_url ? `<img src="${item.icon_url}" alt="${item.name}" class="list-item-image">` : '<div class="list-item-image"></div>'}
+            ${item.icon_url ? `<img src="${item.icon_url}" class="list-item-image">` : '<div class="list-item-image"></div>'}
             <div class="list-item-info">
                 <div class="list-item-title">${item.name}</div>
-                <div class="list-item-meta">${item.price} ${item.currency} ${item.amount ? `| ${item.amount}` : ''}</div>
+                <div class="list-item-meta">${item.price} ${item.currency}${item.amount ? ` | ${item.amount}` : ''}</div>
             </div>
             <div class="list-item-actions">
+                <button class="btn-edit" onclick="editMenuItem('${item.id}')">EDIT</button>
                 <button class="btn-delete" onclick="deleteMenuItem('${item.id}')">DELETE</button>
             </div>
         </div>
     `).join('');
 }
 
+async function editMenuItem(id) {
+    const { data: item } = await supabase.from('menu_items').select('*').eq('id', id).single();
+    if (!item) return;
+    
+    const newPrice = prompt('Enter new price:', item.price);
+    if (!newPrice) return;
+    
+    showLoading();
+    const { error } = await supabase.from('menu_items').update({ price: parseFloat(newPrice) }).eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error updating', 'error');
+    } else {
+        showToast('Updated', 'success');
+        await displayMenuItems();
+    }
+}
+
 async function deleteMenuItem(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('menu_items').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting menu item', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Menu item deleted', 'success');
+        showToast('Deleted', 'success');
         await displayMenuItems();
     }
 }
@@ -1001,68 +944,57 @@ async function saveProduct() {
     const videoUrl = document.getElementById('productVideoUrl').value.trim();
     
     if (!categoryId || !buttonCategoryId || !name || !price) {
-        showToast('Please fill all required fields', 'error');
+        showToast('Fill required fields', 'error');
         return;
     }
     
     showLoading();
     
-    // Upload image
     const imageFile = document.getElementById('productImage').files[0];
     let imageUrl = null;
-    if (imageFile) {
-        imageUrl = await uploadFile(imageFile, 'product-images');
-    }
+    if (imageFile) imageUrl = await uploadFile(imageFile, 'product-images');
     
-    // Get payment methods
     const paymentSelect = document.getElementById('productPayments');
     const payments = Array.from(paymentSelect.selectedOptions).map(o => o.value);
     
-    // Get contacts
     const contactSelect = document.getElementById('productContacts');
     const contacts = Array.from(contactSelect.selectedOptions).map(o => o.value);
     
-    const { error } = await supabase
-        .from('products')
-        .insert([{
-            button_category_id: buttonCategoryId,
-            name,
-            description,
-            product_type: productType,
-            level,
-            price: parseFloat(price),
-            currency,
-            discount_percentage: parseInt(discount),
-            stock_quantity: parseInt(stock),
-            icon_url: imageUrl,
-            video_url: videoUrl || null,
-            payment_methods: JSON.stringify(payments),
-            contacts: JSON.stringify(contacts),
-            order_index: 0
-        }]);
+    const { error } = await supabase.from('products').insert([{
+        button_category_id: buttonCategoryId,
+        name, description, product_type: productType, level,
+        price: parseFloat(price), currency,
+        discount_percentage: parseInt(discount),
+        stock_quantity: parseInt(stock),
+        icon_url: imageUrl,
+        video_url: videoUrl || null,
+        payment_methods: JSON.stringify(payments),
+        contacts: JSON.stringify(contacts),
+        order_index: 0
+    }]);
     
     hideLoading();
     
     if (error) {
-        console.error(error);
-        showToast('Error saving product', 'error');
+        showToast('Error saving', 'error');
     } else {
-        showToast('Product saved successfully', 'success');
-        
-        // Reset form
-        document.getElementById('productName').value = '';
-        document.getElementById('productDescription').value = '';
-        document.getElementById('productType').value = '';
-        document.getElementById('productLevel').value = '';
-        document.getElementById('productPrice').value = '';
-        document.getElementById('productDiscount').value = '';
-        document.getElementById('productStock').value = '1';
-        document.getElementById('productVideoUrl').value = '';
-        document.getElementById('productImage').value = '';
-        document.getElementById('productImagePreview').innerHTML = '';
-        
+        showToast('Product saved', 'success');
+        resetProductForm();
         await displayProducts();
     }
+}
+
+function resetProductForm() {
+    document.getElementById('productName').value = '';
+    document.getElementById('productDescription').value = '';
+    document.getElementById('productType').value = '';
+    document.getElementById('productLevel').value = '';
+    document.getElementById('productPrice').value = '';
+    document.getElementById('productDiscount').value = '';
+    document.getElementById('productStock').value = '1';
+    document.getElementById('productVideoUrl').value = '';
+    document.getElementById('productImage').value = '';
+    document.getElementById('productImagePreview').innerHTML = '';
 }
 
 async function displayProducts() {
@@ -1074,35 +1006,59 @@ async function displayProducts() {
     const container = document.getElementById('productsList');
     
     if (!products || products.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No products added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No products</p>';
         return;
     }
     
-    container.innerHTML = products.map(product => `
+    container.innerHTML = products.map(p => `
         <div class="list-item">
-            ${product.icon_url ? `<img src="${product.icon_url}" alt="${product.name}" class="list-item-image">` : '<div class="list-item-image"></div>'}
+            ${p.icon_url ? `<img src="${p.icon_url}" class="list-item-image">` : '<div class="list-item-image"></div>'}
             <div class="list-item-info">
-                <div class="list-item-title">${product.name}</div>
-                <div class="list-item-meta">${product.price} ${product.currency} | ${product.product_type} | ${product.level}</div>
+                <div class="list-item-title">${p.name}</div>
+                <div class="list-item-meta">${p.price} ${p.currency} | ${p.product_type} | ${p.level}</div>
             </div>
             <div class="list-item-actions">
-                <button class="btn-delete" onclick="deleteProduct('${product.id}')">DELETE</button>
+                <button class="btn-edit" onclick="editProduct('${p.id}')">EDIT</button>
+                <button class="btn-delete" onclick="deleteProduct('${p.id}')">DELETE</button>
             </div>
         </div>
     `).join('');
 }
 
+async function editProduct(id) {
+    const { data: p } = await supabase.from('products').select('*').eq('id', id).single();
+    if (!p) return;
+    
+    const newPrice = prompt('New price:', p.price);
+    if (!newPrice) return;
+    const newStock = prompt('New stock:', p.stock_quantity);
+    if (newStock === null) return;
+    
+    showLoading();
+    const { error } = await supabase.from('products')
+        .update({ price: parseFloat(newPrice), stock_quantity: parseInt(newStock) })
+        .eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error', 'error');
+    } else {
+        showToast('Updated', 'success');
+        await displayProducts();
+    }
+}
+
 async function deleteProduct(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('products').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting product', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Product deleted', 'success');
+        showToast('Deleted', 'success');
         await displayProducts();
     }
 }
@@ -1113,23 +1069,19 @@ async function deleteProduct(id) {
 
 function addTableField() {
     const container = document.getElementById('productTablesForm');
-    
     const newForm = document.createElement('div');
     newForm.className = 'table-field-form';
     newForm.innerHTML = `
         <button type="button" class="remove-field-btn" onclick="this.parentElement.remove()">×</button>
-        
         <div class="form-group">
             <label>Field Name</label>
-            <input type="text" class="tableName" placeholder="e.g., Game User ID">
+            <input type="text" class="tableName" placeholder="Game User ID">
         </div>
-        
         <div class="form-group">
-            <label>Placeholder/Instructions</label>
-            <input type="text" class="tablePlaceholder" placeholder="e.g., Enter your game ID">
+            <label>Placeholder</label>
+            <input type="text" class="tablePlaceholder" placeholder="Enter your game ID">
         </div>
     `;
-    
     container.appendChild(newForm);
 }
 
@@ -1138,7 +1090,7 @@ async function saveProductTables() {
     const buttonCategoryId = document.getElementById('tableButtonCategoryId').value;
     
     if (!categoryId || !buttonCategoryId) {
-        showToast('Please select category and button category', 'error');
+        showToast('Select category and button category', 'error');
         return;
     }
     
@@ -1149,98 +1101,115 @@ async function saveProductTables() {
         const name = form.querySelector('.tableName').value.trim();
         const placeholder = form.querySelector('.tablePlaceholder').value.trim();
         
-        if (!name) {
-            showToast('Please fill all field names', 'error');
-            return;
+        if (name) {
+            fields.push({
+                button_category_id: buttonCategoryId,
+                name, placeholder: placeholder || '',
+                order_index: index
+            });
         }
-        
-        fields.push({
-            button_category_id: buttonCategoryId,
-            name,
-            placeholder: placeholder || '',
-            order_index: index
-        });
     });
     
     if (fields.length === 0) {
-        showToast('No fields to save', 'error');
+        showToast('No fields', 'error');
         return;
     }
     
     showLoading();
-    const { error } = await supabase
-        .from('product_tables')
-        .insert(fields);
-    
+    const { error } = await supabase.from('product_tables').insert(fields);
     hideLoading();
     
     if (error) {
-        console.error(error);
-        showToast('Error saving table fields', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Table fields saved successfully', 'success');
-        
-        // Reset form
-        document.getElementById('productTablesForm').innerHTML = `
-            <div class="table-field-form">
-                <div class="form-group">
-                    <label>Field Name</label>
-                    <input type="text" class="tableName" placeholder="e.g., Game User ID">
-                </div>
-                <div class="form-group">
-                    <label>Placeholder/Instructions</label>
-                    <input type="text" class="tablePlaceholder" placeholder="e.g., Enter your game ID">
-                </div>
-            </div>
-        `;
-        
+        showToast('Saved', 'success');
+        resetProductTablesForm();
         await displayProductTables();
     }
+}
+
+function resetProductTablesForm() {
+    document.getElementById('productTablesForm').innerHTML = `
+        <div class="table-field-form">
+            <div class="form-group">
+                <label>Field Name</label>
+                <input type="text" class="tableName" placeholder="Game User ID">
+            </div>
+            <div class="form-group">
+                <label>Placeholder</label>
+                <input type="text" class="tablePlaceholder" placeholder="Enter your game ID">
+            </div>
+        </div>
+    `;
 }
 
 async function displayProductTables() {
     const { data: tables } = await supabase
         .from('product_tables')
         .select('*, button_categories(id, categories(title))')
-        .order('created_at', { ascending: false });
+        .order('order_index');
     
     const container = document.getElementById('productTablesList');
     
     if (!tables || tables.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No table fields added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No table fields</p>';
         return;
     }
     
-    container.innerHTML = tables.map(table => `
+    container.innerHTML = tables.map(t => `
         <div class="list-item">
             <div class="list-item-info">
-                <div class="list-item-title">${table.name}</div>
-                <div class="list-item-meta">${table.placeholder}</div>
+                <div class="list-item-title">${t.name}</div>
+                <div class="list-item-meta">${t.placeholder}</div>
             </div>
             <div class="list-item-actions">
-                <button class="btn-delete" onclick="deleteProductTable('${table.id}')">DELETE</button>
+                <button class="btn-edit" onclick="editProductTable('${t.id}')">EDIT</button>
+                <button class="btn-delete" onclick="deleteProductTable('${t.id}')">DELETE</button>
             </div>
         </div>
     `).join('');
 }
 
+async function editProductTable(id) {
+    const { data: t } = await supabase.from('product_tables').select('*').eq('id', id).single();
+    if (!t) return;
+    
+    const newName = prompt('Field name:', t.name);
+    if (!newName) return;
+    const newPlaceholder = prompt('Placeholder:', t.placeholder);
+    if (newPlaceholder === null) return;
+    
+    showLoading();
+    const { error } = await supabase.from('product_tables')
+        .update({ name: newName, placeholder: newPlaceholder })
+        .eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error', 'error');
+    } else {
+        showToast('Updated', 'success');
+        await displayProductTables();
+    }
+}
+
 async function deleteProductTable(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('product_tables').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting table field', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Table field deleted', 'success');
+        showToast('Deleted', 'success');
         await displayProductTables();
     }
 }
 
 // ============================================
-// PAYMENT METHODS
+// PAYMENTS
 // ============================================
 
 async function loadPaymentsData() {
@@ -1254,81 +1223,94 @@ async function addPayment() {
     const iconFile = document.getElementById('paymentIcon').files[0];
     
     if (!name || !address) {
-        showToast('Please fill all required fields', 'error');
+        showToast('Fill required fields', 'error');
         return;
     }
     
     showLoading();
-    
     let iconUrl = null;
-    if (iconFile) {
-        iconUrl = await uploadFile(iconFile, 'website-assets');
-    }
+    if (iconFile) iconUrl = await uploadFile(iconFile, 'website-assets');
     
-    const { error } = await supabase
-        .from('payment_methods')
-        .insert([{
-            name,
-            address,
-            instructions: instructions || null,
-            icon_url: iconUrl
-        }]);
+    const { error } = await supabase.from('payment_methods').insert([{
+        name, address,
+        instructions: instructions || null,
+        icon_url: iconUrl
+    }]);
     
     hideLoading();
     
     if (error) {
-        showToast('Error adding payment method', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Payment method added successfully', 'success');
-        
-        document.getElementById('paymentName').value = '';
-        document.getElementById('paymentAddress').value = '';
-        document.getElementById('paymentInstructions').value = '';
-        document.getElementById('paymentIcon').value = '';
-        document.getElementById('paymentIconPreview').innerHTML = '';
-        
+        showToast('Added', 'success');
+        resetPaymentForm();
         await displayPayments();
     }
 }
 
+function resetPaymentForm() {
+    document.getElementById('paymentName').value = '';
+    document.getElementById('paymentAddress').value = '';
+    document.getElementById('paymentInstructions').value = '';
+    document.getElementById('paymentIcon').value = '';
+    document.getElementById('paymentIconPreview').innerHTML = '';
+}
+
 async function displayPayments() {
-    const { data: payments } = await supabase
-        .from('payment_methods')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const { data: payments } = await supabase.from('payment_methods').select('*').order('name');
     
     const container = document.getElementById('paymentsList');
     
     if (!payments || payments.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No payment methods added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No payments</p>';
         return;
     }
     
-    container.innerHTML = payments.map(payment => `
+    container.innerHTML = payments.map(p => `
         <div class="list-item">
-            ${payment.icon_url ? `<img src="${payment.icon_url}" alt="${payment.name}" class="list-item-image">` : '<div class="list-item-image"></div>'}
+            ${p.icon_url ? `<img src="${p.icon_url}" class="list-item-image">` : '<div class="list-item-image"></div>'}
             <div class="list-item-info">
-                <div class="list-item-title">${payment.name}</div>
-                <div class="list-item-meta">${payment.address}</div>
+                <div class="list-item-title">${p.name}</div>
+                <div class="list-item-meta">${p.address}</div>
             </div>
             <div class="list-item-actions">
-                <button class="btn-delete" onclick="deletePayment('${payment.id}')">DELETE</button>
+                <button class="btn-edit" onclick="editPayment('${p.id}')">EDIT</button>
+                <button class="btn-delete" onclick="deletePayment('${p.id}')">DELETE</button>
             </div>
         </div>
     `).join('');
 }
 
+async function editPayment(id) {
+    const { data: p } = await supabase.from('payment_methods').select('*').eq('id', id).single();
+    if (!p) return;
+    
+    const newAddress = prompt('New address:', p.address);
+    if (!newAddress) return;
+    
+    showLoading();
+    const { error } = await supabase.from('payment_methods').update({ address: newAddress }).eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error', 'error');
+    } else {
+        showToast('Updated', 'success');
+        await displayPayments();
+    }
+}
+
 async function deletePayment(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('payment_methods').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting payment method', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Payment method deleted', 'success');
+        showToast('Deleted', 'success');
         await displayPayments();
     }
 }
@@ -1348,81 +1330,93 @@ async function addContact() {
     const iconFile = document.getElementById('contactIcon').files[0];
     
     if (!name) {
-        showToast('Please enter contact name', 'error');
+        showToast('Enter name', 'error');
         return;
     }
     
     showLoading();
-    
     let iconUrl = null;
-    if (iconFile) {
-        iconUrl = await uploadFile(iconFile, 'website-assets');
-    }
+    if (iconFile) iconUrl = await uploadFile(iconFile, 'website-assets');
     
-    const { error } = await supabase
-        .from('contacts')
-        .insert([{
-            name,
-            description: description || null,
-            link: link || null,
-            icon_url: iconUrl
-        }]);
+    const { error } = await supabase.from('contacts').insert([{
+        name, description: description || null,
+        link: link || null, icon_url: iconUrl
+    }]);
     
     hideLoading();
     
     if (error) {
-        showToast('Error adding contact', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Contact added successfully', 'success');
-        
-        document.getElementById('contactName').value = '';
-        document.getElementById('contactDescription').value = '';
-        document.getElementById('contactLink').value = '';
-        document.getElementById('contactIcon').value = '';
-        document.getElementById('contactIconPreview').innerHTML = '';
-        
+        showToast('Added', 'success');
+        resetContactForm();
         await displayContacts();
     }
 }
 
+function resetContactForm() {
+    document.getElementById('contactName').value = '';
+    document.getElementById('contactDescription').value = '';
+    document.getElementById('contactLink').value = '';
+    document.getElementById('contactIcon').value = '';
+    document.getElementById('contactIconPreview').innerHTML = '';
+}
+
 async function displayContacts() {
-    const { data: contacts } = await supabase
-        .from('contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
+    const { data: contacts } = await supabase.from('contacts').select('*').order('name');
     
     const container = document.getElementById('contactsList');
     
     if (!contacts || contacts.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No contacts added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No contacts</p>';
         return;
     }
     
-    container.innerHTML = contacts.map(contact => `
+    container.innerHTML = contacts.map(c => `
         <div class="list-item">
-            ${contact.icon_url ? `<img src="${contact.icon_url}" alt="${contact.name}" class="list-item-image">` : '<div class="list-item-image"></div>'}
+            ${c.icon_url ? `<img src="${c.icon_url}" class="list-item-image">` : '<div class="list-item-image"></div>'}
             <div class="list-item-info">
-                <div class="list-item-title">${contact.name}</div>
-                <div class="list-item-meta">${contact.link || contact.description || ''}</div>
+                <div class="list-item-title">${c.name}</div>
+                <div class="list-item-meta">${c.link || c.description || ''}</div>
             </div>
             <div class="list-item-actions">
-                <button class="btn-delete" onclick="deleteContact('${contact.id}')">DELETE</button>
+                <button class="btn-edit" onclick="editContact('${c.id}')">EDIT</button>
+                <button class="btn-delete" onclick="deleteContact('${c.id}')">DELETE</button>
             </div>
         </div>
     `).join('');
 }
 
+async function editContact(id) {
+    const { data: c } = await supabase.from('contacts').select('*').eq('id', id).single();
+    if (!c) return;
+    
+    const newLink = prompt('New link:', c.link);
+    if (newLink === null) return;
+    
+    showLoading();
+    const { error } = await supabase.from('contacts').update({ link: newLink }).eq('id', id);
+    hideLoading();
+    
+    if (error) {
+        showToast('Error', 'error');
+    } else {
+        showToast('Updated', 'success');
+        await displayContacts();
+    }
+}
+
 async function deleteContact(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('contacts').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting contact', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Contact deleted', 'success');
+        showToast('Deleted', 'success');
         await displayContacts();
     }
 }
@@ -1431,33 +1425,22 @@ async function deleteContact(id) {
 // ORDERS
 // ============================================
 
-let currentOrderFilter = 'all';
-
 function setupOrderFilters() {
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             currentOrderFilter = e.target.dataset.status;
-            
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
-            
             loadOrdersData();
         });
     });
 }
 
 async function loadOrdersData() {
-    let query = supabase
-        .from('orders')
-        .select('*, users(name, email, username)')
-        .order('created_at', { ascending: false });
-    
-    if (currentOrderFilter !== 'all') {
-        query = query.eq('status', currentOrderFilter);
-    }
+    let query = supabase.from('orders').select('*, users(name, email, username)').order('created_at', { ascending: false });
+    if (currentOrderFilter !== 'all') query = query.eq('status', currentOrderFilter);
     
     const { data: orders } = await query;
-    
     displayOrders(orders);
 }
 
@@ -1465,7 +1448,7 @@ function displayOrders(orders) {
     const container = document.getElementById('ordersList');
     
     if (!orders || orders.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No orders found</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No orders</p>';
         return;
     }
     
@@ -1475,13 +1458,11 @@ function displayOrders(orders) {
         return `
             <div class="order-item">
                 <span class="order-status-badge ${order.status}">${order.status}</span>
-                
                 <div class="order-header">
                     <div class="order-id">Order #${order.id.substring(0, 8)}</div>
                     <div class="order-user">${order.users?.name || 'Unknown'} (@${order.users?.username || 'N/A'})</div>
                     <div class="order-user">${order.users?.email || 'N/A'}</div>
                 </div>
-                
                 <div class="order-details">
                     <div class="order-detail-row">
                         <span class="order-detail-label">Product:</span>
@@ -1492,16 +1473,16 @@ function displayOrders(orders) {
                         <span class="order-detail-value">${order.price} ${order.currency}</span>
                     </div>
                     <div class="order-detail-row">
-                        <span class="order-detail-label">Payment Address:</span>
+                        <span class="order-detail-label">Payment:</span>
                         <span class="order-detail-value">${order.payment_address || 'N/A'}</span>
                     </div>
                     <div class="order-detail-row">
-                        <span class="order-detail-label">Transaction Code:</span>
+                        <span class="order-detail-label">Transaction:</span>
                         <span class="order-detail-value">${order.transaction_code || 'N/A'}</span>
                     </div>
                     ${Object.keys(tableData).length > 0 ? `
                         <div class="order-detail-row">
-                            <span class="order-detail-label">Form Data:</span>
+                            <span class="order-detail-label">Data:</span>
                             <span class="order-detail-value">${JSON.stringify(tableData)}</span>
                         </div>
                     ` : ''}
@@ -1511,12 +1492,11 @@ function displayOrders(orders) {
                     </div>
                     ${order.admin_note ? `
                         <div class="order-detail-row">
-                            <span class="order-detail-label">Admin Note:</span>
+                            <span class="order-detail-label">Note:</span>
                             <span class="order-detail-value">${order.admin_note}</span>
                         </div>
                     ` : ''}
                 </div>
-                
                 ${order.status === 'pending' ? `
                     <div class="order-actions">
                         <textarea class="order-note-input" id="note-${order.id}" placeholder="Add note (optional)"></textarea>
@@ -1533,35 +1513,25 @@ async function updateOrderStatus(orderId, status) {
     const noteInput = document.getElementById(`note-${orderId}`);
     const adminNote = noteInput?.value.trim() || null;
     
-    const confirmMsg = status === 'approved' 
-        ? 'Are you sure you want to approve this order?' 
-        : 'Are you sure you want to reject this order?';
-    
-    if (!confirm(confirmMsg)) return;
+    if (!confirm(`${status.toUpperCase()} this order?`)) return;
     
     showLoading();
-    
-    const { error } = await supabase
-        .from('orders')
-        .update({
-            status,
-            admin_note: adminNote,
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-    
+    const { error } = await supabase.from('orders').update({
+        status, admin_note: adminNote,
+        updated_at: new Date().toISOString()
+    }).eq('id', orderId);
     hideLoading();
     
     if (error) {
-        showToast('Error updating order', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast(`Order ${status} successfully`, 'success');
+        showToast(`Order ${status}`, 'success');
         await loadOrdersData();
     }
 }
 
 // ============================================
-// YOUTUBE VIDEOS
+// YOUTUBE
 // ============================================
 
 async function loadYoutubeData() {
@@ -1577,43 +1547,42 @@ async function addYoutubeVideo() {
     const bannerFile = document.getElementById('youtubeBanner').files[0];
     
     if (!categoryId || !buttonCategoryId || !videoUrl || !bannerFile) {
-        showToast('Please fill all required fields', 'error');
+        showToast('Fill all fields', 'error');
         return;
     }
     
     showLoading();
-    
     const bannerUrl = await uploadFile(bannerFile, 'website-assets');
     
     if (!bannerUrl) {
         hideLoading();
-        showToast('Error uploading banner', 'error');
+        showToast('Upload error', 'error');
         return;
     }
     
-    const { error } = await supabase
-        .from('youtube_videos')
-        .insert([{
-            button_category_id: buttonCategoryId,
-            banner_url: bannerUrl,
-            video_url: videoUrl,
-            description: description || null
-        }]);
+    const { error } = await supabase.from('youtube_videos').insert([{
+        button_category_id: buttonCategoryId,
+        banner_url: bannerUrl,
+        video_url: videoUrl,
+        description: description || null
+    }]);
     
     hideLoading();
     
     if (error) {
-        showToast('Error adding video', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Video added successfully', 'success');
-        
-        document.getElementById('youtubeVideoUrl').value = '';
-        document.getElementById('youtubeDescription').value = '';
-        document.getElementById('youtubeBanner').value = '';
-        document.getElementById('youtubeBannerPreview').innerHTML = '';
-        
+        showToast('Added', 'success');
+        resetYoutubeForm();
         await displayYoutubeVideos();
     }
+}
+
+function resetYoutubeForm() {
+    document.getElementById('youtubeVideoUrl').value = '';
+    document.getElementById('youtubeDescription').value = '';
+    document.getElementById('youtubeBanner').value = '';
+    document.getElementById('youtubeBannerPreview').innerHTML = '';
 }
 
 async function displayYoutubeVideos() {
@@ -1625,35 +1594,35 @@ async function displayYoutubeVideos() {
     const container = document.getElementById('youtubeVideosList');
     
     if (!videos || videos.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No videos added yet</p>';
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">No videos</p>';
         return;
     }
     
-    container.innerHTML = videos.map(video => `
+    container.innerHTML = videos.map(v => `
         <div class="list-item">
-            <img src="${video.banner_url}" alt="Video" class="list-item-image">
+            <img src="${v.banner_url}" class="list-item-image">
             <div class="list-item-info">
-                <div class="list-item-title">${video.button_categories?.categories?.title || 'N/A'}</div>
-                <div class="list-item-meta">${video.video_url.substring(0, 50)}...</div>
+                <div class="list-item-title">${v.button_categories?.categories?.title || 'N/A'}</div>
+                <div class="list-item-meta">${v.video_url.substring(0, 50)}...</div>
             </div>
             <div class="list-item-actions">
-                <button class="btn-delete" onclick="deleteYoutubeVideo('${video.id}')">DELETE</button>
+                <button class="btn-delete" onclick="deleteYoutubeVideo('${v.id}')">DELETE</button>
             </div>
         </div>
     `).join('');
 }
 
 async function deleteYoutubeVideo(id) {
-    if (!confirm('Are you sure?')) return;
+    if (!confirm('Delete?')) return;
     
     showLoading();
     const { error } = await supabase.from('youtube_videos').delete().eq('id', id);
     hideLoading();
     
     if (error) {
-        showToast('Error deleting video', 'error');
+        showToast('Error', 'error');
     } else {
-        showToast('Video deleted', 'success');
+        showToast('Deleted', 'success');
         await displayYoutubeVideos();
     }
 }
@@ -1663,9 +1632,11 @@ async function deleteYoutubeVideo(id) {
 // ============================================
 
 function setupFilePreviews() {
-    const fileInputs = {
+    const previews = {
         'websiteLogo': 'logoPreview',
         'backgroundImage': 'backgroundPreview',
+        'loadingAnimation': 'loadingPreview',
+        'buttonStyle': 'buttonPreview',
         'bannerImage': 'bannerImagePreview',
         'buttonCategoryIcon': 'buttonIconPreview',
         'productImage': 'productImagePreview',
@@ -1674,7 +1645,7 @@ function setupFilePreviews() {
         'youtubeBanner': 'youtubeBannerPreview'
     };
     
-    Object.entries(fileInputs).forEach(([inputId, previewId]) => {
+    Object.entries(previews).forEach(([inputId, previewId]) => {
         const input = document.getElementById(inputId);
         const preview = document.getElementById(previewId);
         
@@ -1684,7 +1655,7 @@ function setupFilePreviews() {
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (e) => {
-                        preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                        preview.innerHTML = `<img src="${e.target.result}">`;
                     };
                     reader.readAsDataURL(file);
                 }
@@ -1692,19 +1663,36 @@ function setupFilePreviews() {
         }
     });
     
-    // Setup menu icon preview (first form)
     document.addEventListener('change', (e) => {
         if (e.target.classList.contains('menuIcon')) {
             const file = e.target.files[0];
             const preview = e.target.parentElement.querySelector('.menuIconPreview');
-            
             if (file && preview) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+                    preview.innerHTML = `<img src="${e.target.result}">`;
                 };
                 reader.readAsDataURL(file);
             }
         }
     });
+}
+
+// ============================================
+// UTILITIES
+// ============================================
+
+function showLoading() {
+    document.getElementById('loadingScreen').classList.remove('hidden');
+}
+
+function hideLoading() {
+    document.getElementById('loadingScreen').classList.add('hidden');
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = `toast ${type} show`;
+    setTimeout(() => toast.classList.remove('show'), 3000);
 }
